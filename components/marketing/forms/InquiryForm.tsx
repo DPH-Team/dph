@@ -1,0 +1,361 @@
+"use client"
+
+import { useActionState } from "react"
+import { Loader2, CheckCircle } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { submitInquiry } from "@/app/(public)/_actions/inquiries"
+import { FormField } from "./FormField"
+
+const INQUIRY_TYPES = [
+  { value: "reservation", label: "Reservation" },
+  { value: "private-event", label: "Private Event" },
+  { value: "press", label: "Press" },
+  { value: "general", label: "General Inquiry" },
+] as const
+
+type InquiryType = (typeof INQUIRY_TYPES)[number]["value"]
+
+export type InquiryFormProps = {
+  defaultType?: InquiryType
+}
+
+export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
+  const [state, formAction, isPending] = useActionState(submitInquiry, null)
+
+  const fieldError = (field: string) => {
+    if (!state || state.ok) return undefined
+    return state.fieldErrors?.[field]?.[0]
+  }
+
+  if (state?.ok) {
+    return (
+      <div
+        role="alert"
+        aria-live="polite"
+        className="flex flex-col items-center gap-4 py-12 text-center"
+      >
+        <CheckCircle
+          size={48}
+          className="text-primary"
+          aria-hidden="true"
+        />
+        <p className="text-lg font-medium text-foreground">{state.message}</p>
+      </div>
+    )
+  }
+
+  return (
+    <form action={formAction} noValidate aria-label="Inquiry form">
+      <div className="flex flex-col gap-4">
+        {/* Inquiry type selector */}
+        <FormField
+          label="Type of inquiry"
+          htmlFor="inquiry-type"
+          error={fieldError("type")}
+          required
+        >
+          <div className="relative">
+            <select
+              id="inquiry-type"
+              name="type"
+              defaultValue={defaultType}
+              required
+              aria-required="true"
+              aria-invalid={fieldError("type") ? "true" : undefined}
+              aria-describedby={fieldError("type") ? "inquiry-type-error" : undefined}
+              className={cn(
+                "w-full h-10 px-3 pr-8 rounded-[var(--radius-md)] border border-border bg-input",
+                "text-sm text-foreground appearance-none",
+                "hover:border-[oklch(0.400_0.006_80)] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35",
+                "outline-none transition-colors",
+                fieldError("type") && "border-destructive",
+              )}
+            >
+              {INQUIRY_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" aria-hidden="true">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+        </FormField>
+
+        {/* Name */}
+        <FormField
+          label="Name"
+          htmlFor="inquiry-name"
+          error={fieldError("name")}
+          required
+        >
+          <input
+            id="inquiry-name"
+            name="name"
+            type="text"
+            required
+            aria-required="true"
+            aria-invalid={fieldError("name") ? "true" : undefined}
+            aria-describedby={fieldError("name") ? "inquiry-name-error" : undefined}
+            autoComplete="name"
+            minLength={2}
+            maxLength={80}
+            placeholder="Your full name"
+            className={cn(
+              "w-full h-10 px-3 rounded-[var(--radius-md)] border border-border bg-input",
+              "text-sm text-foreground placeholder:text-muted-foreground",
+              "hover:border-[oklch(0.400_0.006_80)] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35",
+              "outline-none transition-colors",
+              fieldError("name") && "border-destructive",
+            )}
+          />
+        </FormField>
+
+        {/* Email */}
+        <FormField
+          label="Email"
+          htmlFor="inquiry-email"
+          error={fieldError("email")}
+          required
+        >
+          <input
+            id="inquiry-email"
+            name="email"
+            type="email"
+            required
+            aria-required="true"
+            aria-invalid={fieldError("email") ? "true" : undefined}
+            aria-describedby={fieldError("email") ? "inquiry-email-error" : undefined}
+            autoComplete="email"
+            placeholder="you@example.com"
+            className={cn(
+              "w-full h-10 px-3 rounded-[var(--radius-md)] border border-border bg-input",
+              "text-sm text-foreground placeholder:text-muted-foreground",
+              "hover:border-[oklch(0.400_0.006_80)] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35",
+              "outline-none transition-colors",
+              fieldError("email") && "border-destructive",
+            )}
+          />
+        </FormField>
+
+        {/* Phone — always visible, required conditionally enforced server-side */}
+        <FormField
+          label="Phone"
+          htmlFor="inquiry-phone"
+          error={fieldError("phone")}
+          description="Required for reservations and private events"
+        >
+          <input
+            id="inquiry-phone"
+            name="phone"
+            type="tel"
+            aria-invalid={fieldError("phone") ? "true" : undefined}
+            aria-describedby={[
+              "inquiry-phone-desc",
+              fieldError("phone") ? "inquiry-phone-error" : undefined,
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            autoComplete="tel"
+            placeholder="(920) 555-0100"
+            className={cn(
+              "w-full h-10 px-3 rounded-[var(--radius-md)] border border-border bg-input",
+              "text-sm text-foreground placeholder:text-muted-foreground",
+              "hover:border-[oklch(0.400_0.006_80)] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35",
+              "outline-none transition-colors",
+              fieldError("phone") && "border-destructive",
+            )}
+          />
+        </FormField>
+
+        {/* Party size (reservation only) — always rendered for SSR, visually hidden */}
+        <input type="hidden" name="partySize" id="inquiry-party-size-hidden" value="" />
+        <div className={cn("flex flex-col gap-1.5")}>
+          <label
+            htmlFor="inquiry-party-size"
+            className="text-sm font-medium text-foreground flex items-center gap-1"
+          >
+            Party size
+            <span className="text-primary" aria-hidden="true">*</span>
+            <span className="text-xs text-muted-foreground font-normal">(reservations)</span>
+          </label>
+          <input
+            id="inquiry-party-size"
+            name="partySize"
+            type="number"
+            min={1}
+            max={50}
+            aria-invalid={fieldError("partySize") ? "true" : undefined}
+            aria-describedby={fieldError("partySize") ? "inquiry-party-size-error" : undefined}
+            placeholder="1–50 guests"
+            className={cn(
+              "w-full h-10 px-3 rounded-[var(--radius-md)] border border-border bg-input",
+              "text-sm text-foreground placeholder:text-muted-foreground",
+              "hover:border-[oklch(0.400_0.006_80)] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35",
+              "outline-none transition-colors",
+              fieldError("partySize") && "border-destructive",
+            )}
+          />
+          {fieldError("partySize") && (
+            <p
+              id="inquiry-party-size-error"
+              role="alert"
+              aria-live="polite"
+              className="text-xs text-destructive"
+            >
+              {fieldError("partySize")}
+            </p>
+          )}
+        </div>
+
+        {/* When fieldset: preferred date + time */}
+        <fieldset className="flex flex-col gap-4 border-0 p-0 m-0">
+          <legend className="text-sm font-medium text-foreground mb-1">
+            When
+            <span className="text-xs text-muted-foreground font-normal ml-2">(reservations &amp; private events)</span>
+          </legend>
+
+          <FormField
+            label="Preferred date"
+            htmlFor="inquiry-date"
+            error={fieldError("preferredDate")}
+          >
+            <input
+              id="inquiry-date"
+              name="preferredDate"
+              type="date"
+              aria-invalid={fieldError("preferredDate") ? "true" : undefined}
+              aria-describedby={fieldError("preferredDate") ? "inquiry-date-error" : undefined}
+              className={cn(
+                "w-full h-10 px-3 rounded-[var(--radius-md)] border border-border bg-input",
+                "text-sm text-foreground",
+                "hover:border-[oklch(0.400_0.006_80)] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35",
+                "outline-none transition-colors",
+                "[color-scheme:dark]",
+                fieldError("preferredDate") && "border-destructive",
+              )}
+            />
+          </FormField>
+
+          <FormField
+            label="Preferred time"
+            htmlFor="inquiry-time"
+            error={fieldError("preferredTime")}
+          >
+            <input
+              id="inquiry-time"
+              name="preferredTime"
+              type="time"
+              aria-invalid={fieldError("preferredTime") ? "true" : undefined}
+              aria-describedby={fieldError("preferredTime") ? "inquiry-time-error" : undefined}
+              className={cn(
+                "w-full h-10 px-3 rounded-[var(--radius-md)] border border-border bg-input",
+                "text-sm text-foreground",
+                "hover:border-[oklch(0.400_0.006_80)] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35",
+                "outline-none transition-colors",
+                "[color-scheme:dark]",
+                fieldError("preferredTime") && "border-destructive",
+              )}
+            />
+          </FormField>
+        </fieldset>
+
+        {/* Message */}
+        <FormField
+          label="Message"
+          htmlFor="inquiry-message"
+          error={fieldError("message")}
+          required
+        >
+          <textarea
+            id="inquiry-message"
+            name="message"
+            required
+            aria-required="true"
+            aria-invalid={fieldError("message") ? "true" : undefined}
+            aria-describedby={fieldError("message") ? "inquiry-message-error" : undefined}
+            minLength={10}
+            maxLength={2000}
+            rows={5}
+            placeholder="Tell us about your inquiry…"
+            className={cn(
+              "w-full px-3 py-2 rounded-[var(--radius-md)] border border-border bg-input",
+              "text-sm text-foreground placeholder:text-muted-foreground resize-y",
+              "hover:border-[oklch(0.400_0.006_80)] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35",
+              "outline-none transition-colors",
+              fieldError("message") && "border-destructive",
+            )}
+          />
+        </FormField>
+
+        {/* Consent */}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-start gap-3">
+            <input
+              id="inquiry-consent"
+              name="consent"
+              type="checkbox"
+              value="true"
+              required
+              aria-required="true"
+              aria-invalid={fieldError("consent") ? "true" : undefined}
+              aria-describedby={fieldError("consent") ? "inquiry-consent-error" : undefined}
+              className={cn(
+                "mt-0.5 size-4 rounded border border-border bg-input shrink-0 cursor-pointer",
+                "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
+                "accent-primary",
+              )}
+            />
+            <label
+              htmlFor="inquiry-consent"
+              className="text-sm text-muted-foreground leading-snug cursor-pointer"
+            >
+              I&apos;m okay being contacted about this inquiry
+              <span className="text-primary ml-1" aria-hidden="true">*</span>
+            </label>
+          </div>
+          {fieldError("consent") && (
+            <p
+              id="inquiry-consent-error"
+              role="alert"
+              aria-live="polite"
+              className="text-xs text-destructive"
+            >
+              {fieldError("consent")}
+            </p>
+          )}
+        </div>
+
+        {/* General error */}
+        {state && !state.ok && !state.fieldErrors && state.message && (
+          <p role="alert" className="text-sm text-destructive">
+            {state.message}
+          </p>
+        )}
+
+        {/* Submit */}
+        <button
+          type="submit"
+          disabled={isPending}
+          aria-busy={isPending}
+          aria-label={isPending ? "Sending your inquiry…" : "Send inquiry"}
+          className={cn(
+            "flex items-center justify-center gap-2",
+            "w-full sm:w-auto sm:px-8",
+            "h-11 px-6 rounded-[var(--radius-md)]",
+            "bg-primary text-[--color-brand-base] font-medium text-sm",
+            "hover:bg-[--color-copper-hover] active:bg-[--color-copper-active]",
+            "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "disabled:opacity-60 disabled:cursor-not-allowed",
+          )}
+        >
+          {isPending && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
+          {isPending ? "Sending…" : "Send inquiry"}
+        </button>
+      </div>
+    </form>
+  )
+}

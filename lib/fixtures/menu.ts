@@ -1,0 +1,228 @@
+import type { MenuSection, MenuItem } from "./types"
+
+const shareables: MenuItem[] = [
+  {
+    id: "mi-s1",
+    sectionId: "shareables",
+    name: "Cheese Curd Basket",
+    description: "White cheddar curds battered in a pale ale dredge, fried golden. Ranch on the side.",
+    priceCents: 1200,
+    allergens: ["gluten", "dairy"],
+    imageUrl: null,
+    available: true,
+    sortOrder: 1,
+  },
+  {
+    id: "mi-s2",
+    sectionId: "shareables",
+    name: "Spent Grain Pretzel",
+    description: "Soft pretzel made with our brewers' spent grain, served with whole grain mustard and beer cheese.",
+    priceCents: 1100,
+    allergens: ["gluten", "dairy"],
+    imageUrl: null,
+    available: true,
+    sortOrder: 2,
+  },
+  {
+    id: "mi-s3",
+    sectionId: "shareables",
+    name: "Wings — Half Dozen",
+    description: "Crispy dry-rub or sauced. Choice of buffalo, honey-garlic, or smoked jalapeño.",
+    priceCents: 1400,
+    allergens: ["gluten"],
+    imageUrl: null,
+    available: true,
+    sortOrder: 3,
+  },
+  {
+    id: "mi-s4",
+    sectionId: "shareables",
+    name: "Smoked Brisket Nachos",
+    description: "House-smoked brisket, aged cheddar, jalapeños, sour cream, pico. A full meal disguised as a snack.",
+    priceCents: 1800,
+    allergens: ["dairy"],
+    imageUrl: null,
+    available: true,
+    sortOrder: 4,
+  },
+]
+
+const mains: MenuItem[] = [
+  {
+    id: "mi-m1",
+    sectionId: "mains",
+    name: "Haus Smash Burger",
+    description: "Double smashed beef patties, American cheese, house sauce, pickles, white onion on a brioche bun.",
+    priceCents: 1600,
+    allergens: ["gluten", "dairy", "egg"],
+    imageUrl: null,
+    available: true,
+    sortOrder: 1,
+  },
+  {
+    id: "mi-m2",
+    sectionId: "mains",
+    name: "Beer-Braised Brat Plate",
+    description: "Two Johnsonville brats slow-braised in our amber ale, served with sauerkraut and stone mustard.",
+    priceCents: 1500,
+    allergens: ["gluten"],
+    imageUrl: null,
+    available: true,
+    sortOrder: 2,
+  },
+  {
+    id: "mi-m3",
+    sectionId: "mains",
+    name: "Walleye Fish Fry",
+    description: "Friday feature. Cornmeal-crusted walleye, coleslaw, tartar sauce, marble rye. Ask your pour card.",
+    priceCents: 1900,
+    allergens: ["gluten", "shellfish", "egg"],
+    imageUrl: null,
+    available: true,
+    sortOrder: 3,
+  },
+  {
+    id: "mi-m4",
+    sectionId: "mains",
+    name: "Black Bean Smash Burger",
+    description: "Spiced black bean patty, smoked gouda, avocado, chipotle mayo, pickled onion.",
+    priceCents: 1500,
+    allergens: ["gluten", "dairy", "egg", "soy"],
+    imageUrl: null,
+    available: true,
+    sortOrder: 4,
+  },
+]
+
+const sides: MenuItem[] = [
+  {
+    id: "mi-si1",
+    sectionId: "sides",
+    name: "Seasoned Fries",
+    description: "House blend seasoning, crispy cut. Ask for the dip flight.",
+    priceCents: 600,
+    allergens: ["gluten"],
+    imageUrl: null,
+    available: true,
+    sortOrder: 1,
+  },
+  {
+    id: "mi-si2",
+    sectionId: "sides",
+    name: "House Slaw",
+    description: "Cider vinegar–dressed cabbage, carrots, fennel. Light and bright.",
+    priceCents: 500,
+    allergens: ["egg"],
+    imageUrl: null,
+    available: true,
+    sortOrder: 2,
+  },
+  {
+    id: "mi-si3",
+    sectionId: "sides",
+    name: "Beer Mac & Cheese",
+    description: "Three-cheese sauce with a splash of our lager, crispy breadcrumb top.",
+    priceCents: 800,
+    allergens: ["gluten", "dairy"],
+    imageUrl: null,
+    available: true,
+    sortOrder: 3,
+  },
+  {
+    id: "mi-si4",
+    sectionId: "sides",
+    name: "Pickle Spears",
+    description: "House-brined, dill forward, big crunch. Four spears.",
+    priceCents: 400,
+    allergens: [],
+    imageUrl: null,
+    available: true,
+    sortOrder: 4,
+  },
+]
+
+const desserts: MenuItem[] = [
+  {
+    id: "mi-d1",
+    sectionId: "desserts",
+    name: "Stout Brownie Sundae",
+    description: "Fudgy brownie made with our imperial stout, vanilla bean ice cream, salted caramel drizzle.",
+    priceCents: 1000,
+    allergens: ["gluten", "dairy", "egg"],
+    imageUrl: null,
+    available: true,
+    sortOrder: 1,
+  },
+  {
+    id: "mi-d2",
+    sectionId: "desserts",
+    name: "Kringle (Seasonal)",
+    description: "Racine-style kringle, rotating filling. Ask your server for today's flavor.",
+    priceCents: 700,
+    allergens: ["gluten", "dairy", "nuts"],
+    imageUrl: null,
+    available: true,
+    sortOrder: 2,
+  },
+  {
+    id: "mi-d3",
+    sectionId: "desserts",
+    name: "S'mores Dip",
+    description: "Skillet-melted chocolate, toasted marshmallow, graham cracker dippers.",
+    priceCents: 900,
+    allergens: ["gluten", "dairy", "egg"],
+    imageUrl: null,
+    available: true,
+    sortOrder: 3,
+  },
+  {
+    id: "mi-d4",
+    sectionId: "desserts",
+    name: "Cheese Board",
+    description: "Three Wisconsin cheeses, seasonal jam, honeycomb, crostini.",
+    priceCents: 1400,
+    allergens: ["gluten", "dairy"],
+    imageUrl: null,
+    available: true,
+    sortOrder: 4,
+  },
+]
+
+export const menuSections: MenuSection[] = [
+  {
+    id: "shareables",
+    name: "Shareables",
+    description: "Good to share, better to hoard.",
+    sortOrder: 1,
+    items: shareables,
+  },
+  {
+    id: "mains",
+    name: "Mains",
+    description: "Plates worth the pour.",
+    sortOrder: 2,
+    items: mains,
+  },
+  {
+    id: "sides",
+    name: "Sides",
+    description: null,
+    sortOrder: 3,
+    items: sides,
+  },
+  {
+    id: "desserts",
+    name: "Desserts",
+    description: "Save room.",
+    sortOrder: 4,
+    items: desserts,
+  },
+]
+
+export async function getMenuSections(): Promise<MenuSection[]> {
+  return menuSections
+}
+
+export async function getFeaturedMenuItems(): Promise<MenuItem[]> {
+  return [shareables[0]!, mains[0]!, mains[1]!, sides[2]!]
+}
