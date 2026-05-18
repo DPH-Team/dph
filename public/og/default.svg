@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- Brand base background -->
+  <rect width="1200" height="630" fill="#0f0f0f"/>
+
+  <!-- Gradient accent -->
+  <defs>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B6C47;stop-opacity:0.15" />
+      <stop offset="100%" style="stop-color:#0f0f0f;stop-opacity:0" />
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#accentGrad)"/>
+
+  <!-- Gold wordmark area (centered) -->
+  <g transform="translate(600, 280)">
+    <!-- District Pour Haus wordmark placeholder -->
+    <text x="0" y="0" font-family="Georgia, serif" font-size="72" font-weight="600" text-anchor="middle" fill="#D4A574" letter-spacing="2">
+      DISTRICT
+    </text>
+    <text x="0" y="90" font-family="Georgia, serif" font-size="72" font-weight="600" text-anchor="middle" fill="#D4A574" letter-spacing="2">
+      POUR HAUS
+    </text>
+  </g>
+
+  <!-- Cream tagline -->
+  <text x="600" y="520" font-family="Inter, sans-serif" font-size="28" font-weight="400" text-anchor="middle" fill="#F5F5F0">
+    Our Haus is Your Haus
+  </text>
+
+  <!-- Note: This SVG is a placeholder. Replace with PNG export before launch. -->
+  <!-- TODO: Design team to export 1200×630 PNG with brand palette and high contrast. -->
+</svg>
