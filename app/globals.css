@@ -1,26 +1,178 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
+/* ─── Raw palette + design tokens ──────────────────────────────────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Brand anchors */
+  --color-brand-base:     oklch(0.158 0.002 286);
+  --color-cream:          oklch(0.949 0.014 79);
+  --color-copper:         oklch(0.648 0.130 47);
+  --color-copper-hover:   oklch(0.610 0.128 46);
+  --color-copper-active:  oklch(0.572 0.124 45);
+
+  /* Packers — sourced from exterior sign (#203731 / #2E5339 / #FFB612) */
+  --color-packers-green:        oklch(0.302 0.024 160);
+  --color-packers-green-bright: oklch(0.404 0.048 152);
+  --color-packers-gold:         oklch(0.806 0.165 81);
+
+  /* Neutral scale — warm at top, soot-cool at bottom */
+  --color-neutral-50:     oklch(0.970 0.004 80);
+  --color-neutral-100:    oklch(0.920 0.006 80);
+  --color-neutral-200:    oklch(0.850 0.008 80);
+  --color-neutral-300:    oklch(0.740 0.010 80);
+  --color-neutral-400:    oklch(0.620 0.010 80);
+  --color-neutral-500:    oklch(0.500 0.008 80);
+  --color-neutral-600:    oklch(0.400 0.006 80);
+  --color-neutral-700:    oklch(0.310 0.005 286);
+  --color-neutral-800:    oklch(0.235 0.004 286);
+  --color-neutral-900:    oklch(0.198 0.003 286);
+  --color-neutral-950:    oklch(0.140 0.002 286);
+
+  /* Semantic raw */
+  --color-destructive:    oklch(0.620 0.150 32);
+  --color-ring:           oklch(0.720 0.135 50);
+
+  /* Shadcn semantic aliases — dark-only app, both :root and .dark are identical */
+  --color-background:     var(--background);
+  --color-foreground:     var(--foreground);
+  --color-card:           var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover:        var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary:        var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary:      var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted:          var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent:         var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive:    var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border:         var(--border);
+  --color-input:          var(--input);
+  --color-ring:           var(--ring);
+
+  /* Sidebar (kept for admin shell compatibility) */
+  --color-sidebar-ring:              var(--sidebar-ring);
+  --color-sidebar-border:            var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent:            var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary:           var(--sidebar-primary);
+  --color-sidebar-foreground:        var(--sidebar-foreground);
+  --color-sidebar:                   var(--sidebar);
+
+  /* Typography */
+  --font-sans:    var(--font-inter);
+  --font-display: var(--font-fraunces);
+  --font-mono:    ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-heading: var(--font-fraunces);
+
+  /* Radius scale */
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   12px;
+  --radius-xl:   16px;
+  --radius-full: 9999px;
+
+  /* Shadow tokens */
+  --shadow-popover: 0 12px 32px -12px oklch(0 0 0 / 0.5);
+  --shadow-dialog:  0 24px 60px -20px oklch(0 0 0 / 0.6);
+
+  /* Easing */
+  --ease-out-warm: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ─── Semantic token mapping ────────────────────────────────────────────────
+   Dark-only app. We set identical values on :root and .dark so shadcn
+   components work regardless of which selector they use. Light-mode is
+   intentionally removed — this product ships dark-only.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  --background:           oklch(0.158 0.002 286);
+  --foreground:           oklch(0.949 0.014 79);
+  --card:                 oklch(0.198 0.003 286);
+  --card-foreground:      oklch(0.949 0.014 79);
+  --popover:              oklch(0.235 0.004 286);
+  --popover-foreground:   oklch(0.949 0.014 79);
+  --primary:              oklch(0.648 0.130 47);
+  --primary-foreground:   oklch(0.158 0.002 286);
+  --secondary:            oklch(0.198 0.003 286);
+  --secondary-foreground: oklch(0.949 0.014 79);
+  --muted:                oklch(0.198 0.003 286);
+  --muted-foreground:     oklch(0.700 0.010 80);
+  --accent:               oklch(0.648 0.130 47);
+  --accent-foreground:    oklch(0.158 0.002 286);
+  --destructive:          oklch(0.620 0.150 32);
+  --destructive-foreground: oklch(0.158 0.002 286);
+  --border:               oklch(0.310 0.005 286);
+  --input:                oklch(0.198 0.003 286);
+  --ring:                 oklch(0.720 0.135 50);
+  --radius:               0.75rem;
+
+  /* Sidebar — inherits brand values */
+  --sidebar:                      oklch(0.198 0.003 286);
+  --sidebar-foreground:           oklch(0.949 0.014 79);
+  --sidebar-primary:              oklch(0.648 0.130 47);
+  --sidebar-primary-foreground:   oklch(0.158 0.002 286);
+  --sidebar-accent:               oklch(0.235 0.004 286);
+  --sidebar-accent-foreground:    oklch(0.949 0.014 79);
+  --sidebar-border:               oklch(0.310 0.005 286);
+  --sidebar-ring:                 oklch(0.720 0.135 50);
+}
+
+/* .dark mirrors :root exactly — both map to the same brand dark palette */
+.dark {
+  --background:           oklch(0.158 0.002 286);
+  --foreground:           oklch(0.949 0.014 79);
+  --card:                 oklch(0.198 0.003 286);
+  --card-foreground:      oklch(0.949 0.014 79);
+  --popover:              oklch(0.235 0.004 286);
+  --popover-foreground:   oklch(0.949 0.014 79);
+  --primary:              oklch(0.648 0.130 47);
+  --primary-foreground:   oklch(0.158 0.002 286);
+  --secondary:            oklch(0.198 0.003 286);
+  --secondary-foreground: oklch(0.949 0.014 79);
+  --muted:                oklch(0.198 0.003 286);
+  --muted-foreground:     oklch(0.700 0.010 80);
+  --accent:               oklch(0.648 0.130 47);
+  --accent-foreground:    oklch(0.158 0.002 286);
+  --destructive:          oklch(0.620 0.150 32);
+  --destructive-foreground: oklch(0.158 0.002 286);
+  --border:               oklch(0.310 0.005 286);
+  --input:                oklch(0.198 0.003 286);
+  --ring:                 oklch(0.720 0.135 50);
+  --radius:               0.75rem;
+
+  --sidebar:                      oklch(0.198 0.003 286);
+  --sidebar-foreground:           oklch(0.949 0.014 79);
+  --sidebar-primary:              oklch(0.648 0.130 47);
+  --sidebar-primary-foreground:   oklch(0.158 0.002 286);
+  --sidebar-accent:               oklch(0.235 0.004 286);
+  --sidebar-accent-foreground:    oklch(0.949 0.014 79);
+  --sidebar-border:               oklch(0.310 0.005 286);
+  --sidebar-ring:                 oklch(0.720 0.135 50);
+}
+
+/* ─── Base layer ────────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
+  body {
+    @apply bg-background text-foreground font-sans leading-relaxed;
+    font-optical-sizing: auto;
+  }
+  html {
+    @apply font-sans;
+  }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Tabular numerals utility — tap counter, prices, hours */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
 }
