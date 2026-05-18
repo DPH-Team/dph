@@ -1,0 +1,297 @@
+# District Pour Haus — Build Phases
+
+Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with admin CMS, Untappd-driven tap list, and Printify-driven merch gallery.
+
+**Tagline:** Our Haus is Your Haus
+**Stack:** Next.js 15 (App Router, TS) · Tailwind v4 · shadcn/ui · Framer Motion · Supabase (Postgres + Auth + Storage + RLS) · Drizzle ORM · Resend · react-hook-form + zod · Vercel · Plausible
+**Deploy target:** `staging.districtpourhaus.com` first, production cutover only after owner approval.
+
+---
+
+## Phase 0 — Foundation
+
+**Goal:** Bootstrapped, deployable skeleton with all infra wired.
+
+**Deliverables**
+- Next.js 15 app initialized, TypeScript strict mode, ESLint + Prettier
+- Tailwind v4 configured with design tokens placeholder
+- shadcn/ui CLI initialized, base components installed
+- Supabase project created (staging), env vars wired (`.env.local`, `.env.example`)
+- Drizzle ORM configured against Supabase Postgres, initial migration tooling
+- Resend account configured, API key wired
+- Vercel project linked, preview deploys on PR
+- Repo committed to GitHub with branch protection on `main`
+
+**Agents:** `dph-architect` (decisions), `dph-backend` (infra setup)
+**Skills:** `dph-scaffold`
+
+**Exit criteria**
+- `npm run dev` boots a blank Next.js page
+- `npm run db:push` applies an empty Drizzle schema to Supabase
+- Vercel preview deploy succeeds from a PR
+
+---
+
+## Phase 1 — Design System
+
+**Goal:** Visual foundation. Every later phase pulls from these primitives.
+
+**Deliverables**
+- Color tokens: `#0E0E0F` base, `#C97B4A` copper, `#F5EFE6` cream, neutral scale, semantic tokens (`bg`, `fg`, `muted`, `accent`, etc.)
+- Typography: Fraunces (display) + Inter (body), subsetted, fluid type scale
+- Base components: Button, Input, Textarea, Select, Dialog, Sheet, Card, Badge, Toast, Tabs (shadcn-customized)
+- Layout primitives: Container, Section, Stack, Grid
+- Motion primitives: scroll-reveal wrapper, fade-in, stagger helpers (Framer Motion, respects `prefers-reduced-motion`)
+- Iconography: Lucide
+- Grain texture overlay, dark-first themed
+- Storybook OR a `/styleguide` route for visual regression review
+
+**Agents:** `dph-design` (visual decisions), `dph-frontend` (implementation)
+**Skills:** `dph-component`
+
+**Exit criteria**
+- `/styleguide` renders every base component in dark theme with AA contrast verified
+- Lighthouse accessibility score ≥ 95 on styleguide page
+
+---
+
+## Phase 2 — Public Marketing Site (mock data)
+
+**Goal:** Every public page exists, styled, content-complete with placeholders. No DB wiring yet.
+
+**Deliverables**
+- Home (hero, tap counter, upcoming events strip, featured menu, hours/location card, IG feed slot, newsletter CTA)
+- About (story, "Our Haus is Your Haus", team, self-pour with RFID cards explainer)
+- Menu (food sections only, tabs)
+- Taps (mock fixture rendering, filter by style/ABV)
+- Events (calendar + list views)
+- Reservations & Inquiries (unified form, type selector — not yet wired to DB)
+- Gallery (masonry + lightbox)
+- Merch (mock product grid, outbound link placeholder)
+- Careers (positions list, application form shell)
+- Contact / Directions (Mapbox map, hours, parking)
+- Legal (Privacy, Terms)
+- Global header + footer, mobile nav
+
+**Agents:** `dph-frontend`, `dph-design`, `dph-content` (placeholder copy + SEO meta)
+**Skills:** `dph-page`, `dph-component`
+
+**Exit criteria**
+- All routes render on mobile + desktop with placeholder data
+- No console errors, no layout shift, Lighthouse perf ≥ 90 on each page
+- Content reviewed for typos and brand voice
+
+---
+
+## Phase 3 — Admin & Auth Foundation
+
+**Goal:** Locked-down admin shell with per-staff accounts and audit logging.
+
+**Deliverables**
+- Drizzle schema for: `profiles`, `audit_log`, `integrations`
+- Supabase Auth (email + password), email confirmation enabled
+- Row-Level Security policies: public read on published rows, admin/staff write
+- Role enum: `admin` (full) and `staff` (limited — no integrations, no user management)
+- Admin route group `(admin)` with middleware-guarded auth + role checks
+- Admin shell: sidebar nav, top bar with user menu, breadcrumbs, dark theme matching public site
+- `lib/audit.ts` helper: records every create/update/delete with diff, user_id, ip, ua, timestamp
+- Login event tracking (every successful + failed login → audit log)
+- Activity log viewer route (read-only, filter by user / entity / date range)
+
+**Agents:** `dph-backend` (auth + RLS), `dph-admin` (shell)
+**Skills:** `dph-migration`
+
+**Exit criteria**
+- Non-authenticated user redirected from `/admin`
+- Two test accounts (one admin, one staff) created via Supabase dashboard, both can log in
+- Login event appears in `audit_log` table
+- Staff account cannot reach `/admin/integrations` or `/admin/users`
+
+---
+
+## Phase 4 — Admin CRUDs
+
+**Goal:** Owner can manage every piece of content from the admin.
+
+**Deliverables (in build order)**
+1. Events CRUD — title, slug, datetime range, image upload (Supabase Storage), description (rich text), ticket URL, featured flag, published flag
+2. Menu CRUD — sections + items with sort order, price, allergens, image, available toggle
+3. Hours overrides — date-keyed open/close/closed with note
+4. Content blocks — typed JSON editor for keys: `home_hero`, `about_body`, `home_callouts`, etc.
+5. Gallery manager — upload, alt text, tags, drag-to-reorder
+6. Inquiries inbox — list view (filterable by type + status), detail view with status transitions (pending → confirmed/declined), notes field
+7. Careers — postings CRUD + applicants list with resume download
+8. Integrations panel (admin-only) — encrypted credential storage for Untappd (`location_id`, read-only token) and Printify (`api_key`, `shop_id`), test-connection buttons
+9. Newsletter — subscriber list + CSV export
+10. Activity log viewer — already built in Phase 3, polish + filtering
+
+**Agents:** `dph-admin`, `dph-backend`
+**Skills:** `dph-admin-crud`, `dph-migration`
+
+**Exit criteria**
+- Each CRUD passes manual test: create, read, update, delete, RLS-enforced
+- All mutations write to `audit_log`
+- Staff role can edit events/menu/hours/content/gallery/inquiries/careers; only admin can touch integrations + newsletter
+
+---
+
+## Phase 5 — Public ↔ DB Wiring
+
+**Goal:** Public site reads from Supabase. Admin edits show up on the live site within seconds.
+
+**Deliverables**
+- Replace all mock fixtures with RSC queries (Drizzle on server)
+- ISR with on-demand revalidation: admin save → `revalidateTag` call → public page refresh
+- Hours endpoint: applies overrides on top of defaults, returns today's effective hours
+- Events: published-only, ordered by `starts_at`, past events archived
+- Menu: only items with `available = true`
+- Inquiries form connected to DB (write path only — staff notify + auto-reply added in Phase 7)
+
+**Agents:** `dph-frontend`, `dph-backend`
+**Skills:** none new
+
+**Exit criteria**
+- Editing an event in admin updates the public events page within 5 seconds
+- No mock data references remain in `app/` outside `__fixtures__/`
+
+---
+
+## Phase 6 — External Integrations
+
+**Goal:** Live tap list from Untappd, live merch from Printify, both server-fetched and cached.
+
+**Deliverables**
+- `lib/untappd.ts` — server-only fetcher, basic-auth with read-only token, normalizes menu JSON to internal type, tag-based revalidation (~5 min), graceful fallback to mock fixture when creds missing or upstream errors
+- `lib/printify.ts` — server-only fetcher, lists products from configured shop, normalizes to card data, links each to Printify Pop-Up Store URL
+- "Live menu temporarily unavailable" banner UI when Untappd fetch fails (still shows last-good cached data)
+- Admin integrations panel populates the credentials; toggle to switch between mock/live
+- Loading + empty states for both pages
+
+**Agents:** `dph-integrations`, `dph-backend`, `dph-frontend`
+**Skills:** none new
+
+**Exit criteria**
+- With mock creds, `/taps` renders fixture data
+- With real creds in integrations panel, `/taps` renders live Untappd menu
+- Same for `/merch` with Printify
+- Outage simulation: removing creds shows graceful fallback, never blank page
+
+---
+
+## Phase 7 — Forms & Email
+
+**Goal:** Inquiry + careers forms send mail.
+
+**Deliverables**
+- Resend templates: staff-notification (with inquiry detail) and customer auto-reply ("we received your request, will confirm within X hours")
+- Unified inquiry form server action: validates with zod, writes to DB, fires both emails, returns success state
+- Careers application form: same pattern + resume upload to Supabase Storage, link in staff email
+- Form spam protection: hCaptcha or Cloudflare Turnstile
+- Newsletter signup wired (writes to `subscribers` table; broadcast send remains manual via Resend dashboard for now)
+
+**Agents:** `dph-integrations`, `dph-frontend`
+**Skills:** none new
+
+**Exit criteria**
+- Submitting the inquiry form writes a row to `inquiries`, sends staff email, sends auto-reply to customer
+- Resume upload appears in Storage, linked in staff email
+- Bot submissions blocked by captcha
+
+---
+
+## Phase 8 — SEO & Metadata
+
+**Goal:** Restaurant ranks well for local search.
+
+**Deliverables**
+- Per-page metadata via Next `generateMetadata` (titles, descriptions, OG images)
+- Dynamic OG image generation for event pages (`@vercel/og`)
+- JSON-LD structured data: `Restaurant` (sitewide), `Event` (per event), `Menu` (menu page)
+- `sitemap.ts`, `robots.ts`
+- Canonical URLs, no-index on admin routes
+- Plausible analytics installed (privacy-friendly, no cookie banner needed)
+
+**Agents:** `dph-content`, `dph-frontend`
+**Skills:** none new
+
+**Exit criteria**
+- Google Rich Results Test validates Restaurant + Event JSON-LD
+- Sitemap accessible at `/sitemap.xml`, contains all public pages + events
+- Plausible dashboard receives pageviews from staging
+
+---
+
+## Phase 9 — Performance & Accessibility Polish
+
+**Goal:** Production-grade.
+
+**Deliverables**
+- Image optimization audit (next/image everywhere, AVIF, blur placeholders)
+- Font subsetting verified, no FOUT
+- JS bundle audit, dynamic imports for heavy admin-only components
+- Motion polish: hero parallax, scroll reveals, tap-counter ticker, all behind `prefers-reduced-motion`
+- Full keyboard navigation tested, focus rings visible, skip-to-content link
+- Screen reader sweep on every public page
+- Color contrast audit (AA minimum)
+- Lighthouse run on every public page: target ≥ 95 across Performance, Accessibility, Best Practices, SEO
+
+**Agents:** `dph-qa`, `dph-design`, `dph-frontend`
+**Skills:** none new
+
+**Exit criteria**
+- Lighthouse ≥ 95 across all four categories on Home, Menu, Taps, Events, Merch
+- axe-core scan clean on every public page
+- Manual keyboard run completes a full reservation form submit without a mouse
+
+---
+
+## Phase 10 — Staging Deploy & Owner Handoff
+
+**Goal:** Owner can log in, manage content, see live updates.
+
+**Deliverables**
+- `staging.districtpourhaus.com` live on Vercel
+- Production environment ready (separate Supabase project, env vars set, domain pre-configured but not yet pointed)
+- Admin docs: short Loom-style walkthrough OR written guide for events, menu, hours, integrations, inquiries
+- Two real admin accounts provisioned (owner + manager)
+- Monitoring: Vercel Analytics + error logging (Sentry optional)
+- Backup strategy documented for Supabase
+
+**Agents:** `dph-architect` (final review), `dph-qa` (sign-off)
+**Skills:** `dph-deploy-staging`
+
+**Exit criteria**
+- Owner successfully logs into staging admin, creates a test event, sees it appear on the public site
+- Owner approves production cutover
+- DNS swap planned with rollback path
+
+---
+
+## Phase Dependencies
+
+```
+Phase 0
+  └─ Phase 1
+       └─ Phase 2 ──┐
+                    │
+       └─ Phase 3 ──┤
+            └─ Phase 4 ──┐
+                         │
+                         └─ Phase 5
+                              └─ Phase 6
+                                   └─ Phase 7
+                                        └─ Phase 8
+                                             └─ Phase 9
+                                                  └─ Phase 10
+```
+
+Phases 2 and 3 can run in parallel after Phase 1.
+
+---
+
+## Working Rules
+
+- Every task is delegated to the agent listed for that phase via the `Agent` tool. The orchestrator (main thread) plans and reviews; it does not implement directly.
+- Skills are invoked for repeatable operations (scaffolding, new component, new CRUD, new migration, deploy).
+- Every phase ends with an explicit owner-visible deliverable and exit criteria check before the next phase starts.
+- Each phase produces a PR against `main` with a description matching the phase deliverables.

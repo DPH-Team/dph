@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# supabase local dev — transient dirs, keep config.toml + seed.sql tracked
+supabase/.branches
+supabase/.temp

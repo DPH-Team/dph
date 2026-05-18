@@ -1,0 +1,5 @@
+-- seed.sql
+-- Seed data for the local development stack.
+-- This file is executed by `supabase db reset` after migrations are applied.
+-- Real seed data will be added here once Phase 3 schema (profiles, audit_log,
+-- integrations) is in place. Leave empty until then.
