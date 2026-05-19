@@ -34,6 +34,7 @@ export default async function EventsPage() {
           <Button
             size="sm"
             className="gap-2"
+            nativeButton={false}
             render={
               <a
                 href="https://business.untappd.com"
