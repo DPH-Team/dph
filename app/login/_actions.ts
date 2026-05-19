@@ -69,13 +69,7 @@ export async function signIn(
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
-    // Audit the failure — failure policy: throws on audit error.
-    // We still need to surface the auth error to the user regardless.
-    try {
-      await auditLogin(false, email, error.message);
-    } catch (auditErr) {
-      console.error('[auth] Failed to audit login failure:', auditErr);
-    }
+    await auditLogin(false, email, error.message);
 
     return {
       error: 'Invalid email or password. Please try again.',

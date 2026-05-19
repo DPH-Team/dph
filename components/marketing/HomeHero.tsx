@@ -107,19 +107,19 @@ export function HomeHero({ hero }: HomeHeroProps) {
               transition={{ duration: 0.48, ease: [0.22, 1, 0.36, 1], delay: 0.44 }}
               className="flex flex-wrap gap-3 pt-2"
             >
-              <Button size="lg" render={<Link href={hero.primaryCta.href} />}>
+              <Button size="lg" nativeButton={false} render={<Link href={hero.primaryCta.href} />}>
                 {hero.primaryCta.label}
               </Button>
-              <Button variant="outline" size="lg" render={<Link href={hero.secondaryCta.href} />}>
+              <Button variant="outline" size="lg" nativeButton={false} render={<Link href={hero.secondaryCta.href} />}>
                 {hero.secondaryCta.label}
               </Button>
             </motion.div>
           ) : (
             <div className="flex flex-wrap gap-3 pt-2">
-              <Button size="lg" render={<Link href={hero.primaryCta.href} />}>
+              <Button size="lg" nativeButton={false} render={<Link href={hero.primaryCta.href} />}>
                 {hero.primaryCta.label}
               </Button>
-              <Button variant="outline" size="lg" render={<Link href={hero.secondaryCta.href} />}>
+              <Button variant="outline" size="lg" nativeButton={false} render={<Link href={hero.secondaryCta.href} />}>
                 {hero.secondaryCta.label}
               </Button>
             </div>

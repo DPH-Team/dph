@@ -108,3 +108,4 @@ export const integrations = pgTable(
 
 export type Integration = InferSelectModel<typeof integrations>;
 export type NewIntegration = InferInsertModel<typeof integrations>;
+
