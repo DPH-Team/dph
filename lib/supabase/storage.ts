@@ -88,13 +88,3 @@ export async function deleteObject(opts: DeleteObjectOpts): Promise<void> {
     throw new Error(`storage.deleteObject failed: ${error.message}`);
   }
 }
-
-/**
- * Build the canonical storage path for an event cover image.
- * Format: events/<eventId>/cover-<timestamp>.<ext>
- */
-export function eventCoverPath(eventId: string, ext: string): string {
-  const timestamp = Date.now();
-  const cleanExt = ext.startsWith('.') ? ext.slice(1) : ext;
-  return `events/${eventId}/cover-${timestamp}.${cleanExt}`;
-}

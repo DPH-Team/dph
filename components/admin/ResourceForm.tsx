@@ -21,7 +21,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
-import type { ActionState } from '@/app/(admin)/admin/events/actions';
+
+// ─── Shared action result type ────────────────────────────────────────────────
+// Previously imported from events/actions; moved here so ResourceForm is
+// generic and not coupled to any specific admin section.
+
+export type ActionState =
+  | { ok: true; id?: string }
+  | { ok: false; error?: string; fieldErrors?: Record<string, string[]> };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
