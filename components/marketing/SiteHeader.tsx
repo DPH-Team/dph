@@ -98,6 +98,7 @@ export function SiteHeader({ hours, overrides }: SiteHeaderProps) {
             <Button
               variant="outline"
               size="sm"
+              nativeButton={false}
               render={<Link href="/contact" />}
             >
               Contact
@@ -105,6 +106,7 @@ export function SiteHeader({ hours, overrides }: SiteHeaderProps) {
             <Button
               variant="default"
               size="sm"
+              nativeButton={false}
               render={<Link href="/reservations" />}
             >
               Reserve

@@ -169,7 +169,7 @@ export default async function AboutPage() {
               <p className="text-muted-foreground max-w-md">
                 123 Main Street, Green Bay, WI. Open seven days a week. Door&apos;s always open.
               </p>
-              <Button size="lg" render={<Link href="/contact" />}>
+              <Button size="lg" nativeButton={false} render={<Link href="/contact" />}>
                 Find Us
               </Button>
             </div>

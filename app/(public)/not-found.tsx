@@ -32,7 +32,7 @@ export default function PublicNotFound() {
           </p>
         </div>
 
-        <Button size="lg" render={<Link href="/" />}>
+        <Button size="lg" nativeButton={false} render={<Link href="/" />}>
           Back to Home
         </Button>
       </div>

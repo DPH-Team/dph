@@ -125,6 +125,7 @@ export function MobileNav({ open, onOpenChange, hours, overrides }: MobileNavPro
           <Button
             className="w-full"
             size="lg"
+            nativeButton={false}
             render={
               <Link href="/reservations" onClick={() => onOpenChange(false)} />
             }
