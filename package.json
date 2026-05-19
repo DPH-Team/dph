@@ -9,7 +9,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
+    "db:push": "echo 'WARNING: db:push applies only Drizzle DDL and skips hand-written SQL migrations (RLS, triggers, helpers). Use db:reset for a correct local dev environment.' && drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
