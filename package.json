@@ -9,12 +9,13 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
+    "db:push": "echo 'WARNING: db:push applies only Drizzle DDL and skips hand-written SQL migrations (RLS, triggers, helpers). Use db:reset for a correct local dev environment.' && drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "db:start": "supabase start",
     "db:stop": "supabase stop",
     "db:reset": "supabase db reset",
-    "db:status": "supabase status"
+    "db:status": "supabase status",
+    "db:seed": "tsx scripts/seed-users.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
@@ -52,6 +53,7 @@
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4",
+    "tsx": "^4.22.2",
     "typescript": "^5"
   }
 }
