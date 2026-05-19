@@ -114,14 +114,14 @@ Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with
 **Goal:** Owner can manage every piece of content from the admin.
 
 **Deliverables (in build order)**
-1. Events CRUD — title, slug, datetime range, image upload (Supabase Storage), description (rich text), ticket URL, featured flag, published flag
+1. Events admin shell — read-only status card at `/admin/events` linking out to the Untappd-for-Business dashboard. Events themselves are managed in Untappd; the public events page reads live from the Untappd API in Phase 6. Shared admin primitives (`ResourceTable`, `ResourceForm`) shipped alongside the card and are reused by every CRUD below.
 2. Menu CRUD — sections + items with sort order, price, allergens, image, available toggle
 3. Hours overrides — date-keyed open/close/closed with note
 4. Content blocks — typed JSON editor for keys: `home_hero`, `about_body`, `home_callouts`, etc.
-5. Gallery manager — upload, alt text, tags, drag-to-reorder
+5. Gallery manager — upload, alt text, tags, drag-to-reorder (reintroduces the signed-upload route + cover-image component on top of the existing `media` storage bucket)
 6. Inquiries inbox — list view (filterable by type + status), detail view with status transitions (pending → confirmed/declined), notes field
 7. Careers — postings CRUD + applicants list with resume download
-8. Integrations panel (admin-only) — encrypted credential storage for Untappd (`location_id`, read-only token) and Printify (`api_key`, `shop_id`), test-connection buttons
+8. Integrations panel (admin-only) — encrypted credential storage for Untappd (`location_id`, read & write token — covers both tap list AND events) and Printify (`api_key`, `shop_id`), test-connection buttons
 9. Newsletter — subscriber list + CSV export
 10. Activity log viewer — already built in Phase 3, polish + filtering
 
@@ -131,7 +131,8 @@ Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with
 **Exit criteria**
 - Each CRUD passes manual test: create, read, update, delete, RLS-enforced
 - All mutations write to `audit_log`
-- Staff role can edit events/menu/hours/content/gallery/inquiries/careers; only admin can touch integrations + newsletter
+- Staff role can edit menu/hours/content/gallery/inquiries/careers; only admin can touch integrations + newsletter
+- `/admin/events` renders the read-only Untappd link-out card (no CRUD here by design)
 
 ---
 
@@ -140,10 +141,9 @@ Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with
 **Goal:** Public site reads from Supabase. Admin edits show up on the live site within seconds.
 
 **Deliverables**
-- Replace all mock fixtures with RSC queries (Drizzle on server)
+- Replace all mock fixtures with RSC queries (Drizzle on server) — except events, which wire to Untappd in Phase 6, not to Supabase
 - ISR with on-demand revalidation: admin save → `revalidateTag` call → public page refresh
 - Hours endpoint: applies overrides on top of defaults, returns today's effective hours
-- Events: published-only, ordered by `starts_at`, past events archived
 - Menu: only items with `available = true`
 - Inquiries form connected to DB (write path only — staff notify + auto-reply added in Phase 7)
 
@@ -151,29 +151,31 @@ Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with
 **Skills:** none new
 
 **Exit criteria**
-- Editing an event in admin updates the public events page within 5 seconds
-- No mock data references remain in `app/` outside `__fixtures__/`
+- Editing a menu item, hour override, or content block in admin updates the public page within 5 seconds
+- No mock data references remain in `app/` outside `__fixtures__/` and the `/events` route (events come online in Phase 6)
 
 ---
 
 ## Phase 6 — External Integrations
 
-**Goal:** Live tap list from Untappd, live merch from Printify, both server-fetched and cached.
+**Goal:** Live tap list AND live events from Untappd, live merch from Printify, all server-fetched and cached.
 
 **Deliverables**
-- `lib/untappd.ts` — server-only fetcher, basic-auth with read-only token, normalizes menu JSON to internal type, tag-based revalidation (~5 min), graceful fallback to mock fixture when creds missing or upstream errors
+- `lib/untappd.ts` — server-only fetcher used by BOTH the tap list and the public events page. Auth via the Untappd-for-Business read & write token (events endpoints require it). Normalizes menu + event JSON to internal types, tag-based revalidation (~5 min), graceful fallback to mock fixture when creds missing or upstream errors.
 - `lib/printify.ts` — server-only fetcher, lists products from configured shop, normalizes to card data, links each to Printify Pop-Up Store URL
-- "Live menu temporarily unavailable" banner UI when Untappd fetch fails (still shows last-good cached data)
+- Public events page: `/events` reads `GET /api/v1/locations/{location_id}/events` from Untappd, renders cards with Untappd-hosted cover images, RSVP / event-detail links back to Untappd. No local mirror table — fetch cache only. Past events filter is derived from the response.
+- "Live menu temporarily unavailable" banner UI when Untappd fetch fails (still shows last-good cached data); equivalent state for the events page.
+- Admin `/admin/events` link-out card gets a real "Sync now" button (revalidates the events tag) and a last-fetched timestamp once `lib/untappd.ts` lands.
 - Admin integrations panel populates the credentials; toggle to switch between mock/live
-- Loading + empty states for both pages
+- Loading + empty states for taps, events, and merch pages
 
 **Agents:** `dph-integrations`, `dph-backend`, `dph-frontend`
 **Skills:** none new
 
 **Exit criteria**
-- With mock creds, `/taps` renders fixture data
-- With real creds in integrations panel, `/taps` renders live Untappd menu
-- Same for `/merch` with Printify
+- With mock creds, `/taps`, `/events`, and `/merch` render fixture data
+- With real creds in integrations panel, `/taps` renders live Untappd menu, `/events` renders live Untappd events with cover images, `/merch` renders live Printify products
+- An event saved in the Untappd dashboard appears on `/events` within ~5 minutes (or immediately after "Sync now")
 - Outage simulation: removing creds shows graceful fallback, never blank page
 
 ---
