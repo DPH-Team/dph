@@ -7,8 +7,11 @@ import {
   jsonb,
   timestamp,
   bigint,
+  integer,
   customType,
   check,
+  index,
+  unique,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
@@ -108,4 +111,96 @@ export const integrations = pgTable(
 
 export type Integration = InferSelectModel<typeof integrations>;
 export type NewIntegration = InferInsertModel<typeof integrations>;
+
+// ─── menu_sections ────────────────────────────────────────────────────────────
+//
+// Top-level groupings for menu items (e.g. "Starters", "Mains", "Desserts").
+// created_by / updated_by → auth.users(id) are hand-written FKs in the SQL
+// migration — Drizzle cannot cross-reference the auth schema.
+
+export const menuSections = pgTable(
+  'menu_sections',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    slug: text('slug').notNull().unique(),
+    name: text('name').notNull(),
+    description: text('description'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    available: boolean('available').notNull().default(true),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: uuid('created_by'),
+    updatedBy: uuid('updated_by'),
+  },
+  (t) => [
+    index('menu_sections_sort_order_name_idx').on(t.sortOrder, t.name),
+    check(
+      'menu_sections_name_length_check',
+      sql`char_length(${t.name}) between 1 and 80`,
+    ),
+  ],
+);
+
+export type MenuSection = InferSelectModel<typeof menuSections>;
+export type NewMenuSection = InferInsertModel<typeof menuSections>;
+
+// ─── menu_items ───────────────────────────────────────────────────────────────
+//
+// Individual items within a section.
+// section_id → menu_sections(id) ON DELETE RESTRICT (deleting a section that
+// still has items errors; translate in the action layer).
+// created_by / updated_by → auth.users(id) are hand-written FKs in the SQL
+// migration.
+
+export const menuItems = pgTable(
+  'menu_items',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sectionId: uuid('section_id')
+      .notNull()
+      .references(() => menuSections.id, { onDelete: 'restrict' }),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    priceCents: integer('price_cents').notNull(),
+    allergens: text('allergens').array().notNull().default(sql`'{}'`),
+    imagePath: text('image_path'),
+    available: boolean('available').notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: uuid('created_by'),
+    updatedBy: uuid('updated_by'),
+  },
+  (t) => [
+    index('menu_items_section_sort_idx').on(t.sectionId, t.sortOrder),
+    index('menu_items_available_idx').on(t.available),
+    check(
+      'menu_items_name_length_check',
+      sql`char_length(${t.name}) between 1 and 120`,
+    ),
+    check(
+      'menu_items_description_length_check',
+      sql`char_length(${t.description}) <= 600`,
+    ),
+    check(
+      'menu_items_price_cents_check',
+      sql`${t.priceCents} >= 0 and ${t.priceCents} <= 100000`,
+    ),
+    check(
+      'menu_items_allergens_check',
+      sql`${t.allergens} <@ ARRAY['gluten','dairy','nuts','shellfish','egg','soy']::text[]`,
+    ),
+  ],
+);
+
+export type MenuItem = InferSelectModel<typeof menuItems>;
+export type NewMenuItem = InferInsertModel<typeof menuItems>;
 
