@@ -47,8 +47,7 @@ export default async function EventsPage() {
           </Button>
 
           <p className="text-xs text-muted-foreground pt-2">
-            Sync runs automatically. A &ldquo;Sync now&rdquo; control will land
-            alongside the public events page.
+            Sync runs in the background every few minutes. Nothing to do here.
           </p>
         </CardContent>
       </Card>
