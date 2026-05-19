@@ -22,7 +22,8 @@ export type ActionState =
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function revalidateEvents() {
-  revalidateTag('events', {});
+  // Next.js 16: revalidateTag requires a second profile argument.
+  revalidateTag('events', 'default');
   revalidatePath('/events');
 }
 
@@ -37,6 +38,7 @@ export async function createEventAction(
 
   // 2. Parse + validate
   const raw = {
+    id: formData.get('id') || undefined,
     title: formData.get('title'),
     slug: formData.get('slug'),
     startsAt: formData.get('startsAt'),
@@ -69,6 +71,9 @@ export async function createEventAction(
   let event: Event;
   try {
     event = await createEvent({
+      // Pass the client-generated id if provided (enables cover image path
+      // to be namespaced under the correct event id before the row exists).
+      ...(data.id ? { id: data.id } : {}),
       title: data.title,
       slug: data.slug,
       startsAt: data.startsAt,

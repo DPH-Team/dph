@@ -4,6 +4,13 @@ export const slugRe = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export const createEventSchema = z
   .object({
+    /**
+     * Optional: if the client generates a UUID up-front (for cover image path
+     * namespacing before the row exists), it can be forwarded here.  The server
+     * action passes it through to createEvent so the image path and the DB row
+     * share the same id.  When absent the DB generates a random UUID.
+     */
+    id: z.string().uuid().optional(),
     title: z.string().min(1, 'Title is required').max(200).trim(),
     slug: z
       .string()
