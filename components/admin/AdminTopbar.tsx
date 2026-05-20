@@ -6,6 +6,7 @@ import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuItem,
@@ -110,16 +111,18 @@ export function AdminTopbar({ profile }: AdminTopbarProps) {
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="end" className="w-56">
-          <DropdownMenuLabel className="font-normal">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium leading-none truncate">
-                {profile.full_name ?? 'No name set'}
-              </span>
-              <span className="text-xs text-muted-foreground truncate">
-                {profile.email}
-              </span>
-            </div>
-          </DropdownMenuLabel>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="font-normal">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium leading-none truncate">
+                  {profile.full_name ?? 'No name set'}
+                </span>
+                <span className="text-xs text-muted-foreground truncate">
+                  {profile.email}
+                </span>
+              </div>
+            </DropdownMenuLabel>
+          </DropdownMenuGroup>
           <DropdownMenuSeparator />
 
           {/* Sign out via form POST to /logout — never call signOut() client-side */}
