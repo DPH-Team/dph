@@ -15,6 +15,7 @@ import {
   ScrollText,
   Plug,
   Users,
+  UserRound,
   type LucideIcon,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -33,6 +34,7 @@ const ICONS: Record<IconKey, LucideIcon> = {
   scroll: ScrollText,
   plug: Plug,
   users: Users,
+  team: UserRound,
 };
 
 interface NavLinkProps {
