@@ -71,7 +71,7 @@ function ResourceFormRoot<T extends FieldValues>({
     mode: 'onTouched',
   });
 
-  const { handleSubmit, setError, formState } = methods;
+  const { setError, formState } = methods;
 
   // Sync server field errors back into react-hook-form
   useEffect(() => {
@@ -98,13 +98,6 @@ function ResourceFormRoot<T extends FieldValues>({
     <FormProvider {...methods}>
       <form
         action={formAction}
-        onSubmit={(e) => {
-          // Client-side zod validation first; if it fails, don't submit.
-          handleSubmit(() => {
-            // react-hook-form validated — let the native form action proceed
-            // via the action= attribute on the form element.
-          })(e);
-        }}
         noValidate
         className="space-y-8"
       >
