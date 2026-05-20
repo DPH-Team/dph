@@ -405,15 +405,3 @@ export async function deleteMenuItemAction(
 
   redirect(`/admin/menu/sections/${sectionId}`);
 }
-
-// ─── DIAGNOSTIC — remove once root import is identified ───────────────────────
-
-/**
- * In-file noop action.
- * If this 404s, SOMETHING in actions.ts's imports is breaking all action
- * registration for this file. If this works while createMenuSectionAction
- * 404s, the issue is specific to how those individual actions are compiled.
- */
-export async function bisectInFileNoop(_prev: unknown, _formData: FormData) {
-  return { ok: true, message: 'in-file noop ran' } as const;
-}
