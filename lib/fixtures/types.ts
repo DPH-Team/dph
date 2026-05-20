@@ -74,10 +74,20 @@ export type HoursOverride = {
 export type AboutContent = {
   headline: string
   lead: string
-  storyHtml: string
+  paragraphs: string[]
   rfidSteps: { icon: string; label: string; description: string }[]
   values: { title: string; description: string; isGameDay?: boolean }[]
 }
+
+export type HomeCallout = {
+  eyebrow?: string
+  title: string
+  body: string
+  href?: string
+  cta?: string
+}
+
+export type HomeCallouts = HomeCallout[]
 
 export type TeamMember = {
   id: string

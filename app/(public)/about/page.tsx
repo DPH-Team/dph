@@ -40,10 +40,11 @@ export default async function AboutPage() {
       <Section padding="md" className="bg-background">
         <Container>
           <ScrollReveal>
-            <div
-              className="grid md:grid-cols-2 gap-8 lg:gap-16 text-base text-muted-foreground leading-relaxed [&_p]:mb-4 [&_p:last-child]:mb-0"
-              dangerouslySetInnerHTML={{ __html: about.storyHtml }}
-            />
+            <div className="columns-1 md:columns-2 gap-8 lg:gap-16 text-base text-muted-foreground leading-relaxed space-y-4">
+              {about.paragraphs.map((paragraph, i) => (
+                <p key={i}>{paragraph}</p>
+              ))}
+            </div>
           </ScrollReveal>
         </Container>
       </Section>

@@ -1,5 +1,6 @@
 export * from "./types"
 export * from "./hero"
+export * from "./home-callouts"
 export * from "./taps"
 export * from "./events"
 export * from "./menu"
