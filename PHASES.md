@@ -116,7 +116,7 @@ Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with
 **Deliverables (in build order)**
 1. Events admin shell — read-only status card at `/admin/events` linking out to the Untappd-for-Business dashboard. Events themselves are managed in Untappd; the public events page reads live from the Untappd API in Phase 6. Shared admin primitives (`ResourceTable`, `ResourceForm`) shipped alongside the card and are reused by every CRUD below.
 2. Menu CRUD — sections + items with sort order, price, allergens, image, available toggle
-3. Hours overrides — date-keyed open/close/closed with note
+3. Hours — weekly schedule (7 rows, day-of-week keyed: open/close/closed) **and** date-keyed overrides (open/close/closed with note). Both surfaces live on `/admin/hours`: weekly schedule form at the top, overrides table below. Weekly rows are seeded with current fixture values on first migration.
 4. Content blocks — typed JSON editor for keys: `home_hero`, `about_body`, `home_callouts`, etc.
 5. Gallery manager — upload, alt text, tags, drag-to-reorder (reintroduces the signed-upload route + cover-image component on top of the existing `media` storage bucket)
 6. Inquiries inbox — list view (filterable by type + status), detail view with status transitions (pending → confirmed/declined), notes field
