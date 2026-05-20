@@ -12,6 +12,8 @@ import {
   check,
   index,
   unique,
+  date,
+  time,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
@@ -203,4 +205,45 @@ export const menuItems = pgTable(
 
 export type MenuItem = InferSelectModel<typeof menuItems>;
 export type NewMenuItem = InferInsertModel<typeof menuItems>;
+
+// ─── hours_overrides ──────────────────────────────────────────────────────────
+//
+// Date-keyed overrides that the public site overlays on weekly defaults.
+// No foreign keys to other domain tables; one row per calendar date.
+// created_by / updated_by → auth.users(id) are hand-written FKs in the SQL
+// migration — Drizzle cannot cross-reference the auth schema.
+
+export const hoursOverrides = pgTable(
+  'hours_overrides',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    date: date('date', { mode: 'string' }).notNull().unique(),
+    closed: boolean('closed').notNull().default(false),
+    openTime: time('open_time'),
+    closeTime: time('close_time'),
+    note: text('note'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: uuid('created_by'),
+    updatedBy: uuid('updated_by'),
+  },
+  (t) => [
+    index('hours_overrides_date_idx').on(t.date),
+    check(
+      'hours_overrides_times_consistent_check',
+      sql`(${t.closed} = true AND ${t.openTime} IS NULL AND ${t.closeTime} IS NULL) OR (${t.closed} = false AND ${t.openTime} IS NOT NULL AND ${t.closeTime} IS NOT NULL)`,
+    ),
+    check(
+      'hours_overrides_note_length_check',
+      sql`char_length(${t.note}) <= 200`,
+    ),
+  ],
+);
+
+export type HoursOverride = InferSelectModel<typeof hoursOverrides>;
+export type NewHoursOverride = InferInsertModel<typeof hoursOverrides>;
 
