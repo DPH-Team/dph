@@ -23,12 +23,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 // ─── Shared action result type ────────────────────────────────────────────────
-// Previously imported from events/actions; moved here so ResourceForm is
-// generic and not coupled to any specific admin section.
+// Defined in a neutral (no-directive) module so server action files can import
+// the type without pulling a 'use client' edge into Turbopack's module graph.
 
-export type ActionState =
-  | { ok: true; id?: string }
-  | { ok: false; error?: string; fieldErrors?: Record<string, string[]> };
+import type { ActionState } from '@/lib/types/action-state';
+export type { ActionState };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

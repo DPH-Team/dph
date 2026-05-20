@@ -23,7 +23,7 @@ import {
   MenuSectionHasItemsError,
 } from '@/lib/db/queries/menu';
 import { auditCreate, auditUpdate, auditDelete } from '@/lib/audit';
-import type { ActionState } from '@/components/admin/ResourceForm';
+import type { ActionState } from '@/lib/types/action-state';
 
 // ─── Revalidation helpers ─────────────────────────────────────────────────────
 
