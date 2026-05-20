@@ -1,7 +1,7 @@
 -- ─────────────────────────────────────────────────────────────────────────────
--- Migration 0014: inquiries RLS, triggers, and cross-schema FKs
--- Applies after the schema migration (0005_cloudy_leech.sql) which created
--- the inquiries table alongside gallery_images and team_members.
+-- Migration 0015: inquiries RLS, triggers, and cross-schema FKs
+-- Applies after 20260520000014_inquiries_schema.sql which creates the
+-- inquiries table (alongside the inquiry_type and inquiry_status enums).
 -- ─────────────────────────────────────────────────────────────────────────────
 
 -- ─── Cross-schema FK (Drizzle cannot reference auth schema) ──────────────────
