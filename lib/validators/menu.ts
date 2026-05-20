@@ -36,12 +36,16 @@ export const createMenuSectionSchema = z.object({
     .max(80, 'Name must be 80 characters or fewer')
     .trim(),
   slug: z
-    .string()
-    .min(1)
-    .max(80)
-    .regex(menuSlugRe, 'Slug must be lowercase letters, digits, and hyphens only')
-    .trim()
-    .optional(),
+    .preprocess(
+      (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+      z
+        .string()
+        .min(1)
+        .max(80)
+        .regex(menuSlugRe, 'Slug must be lowercase letters, digits, and hyphens only')
+        .trim()
+        .optional(),
+    ),
   description: z
     .string()
     .max(600, 'Description must be 600 characters or fewer')

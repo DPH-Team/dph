@@ -123,6 +123,7 @@ function ResourceFormRoot<T extends FieldValues>({
           {cancelHref && (
             <Button
               variant="outline"
+              nativeButton={false}
               render={<Link href={cancelHref} />}
             >
               Cancel
