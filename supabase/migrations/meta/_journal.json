@@ -15,6 +15,20 @@
       "when": 1779193153936,
       "tag": "20260519000004_menu_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1779244292520,
+      "tag": "20260519000006_hours_overrides_schema",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1779245500786,
+      "tag": "20260519000008_weekly_hours_schema",
+      "breakpoints": true
     }
   ]
 }

@@ -12,6 +12,8 @@ import {
   check,
   index,
   unique,
+  date,
+  time,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm';
@@ -33,6 +35,16 @@ const inet = customType<{ data: string; notNull: false; default: false }>({
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
 export const appRoleEnum = pgEnum('app_role', ['admin', 'staff']);
+
+export const dayOfWeekEnum = pgEnum('day_of_week', [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+]);
 
 // ─── profiles ────────────────────────────────────────────────────────────────
 //
@@ -203,4 +215,75 @@ export const menuItems = pgTable(
 
 export type MenuItem = InferSelectModel<typeof menuItems>;
 export type NewMenuItem = InferInsertModel<typeof menuItems>;
+
+// ─── hours_overrides ──────────────────────────────────────────────────────────
+//
+// Date-keyed overrides that the public site overlays on weekly defaults.
+// No foreign keys to other domain tables; one row per calendar date.
+// created_by / updated_by → auth.users(id) are hand-written FKs in the SQL
+// migration — Drizzle cannot cross-reference the auth schema.
+
+export const hoursOverrides = pgTable(
+  'hours_overrides',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    date: date('date', { mode: 'string' }).notNull().unique(),
+    closed: boolean('closed').notNull().default(false),
+    openTime: time('open_time'),
+    closeTime: time('close_time'),
+    note: text('note'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: uuid('created_by'),
+    updatedBy: uuid('updated_by'),
+  },
+  (t) => [
+    index('hours_overrides_date_idx').on(t.date),
+    check(
+      'hours_overrides_times_consistent_check',
+      sql`(${t.closed} = true AND ${t.openTime} IS NULL AND ${t.closeTime} IS NULL) OR (${t.closed} = false AND ${t.openTime} IS NOT NULL AND ${t.closeTime} IS NOT NULL)`,
+    ),
+    check(
+      'hours_overrides_note_length_check',
+      sql`char_length(${t.note}) <= 200`,
+    ),
+  ],
+);
+
+export type HoursOverride = InferSelectModel<typeof hoursOverrides>;
+export type NewHoursOverride = InferInsertModel<typeof hoursOverrides>;
+
+// ─── weekly_hours ─────────────────────────────────────────────────────────────
+//
+// Exactly 7 rows, one per day-of-week. day_of_week is the natural primary key.
+// No created_at / created_by — rows are seeded by migration and only ever updated.
+// updated_by references auth.users(id) on delete set null (hand-written FK in SQL
+// migration — Drizzle cannot cross-reference the auth schema).
+
+export const weeklyHours = pgTable(
+  'weekly_hours',
+  {
+    dayOfWeek: dayOfWeekEnum('day_of_week').primaryKey(),
+    closed: boolean('closed').notNull().default(false),
+    openTime: time('open_time'),
+    closeTime: time('close_time'),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: uuid('updated_by'),
+  },
+  (t) => [
+    check(
+      'weekly_hours_times_consistent_check',
+      sql`(${t.closed} = true AND ${t.openTime} IS NULL AND ${t.closeTime} IS NULL) OR (${t.closed} = false AND ${t.openTime} IS NOT NULL AND ${t.closeTime} IS NOT NULL)`,
+    ),
+  ],
+);
+
+export type WeeklyHourRow = InferSelectModel<typeof weeklyHours>;
+export type NewWeeklyHourRow = InferInsertModel<typeof weeklyHours>;
 
