@@ -27,7 +27,7 @@ import type { ActionState } from '@/lib/types/action-state';
 // ─── Revalidation helpers ─────────────────────────────────────────────────────
 
 function revalidateMenuPublic() {
-  revalidateTag('menu', 'pages');
+  revalidateTag('menu', 'max');
   revalidatePath('/menu');
 }
 
