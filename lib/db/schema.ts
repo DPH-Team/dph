@@ -318,3 +318,87 @@ export const contentBlocks = pgTable(
 export type ContentBlock = InferSelectModel<typeof contentBlocks>;
 export type NewContentBlock = InferInsertModel<typeof contentBlocks>;
 
+// ─── gallery_images ───────────────────────────────────────────────────────────
+//
+// One row per uploaded photo in the public gallery.
+// image_path is a relative path within the `media` storage bucket,
+// e.g. "gallery/<uuid>.webp".
+// created_by / updated_by → auth.users(id) are hand-written FKs in the SQL
+// migration — Drizzle cannot cross-reference the auth schema.
+
+export const galleryImages = pgTable(
+  'gallery_images',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    imagePath: text('image_path').notNull(),
+    alt: text('alt').notNull(),
+    tags: text('tags').array().notNull().default(sql`'{}'`),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: uuid('created_by'),
+    updatedBy: uuid('updated_by'),
+  },
+  (t) => [
+    index('gallery_images_sort_order_created_at_idx').on(t.sortOrder, t.createdAt),
+    check(
+      'gallery_images_alt_length_check',
+      sql`char_length(${t.alt}) between 1 and 200`,
+    ),
+  ],
+);
+
+export type GalleryImage = InferSelectModel<typeof galleryImages>;
+export type NewGalleryImage = InferInsertModel<typeof galleryImages>;
+
+// ─── team_members ─────────────────────────────────────────────────────────────
+//
+// Team member profiles shown on the public About page.
+// image_path is nullable — a member may not have a photo yet.
+// image_path is a relative path within the `media` storage bucket,
+// e.g. "team/<uuid>.webp".
+// created_by / updated_by → auth.users(id) are hand-written FKs in the SQL
+// migration — Drizzle cannot cross-reference the auth schema.
+
+export const teamMembers = pgTable(
+  'team_members',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    name: text('name').notNull(),
+    role: text('role').notNull(),
+    bio: text('bio').notNull().default(''),
+    imagePath: text('image_path'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: uuid('created_by'),
+    updatedBy: uuid('updated_by'),
+  },
+  (t) => [
+    index('team_members_sort_order_name_idx').on(t.sortOrder, t.name),
+    check(
+      'team_members_name_length_check',
+      sql`char_length(${t.name}) between 1 and 120`,
+    ),
+    check(
+      'team_members_role_length_check',
+      sql`char_length(${t.role}) between 1 and 120`,
+    ),
+    check(
+      'team_members_bio_length_check',
+      sql`char_length(${t.bio}) <= 1000`,
+    ),
+  ],
+);
+
+export type TeamMember = InferSelectModel<typeof teamMembers>;
+export type NewTeamMember = InferInsertModel<typeof teamMembers>;
+

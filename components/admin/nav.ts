@@ -10,7 +10,8 @@ export type IconKey =
   | 'mail'
   | 'scroll'
   | 'plug'
-  | 'users';
+  | 'users'
+  | 'team';
 
 export type NavItem = {
   href: string;
@@ -26,6 +27,7 @@ export const adminNav: NavItem[] = [
   { href: '/admin/hours', label: 'Hours', icon: 'clock' },
   { href: '/admin/content', label: 'Content', icon: 'file' },
   { href: '/admin/gallery', label: 'Gallery', icon: 'image' },
+  { href: '/admin/team', label: 'Team', icon: 'team' },
   { href: '/admin/inquiries', label: 'Inquiries', icon: 'inbox' },
   { href: '/admin/careers', label: 'Careers', icon: 'briefcase' },
   { href: '/admin/newsletter', label: 'Newsletter', icon: 'mail', adminOnly: true },
