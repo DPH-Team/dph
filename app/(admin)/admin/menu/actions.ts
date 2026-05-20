@@ -11,7 +11,6 @@ import {
 } from '@/lib/validators/menu';
 import { slugify } from '@/lib/slugify';
 import {
-  listSections,
   getSectionById,
   createSection,
   updateSection,
@@ -406,10 +405,6 @@ export async function deleteMenuItemAction(
 
   redirect(`/admin/menu/sections/${sectionId}`);
 }
-
-// ─── Convenience re-export ────────────────────────────────────────────────────
-
-export { listSections };
 
 // ─── DIAGNOSTIC — remove once root import is identified ───────────────────────
 
