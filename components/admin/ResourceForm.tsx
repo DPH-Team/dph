@@ -23,12 +23,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 // ─── Shared action result type ────────────────────────────────────────────────
-// Previously imported from events/actions; moved here so ResourceForm is
-// generic and not coupled to any specific admin section.
+// Defined in a neutral (no-directive) module so server action files can import
+// the type without pulling a 'use client' edge into Turbopack's module graph.
 
-export type ActionState =
-  | { ok: true; id?: string }
-  | { ok: false; error?: string; fieldErrors?: Record<string, string[]> };
+import type { ActionState } from '@/lib/types/action-state';
+export type { ActionState };
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -71,7 +70,7 @@ function ResourceFormRoot<T extends FieldValues>({
     mode: 'onTouched',
   });
 
-  const { handleSubmit, setError, formState } = methods;
+  const { setError, formState } = methods;
 
   // Sync server field errors back into react-hook-form
   useEffect(() => {
@@ -98,13 +97,6 @@ function ResourceFormRoot<T extends FieldValues>({
     <FormProvider {...methods}>
       <form
         action={formAction}
-        onSubmit={(e) => {
-          // Client-side zod validation first; if it fails, don't submit.
-          handleSubmit(() => {
-            // react-hook-form validated — let the native form action proceed
-            // via the action= attribute on the form element.
-          })(e);
-        }}
         noValidate
         className="space-y-8"
       >
@@ -123,6 +115,7 @@ function ResourceFormRoot<T extends FieldValues>({
           {cancelHref && (
             <Button
               variant="outline"
+              nativeButton={false}
               render={<Link href={cancelHref} />}
             >
               Cancel
