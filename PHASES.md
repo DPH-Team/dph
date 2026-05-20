@@ -117,8 +117,10 @@ Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with
 1. Events admin shell — read-only status card at `/admin/events` linking out to the Untappd-for-Business dashboard. Events themselves are managed in Untappd; the public events page reads live from the Untappd API in Phase 6. Shared admin primitives (`ResourceTable`, `ResourceForm`) shipped alongside the card and are reused by every CRUD below.
 2. Menu CRUD — sections + items with sort order, price, allergens, image, available toggle
 3. Hours — weekly schedule (7 rows, day-of-week keyed: open/close/closed) **and** date-keyed overrides (open/close/closed with note). Both surfaces live on `/admin/hours`: weekly schedule form at the top, overrides table below. Weekly rows are seeded with current fixture values on first migration.
-4. Content blocks — typed JSON editor for keys: `home_hero`, `about_body`, `home_callouts`, etc.
-5. Gallery manager — upload, alt text, tags, drag-to-reorder (reintroduces the signed-upload route + cover-image component on top of the existing `media` storage bucket)
+4. Content blocks — typed JSON editor for keys: `home_hero`, `about_body`, `home_callouts`, etc. Team members are NOT a content block — they live in deliverable 5 because they need a photo upload, not a URL field.
+5. Gallery + team manager — reintroduces the signed-upload route + cover-image component on top of the existing `media` storage bucket, then ships TWO surfaces on top of it:
+   - **Gallery** — upload, alt text, tags, drag-to-reorder
+   - **Team** — CRUD for `team_members` (name, role, bio, photo) using the same upload primitive. Drag-to-reorder. Replaces the `lib/fixtures/team.ts` source on the public About page once Phase 5 wires the DB read.
 6. Inquiries inbox — list view (filterable by type + status), detail view with status transitions (pending → confirmed/declined), notes field
 7. Careers — postings CRUD + applicants list with resume download
 8. Integrations panel (admin-only) — encrypted credential storage for Untappd (`location_id`, read & write token — covers both tap list AND events) and Printify (`api_key`, `shop_id`), test-connection buttons
@@ -131,7 +133,7 @@ Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with
 **Exit criteria**
 - Each CRUD passes manual test: create, read, update, delete, RLS-enforced
 - All mutations write to `audit_log`
-- Staff role can edit menu/hours/content/gallery/inquiries/careers; only admin can touch integrations + newsletter
+- Staff role can edit menu/hours/content/gallery/team/inquiries/careers; only admin can touch integrations + newsletter
 - `/admin/events` renders the read-only Untappd link-out card (no CRUD here by design)
 
 ---
