@@ -25,8 +25,15 @@
  */
 
 import { requireStaff } from '@/lib/auth';
-import { createMenuSectionAction } from '@/app/(admin)/admin/menu/actions';
+import {
+  createMenuSectionAction,
+  bisectInFileNoop,
+} from '@/app/(admin)/admin/menu/actions';
 import { pingAction } from '@/app/(admin)/admin/menu/_test-action';
+import { bisectAuthAction } from '@/app/(admin)/admin/menu/_bisect-auth';
+import { bisectDbAction } from '@/app/(admin)/admin/menu/_bisect-db';
+import { bisectAuditAction } from '@/app/(admin)/admin/menu/_bisect-audit';
+import { bisectValidatorsAction } from '@/app/(admin)/admin/menu/_bisect-validators';
 
 export default async function NewDirectDiagnosticPage() {
   await requireStaff();
@@ -114,6 +121,82 @@ export default async function NewDirectDiagnosticPage() {
           Expected: a redirect to /admin/menu/sections/[id] (success) or a zod
           validation error response (also confirms the action was found).
         </p>
+      </section>
+      {/* ── Bisect tests ── */}
+      <section className="space-y-4 border border-border rounded p-4">
+        <h2 className="text-sm font-semibold">Bisect tests</h2>
+        <p className="text-xs text-muted-foreground">
+          Each button targets a separate action file that imports exactly one
+          rich dependency. Click each and note whether it returns 200 or 404.
+          This isolates which import breaks server action registration.
+        </p>
+
+        {/* Bisect 1: in-file noop (lives inside actions.ts — all imports present) */}
+        <form
+          action={bisectInFileNoop as unknown as (formData: FormData) => void}
+          className="space-y-1"
+        >
+          <button
+            type="submit"
+            className="bg-secondary text-secondary-foreground text-sm px-3 py-1 rounded w-full text-left"
+          >
+            Bisect 1: in-file noop (actions.ts — all imports loaded)
+          </button>
+        </form>
+
+        {/* Bisect 2: auth import only */}
+        <form
+          action={bisectAuthAction as unknown as (formData: FormData) => void}
+          className="space-y-1"
+        >
+          <button
+            type="submit"
+            className="bg-secondary text-secondary-foreground text-sm px-3 py-1 rounded w-full text-left"
+          >
+            Bisect 2: auth import only (lib/auth → server-only + next/headers)
+          </button>
+        </form>
+
+        {/* Bisect 3: db import only */}
+        <form
+          action={bisectDbAction as unknown as (formData: FormData) => void}
+          className="space-y-1"
+        >
+          <button
+            type="submit"
+            className="bg-secondary text-secondary-foreground text-sm px-3 py-1 rounded w-full text-left"
+          >
+            Bisect 3: db import only (lib/db/queries/menu → postgres() at load)
+          </button>
+        </form>
+
+        {/* Bisect 4: audit import only */}
+        <form
+          action={bisectAuditAction as unknown as (formData: FormData) => void}
+          className="space-y-1"
+        >
+          <button
+            type="submit"
+            className="bg-secondary text-secondary-foreground text-sm px-3 py-1 rounded w-full text-left"
+          >
+            Bisect 4: audit import only (lib/audit → server-only + supabase/admin)
+          </button>
+        </form>
+
+        {/* Bisect 5: validators import only */}
+        <form
+          action={
+            bisectValidatorsAction as unknown as (formData: FormData) => void
+          }
+          className="space-y-1"
+        >
+          <button
+            type="submit"
+            className="bg-secondary text-secondary-foreground text-sm px-3 py-1 rounded w-full text-left"
+          >
+            Bisect 5: validators import only (lib/validators/menu → zod only)
+          </button>
+        </form>
       </section>
     </div>
   );
