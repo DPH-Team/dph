@@ -1,6 +1,6 @@
 {
-  "id": "fe44caf5-b502-4787-b50e-e3929e375e56",
-  "prevId": "83c4c2d6-5b5a-4276-ac83-9070120c1d1c",
+  "id": "ccd7d97e-6d82-45e9-8e06-98fdcee0d5b3",
+  "prevId": "2bcab0da-996f-477d-b100-76bf9a29324f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -93,6 +93,50 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.content_blocks": {
+      "name": "content_blocks",
+      "schema": "",
+      "columns": {
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "value": {
+          "name": "value",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "content_blocks_key_check": {
+          "name": "content_blocks_key_check",
+          "value": "\"content_blocks\".\"key\" IN ('home_hero', 'home_callouts', 'about_body')"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.hours_overrides": {
@@ -623,6 +667,63 @@
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
+    },
+    "public.weekly_hours": {
+      "name": "weekly_hours",
+      "schema": "",
+      "columns": {
+        "day_of_week": {
+          "name": "day_of_week",
+          "type": "day_of_week",
+          "typeSchema": "public",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "closed": {
+          "name": "closed",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "open_time": {
+          "name": "open_time",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "close_time": {
+          "name": "close_time",
+          "type": "time",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_by": {
+          "name": "updated_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "weekly_hours_times_consistent_check": {
+          "name": "weekly_hours_times_consistent_check",
+          "value": "(\"weekly_hours\".\"closed\" = true AND \"weekly_hours\".\"open_time\" IS NULL AND \"weekly_hours\".\"close_time\" IS NULL) OR (\"weekly_hours\".\"closed\" = false AND \"weekly_hours\".\"open_time\" IS NOT NULL AND \"weekly_hours\".\"close_time\" IS NOT NULL)"
+        }
+      },
+      "isRLSEnabled": false
     }
   },
   "enums": {
@@ -632,6 +733,19 @@
       "values": [
         "admin",
         "staff"
+      ]
+    },
+    "public.day_of_week": {
+      "name": "day_of_week",
+      "schema": "public",
+      "values": [
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday"
       ]
     }
   },

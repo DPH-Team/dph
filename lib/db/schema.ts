@@ -287,3 +287,34 @@ export const weeklyHours = pgTable(
 export type WeeklyHourRow = InferSelectModel<typeof weeklyHours>;
 export type NewWeeklyHourRow = InferInsertModel<typeof weeklyHours>;
 
+// ─── content_blocks ───────────────────────────────────────────────────────────
+//
+// One row per named content block; PK = key (text).  No uuid id column — the
+// key itself is the stable natural identifier.
+// value stores typed JSON validated at the application layer via zod schemas.
+// updated_by references auth.users(id) on delete set null (hand-written FK in
+// the RLS migration — Drizzle cannot cross-reference the auth schema).
+
+export const BLOCK_KEYS = ['home_hero', 'home_callouts', 'about_body'] as const;
+
+export const contentBlocks = pgTable(
+  'content_blocks',
+  {
+    key: text('key').primaryKey(),
+    value: jsonb('value').notNull().default(sql`'{}'::jsonb`),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: uuid('updated_by'),
+  },
+  (t) => [
+    check(
+      'content_blocks_key_check',
+      sql`${t.key} IN ('home_hero', 'home_callouts', 'about_body')`,
+    ),
+  ],
+);
+
+export type ContentBlock = InferSelectModel<typeof contentBlocks>;
+export type NewContentBlock = InferInsertModel<typeof contentBlocks>;
+

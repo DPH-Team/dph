@@ -3,11 +3,11 @@ import type { AboutContent } from "./types"
 export const aboutContent: AboutContent = {
   headline: "Our Haus is Your Haus",
   lead: "We built District Pour Haus because we wanted a place where the beer was great, the food was honest, and the Wi-Fi password was somewhere on the wall. A place that felt like yours the minute you walked in.",
-  storyHtml: `
-    <p>It started with a craving — not for a specific beer, but for a specific feeling. That rare thing where you walk into a bar and immediately relax, where the person next to you is already talking about the game, and where nobody's rushing you out.</p>
-    <p>District Pour Haus opened in Green Bay because this city deserved a taproom that matched its energy: big, bold, and genuinely proud of where it's from. We're a self-pour taproom, which means you're in charge. RFID card, 32 taps, pour as much or as little as you want. Try the imperial stout. Try the farmhouse ale. Try three things on the same Saturday afternoon — that's the whole point.</p>
-    <p>The kitchen came next. Because you can't drink on an empty stomach, and because Wisconsin has good food if you know where to look. We smoke our own brisket, batter our curds in pale ale, and bake a kringle that rotates with the seasons. Everything pairs with something on the wall.</p>
-  `,
+  paragraphs: [
+    "It started with a craving — not for a specific beer, but for a specific feeling. That rare thing where you walk into a bar and immediately relax, where the person next to you is already talking about the game, and where nobody's rushing you out.",
+    "District Pour Haus opened in Green Bay because this city deserved a taproom that matched its energy: big, bold, and genuinely proud of where it's from. We're a self-pour taproom, which means you're in charge. RFID card, 32 taps, pour as much or as little as you want. Try the imperial stout. Try the farmhouse ale. Try three things on the same Saturday afternoon — that's the whole point.",
+    "The kitchen came next. Because you can't drink on an empty stomach, and because Wisconsin has good food if you know where to look. We smoke our own brisket, batter our curds in pale ale, and bake a kringle that rotates with the seasons. Everything pairs with something on the wall.",
+  ],
   rfidSteps: [
     {
       icon: "credit-card",

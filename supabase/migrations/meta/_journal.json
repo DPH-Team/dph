@@ -29,6 +29,13 @@
       "when": 1779245500786,
       "tag": "20260519000008_weekly_hours_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1779282786811,
+      "tag": "20260520000010_content_blocks_schema",
+      "breakpoints": true
     }
   ]
 }
