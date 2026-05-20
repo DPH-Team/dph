@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { startTransition, useActionState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -142,7 +142,7 @@ export function HomeHeroForm({ initialValue, action }: HomeHeroFormProps) {
   function onSubmit(data: HomeHeroValue) {
     const fd = new FormData();
     fd.set('value', JSON.stringify(data));
-    formAction(fd);
+    startTransition(() => formAction(fd));
   }
 
   // react-hook-form's handleSubmit validates client-side before calling onSubmit.

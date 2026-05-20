@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { startTransition, useActionState, useEffect } from 'react';
 import { useForm, useFieldArray, useFormContext, FormProvider } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -522,7 +522,7 @@ export function AboutBodyForm({ initialValue, action }: AboutBodyFormProps) {
   function onSubmit(data: FormValues) {
     const fd = new FormData();
     fd.set('value', JSON.stringify(fromFormValues(data)));
-    formAction(fd);
+    startTransition(() => formAction(fd));
   }
 
   function handleNativeSubmit(e: React.FormEvent<HTMLFormElement>) {

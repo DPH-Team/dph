@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState, useEffect } from 'react';
+import { startTransition, useActionState, useEffect } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
@@ -121,7 +121,7 @@ export function HomeCalloutsForm({ initialValue, action }: HomeCalloutsFormProps
   function onSubmit(data: z.infer<typeof WrappedSchema>) {
     const fd = new FormData();
     fd.set('value', JSON.stringify(data.items));
-    formAction(fd);
+    startTransition(() => formAction(fd));
   }
 
   function handleNativeSubmit(e: React.FormEvent<HTMLFormElement>) {
