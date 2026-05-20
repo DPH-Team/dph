@@ -36,6 +36,16 @@ const inet = customType<{ data: string; notNull: false; default: false }>({
 
 export const appRoleEnum = pgEnum('app_role', ['admin', 'staff']);
 
+export const dayOfWeekEnum = pgEnum('day_of_week', [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+]);
+
 // ─── profiles ────────────────────────────────────────────────────────────────
 //
 // Mirror of auth.users — created automatically by handle_new_auth_user trigger.
@@ -246,4 +256,34 @@ export const hoursOverrides = pgTable(
 
 export type HoursOverride = InferSelectModel<typeof hoursOverrides>;
 export type NewHoursOverride = InferInsertModel<typeof hoursOverrides>;
+
+// ─── weekly_hours ─────────────────────────────────────────────────────────────
+//
+// Exactly 7 rows, one per day-of-week. day_of_week is the natural primary key.
+// No created_at / created_by — rows are seeded by migration and only ever updated.
+// updated_by references auth.users(id) on delete set null (hand-written FK in SQL
+// migration — Drizzle cannot cross-reference the auth schema).
+
+export const weeklyHours = pgTable(
+  'weekly_hours',
+  {
+    dayOfWeek: dayOfWeekEnum('day_of_week').primaryKey(),
+    closed: boolean('closed').notNull().default(false),
+    openTime: time('open_time'),
+    closeTime: time('close_time'),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: uuid('updated_by'),
+  },
+  (t) => [
+    check(
+      'weekly_hours_times_consistent_check',
+      sql`(${t.closed} = true AND ${t.openTime} IS NULL AND ${t.closeTime} IS NULL) OR (${t.closed} = false AND ${t.openTime} IS NOT NULL AND ${t.closeTime} IS NOT NULL)`,
+    ),
+  ],
+);
+
+export type WeeklyHourRow = InferSelectModel<typeof weeklyHours>;
+export type NewWeeklyHourRow = InferInsertModel<typeof weeklyHours>;
 
