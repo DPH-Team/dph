@@ -36,6 +36,19 @@ const inet = customType<{ data: string; notNull: false; default: false }>({
 
 export const appRoleEnum = pgEnum('app_role', ['admin', 'staff']);
 
+export const inquiryTypeEnum = pgEnum('inquiry_type', [
+  'reservation',
+  'private_event',
+  'press',
+  'general',
+]);
+
+export const inquiryStatusEnum = pgEnum('inquiry_status', [
+  'pending',
+  'confirmed',
+  'declined',
+]);
+
 export const dayOfWeekEnum = pgEnum('day_of_week', [
   'monday',
   'tuesday',
@@ -401,4 +414,65 @@ export const teamMembers = pgTable(
 
 export type TeamMember = InferSelectModel<typeof teamMembers>;
 export type NewTeamMember = InferInsertModel<typeof teamMembers>;
+
+// ─── inquiries ────────────────────────────────────────────────────────────────
+//
+// Submitted by anonymous public visitors via the InquiryForm.
+// No created_by — the submitter is anonymous.
+// updated_by → auth.users(id) on delete set null (hand-written FK in RLS
+// migration — Drizzle cannot cross-reference the auth schema).
+// handled_at is set when status moves off 'pending'; cleared when it returns.
+
+export const inquiries = pgTable(
+  'inquiries',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    type: inquiryTypeEnum('type').notNull(),
+    name: text('name').notNull(),
+    email: text('email').notNull(),
+    phone: text('phone'),
+    partySize: integer('party_size'),
+    preferredDate: date('preferred_date', { mode: 'string' }),
+    preferredTime: time('preferred_time'),
+    message: text('message').notNull(),
+    consent: boolean('consent').notNull().default(false),
+    status: inquiryStatusEnum('status').notNull().default('pending'),
+    internalNotes: text('internal_notes'),
+    handledAt: timestamp('handled_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: uuid('updated_by'),
+  },
+  (t) => [
+    index('inquiries_status_created_at_idx').on(t.status, t.createdAt.desc()),
+    index('inquiries_type_idx').on(t.type),
+    check(
+      'inquiries_name_length_check',
+      sql`char_length(${t.name}) between 2 and 80`,
+    ),
+    check(
+      'inquiries_email_length_check',
+      sql`char_length(${t.email}) between 1 and 320`,
+    ),
+    check(
+      'inquiries_message_length_check',
+      sql`char_length(${t.message}) between 10 and 2000`,
+    ),
+    check(
+      'inquiries_party_size_check',
+      sql`${t.partySize} is null or (${t.partySize} >= 1 and ${t.partySize} <= 50)`,
+    ),
+    check(
+      'inquiries_internal_notes_length_check',
+      sql`${t.internalNotes} is null or char_length(${t.internalNotes}) <= 4000`,
+    ),
+  ],
+);
+
+export type Inquiry = InferSelectModel<typeof inquiries>;
+export type NewInquiry = InferInsertModel<typeof inquiries>;
 
