@@ -251,6 +251,28 @@ export async function auditLogout(): Promise<void> {
 }
 
 /**
+ * Generic audit helper for actions that don't fit the create/update/delete
+ * sugar wrappers — e.g. view_resume, export, download.
+ * Failures are non-fatal (console.error + continue).
+ */
+export async function audit(
+  action: string,
+  entityType: string,
+  entityId: string,
+  metadata?: Record<string, unknown>,
+): Promise<void> {
+  await record(
+    {
+      action,
+      entityType,
+      entityId,
+      metadata,
+    },
+    'continue',
+  );
+}
+
+/**
  * Record an integration test result. Failures are non-fatal (console.error + continue).
  */
 export async function auditIntegrationTest(
