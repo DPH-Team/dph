@@ -1,45 +1,59 @@
 import Link from 'next/link';
-import { Briefcase, Search } from 'lucide-react';
+import { Users, Search } from 'lucide-react';
 import { requireStaff } from '@/lib/auth';
 import {
-  listPostings,
-  getPostingCounts,
-} from '@/lib/db/queries/career-postings';
-import { listPostingsFilterSchema } from '@/lib/validators/careers';
+  listApplications,
+  getApplicationCounts,
+} from '@/lib/db/queries/career-applications';
+import { listPostings } from '@/lib/db/queries/career-postings';
+import { listApplicationsFilterSchema } from '@/lib/validators/careers';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { PostingsTable } from './postings/PostingsTable';
+import { ApplicationsTable } from './ApplicationsTable';
 
 interface PageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-export default async function CareersPage({ searchParams }: PageProps) {
+export default async function ApplicationsPage({ searchParams }: PageProps) {
   await requireStaff();
 
   const rawParams = await searchParams;
   const rawFilter = {
     status: typeof rawParams.status === 'string' ? rawParams.status : undefined,
+    postingId:
+      typeof rawParams.postingId === 'string' ? rawParams.postingId : undefined,
     q: typeof rawParams.q === 'string' ? rawParams.q : undefined,
   };
 
-  const parsed = listPostingsFilterSchema.safeParse(rawFilter);
+  const parsed = listApplicationsFilterSchema.safeParse(rawFilter);
   const filter = parsed.success ? parsed.data : {};
 
-  const [postingsList, counts] = await Promise.all([
-    listPostings({
+  const [applications, counts, postings] = await Promise.all([
+    listApplications({
       status: filter.status,
+      postingId: filter.postingId,
       q: filter.q,
     }),
-    getPostingCounts(),
+    getApplicationCounts(),
+    listPostings(),
   ]);
+
+  // Build a title lookup for the posting column
+  const postingTitleMap = new Map(postings.map((p) => [p.id, p.title]));
+
+  const applicationsWithTitle = applications.map((a) => ({
+    ...a,
+    postingTitle: a.postingId ? (postingTitleMap.get(a.postingId) ?? null) : null,
+  }));
 
   const hasFilters = Boolean(
     (filter.status && filter.status !== 'all') ||
+      filter.postingId ||
       (filter.q && filter.q !== ''),
   );
 
   const activeStatus = filter.status ?? 'all';
+  const activePostingId = filter.postingId ?? '';
   const activeSearch = filter.q ?? '';
 
   return (
@@ -48,57 +62,55 @@ export default async function CareersPage({ searchParams }: PageProps) {
       <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <Briefcase className="size-5 text-muted-foreground" aria-hidden="true" />
-            <h1 className="text-xl font-semibold text-foreground">Careers</h1>
+            <Users className="size-5 text-muted-foreground" aria-hidden="true" />
+            <h1 className="text-xl font-semibold text-foreground">
+              Applications
+            </h1>
           </div>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Manage open positions. Applications are read-only — candidates submit via the public form.
+            Review applicant submissions. Applications are created by candidates
+            via the public form.
           </p>
         </div>
 
         <div className="flex items-center gap-3 flex-wrap">
           {/* Count pills */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span
               className={cn(
                 'inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold tabular-nums',
-                counts.open > 0
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                counts.new > 0
+                  ? 'bg-[oklch(0.648_0.130_47_/_0.18)] border-[oklch(0.648_0.130_47_/_0.5)] text-[oklch(0.80_0.08_47)]'
                   : 'bg-[oklch(0.235_0.004_286)] border-border text-muted-foreground',
               )}
             >
-              {counts.open} open
+              {counts.new} new
+            </span>
+            <span className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold tabular-nums bg-blue-500/10 border-blue-500/30 text-blue-400">
+              {counts.reviewed} reviewed
             </span>
             <span className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold tabular-nums bg-[oklch(0.235_0.004_286)] border-border text-muted-foreground">
-              {counts.closed} closed
+              {counts.archived} archived
             </span>
             <span className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold tabular-nums bg-[oklch(0.235_0.004_286)] border-border text-muted-foreground">
               {counts.total} total
             </span>
           </div>
 
-          {/* Applications link + New posting */}
+          {/* Back to postings */}
           <Link
-            href="/admin/careers/applications"
+            href="/admin/careers"
             className="inline-flex h-8 items-center rounded-[var(--radius-md)] border border-border bg-[oklch(0.235_0.004_286)] px-3 text-sm font-medium text-foreground transition-colors hover:bg-[oklch(0.270_0.004_286)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
           >
-            Applications
+            Postings
           </Link>
-
-          <Button
-            size="sm"
-            nativeButton={false}
-            render={<Link href="/admin/careers/postings/new" />}
-          >
-            + New posting
-          </Button>
         </div>
       </header>
 
-      {/* Filter row — plain GET form */}
+      {/* Filter row */}
       <form
         method="GET"
-        action="/admin/careers"
+        action="/admin/careers/applications"
         className="flex flex-wrap items-end gap-3"
       >
         {/* Status filter */}
@@ -116,8 +128,32 @@ export default async function CareersPage({ searchParams }: PageProps) {
             className="h-9 rounded-[var(--radius-md)] border border-border bg-input px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
           >
             <option value="all">All</option>
-            <option value="open">Open</option>
-            <option value="closed">Closed</option>
+            <option value="new">New</option>
+            <option value="reviewed">Reviewed</option>
+            <option value="archived">Archived</option>
+          </select>
+        </div>
+
+        {/* Posting filter */}
+        <div className="flex flex-col gap-1">
+          <label
+            htmlFor="filter-posting"
+            className="text-xs text-muted-foreground font-medium uppercase tracking-wide"
+          >
+            Posting
+          </label>
+          <select
+            id="filter-posting"
+            name="postingId"
+            defaultValue={activePostingId}
+            className="h-9 rounded-[var(--radius-md)] border border-border bg-input px-3 text-sm text-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
+          >
+            <option value="">All postings</option>
+            {postings.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.title}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -139,7 +175,7 @@ export default async function CareersPage({ searchParams }: PageProps) {
               name="q"
               type="search"
               defaultValue={activeSearch}
-              placeholder="Title, department, or description…"
+              placeholder="Name or email…"
               className="h-9 w-full rounded-[var(--radius-md)] border border-border bg-input pl-8 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/35"
             />
           </div>
@@ -154,7 +190,7 @@ export default async function CareersPage({ searchParams }: PageProps) {
 
         {hasFilters && (
           <Link
-            href="/admin/careers"
+            href="/admin/careers/applications"
             className="h-9 inline-flex items-center rounded-[var(--radius-md)] px-3 text-sm text-muted-foreground transition-colors hover:text-foreground"
           >
             Clear
@@ -163,7 +199,10 @@ export default async function CareersPage({ searchParams }: PageProps) {
       </form>
 
       {/* Table */}
-      <PostingsTable postings={postingsList} hasFilters={hasFilters} />
+      <ApplicationsTable
+        applications={applicationsWithTitle}
+        hasFilters={hasFilters}
+      />
     </div>
   );
 }
