@@ -24,6 +24,13 @@ import type { Integration } from '@/lib/db/schema';
 import type { ActionState } from '@/lib/types/action-state';
 import type { IntegrationName } from '@/lib/validators/integrations';
 import type { TestActionState } from './actions';
+
+// View of an Integration safe to cross the RSC boundary: drops `credentials`
+// (bytea / Uint8Array — not serializable to a Client Component) and replaces
+// it with a derived boolean computed server-side.
+export type IntegrationView = Omit<Integration, 'credentials'> & {
+  hasCredentials: boolean;
+};
 import {
   saveCredentialsAction,
   updateTogglesAction,
@@ -42,28 +49,6 @@ function relativeTime(date: Date): string {
   if (minutes < 60) return `${minutes} min ago`;
   if (hours < 24) return `${hours} hr ago`;
   return `${days}d ago`;
-}
-
-function hasCredentials(integration: Integration): boolean {
-  // credentials is bytea — when no creds set the DB stores '\\x' (empty).
-  // Drizzle returns bytea as a Buffer-like object. We detect emptiness by
-  // checking its byteLength (Buffer/Uint8Array API) or string form.
-  const creds = integration.credentials as
-    | { byteLength?: number; length?: number }
-    | string
-    | null
-    | undefined;
-  if (!creds) return false;
-  // Buffer / Uint8Array path
-  if (typeof creds === 'object' && 'byteLength' in creds) {
-    return (creds.byteLength ?? 0) > 0;
-  }
-  if (typeof creds === 'object' && 'length' in creds) {
-    return (creds.length ?? 0) > 0;
-  }
-  // String fallback (hex representation from some drivers)
-  if (typeof creds === 'string') return creds !== '\\x' && creds !== '';
-  return false;
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -463,12 +448,12 @@ function TestConnectionButton({
 // ─── Main card ────────────────────────────────────────────────────────────────
 
 export interface IntegrationCardProps {
-  integration: Integration;
+  integration: IntegrationView;
 }
 
 export function IntegrationCard({ integration }: IntegrationCardProps) {
   const name = integration.name as IntegrationName;
-  const hasCreds = hasCredentials(integration);
+  const hasCreds = integration.hasCredentials;
   const testedAt = integration.lastTestedAt
     ? new Date(integration.lastTestedAt)
     : null;

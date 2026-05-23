@@ -1,9 +1,32 @@
 import { Plug, TriangleAlert } from 'lucide-react';
 import { requireAdmin } from '@/lib/auth';
 import { listIntegrations } from '@/lib/db/queries/integrations';
-import { IntegrationCard } from './IntegrationCard';
+import { IntegrationCard, type IntegrationView } from './IntegrationCard';
 import type { Integration } from '@/lib/db/schema';
 import type { IntegrationName } from '@/lib/validators/integrations';
+
+// Strip `credentials` (bytea / Uint8Array — not RSC-serializable) and
+// replace it with a derived boolean before crossing into the Client Component.
+function toView(row: Integration): IntegrationView {
+  const creds = row.credentials as
+    | { byteLength?: number; length?: number }
+    | string
+    | null
+    | undefined;
+  let hasCredentials = false;
+  if (creds) {
+    if (typeof creds === 'object' && 'byteLength' in creds) {
+      hasCredentials = (creds.byteLength ?? 0) > 0;
+    } else if (typeof creds === 'object' && 'length' in creds) {
+      hasCredentials = (creds.length ?? 0) > 0;
+    } else if (typeof creds === 'string') {
+      hasCredentials = creds !== '\\x' && creds !== '';
+    }
+  }
+  const { credentials: _omit, ...rest } = row;
+  void _omit;
+  return { ...rest, hasCredentials };
+}
 
 export default async function IntegrationsPage() {
   await requireAdmin();
@@ -11,9 +34,9 @@ export default async function IntegrationsPage() {
   const integrations = await listIntegrations();
 
   // Build a map for deterministic rendering (untappd first, printify second).
-  const byName = new Map<IntegrationName, Integration>();
+  const byName = new Map<IntegrationName, IntegrationView>();
   for (const row of integrations) {
-    byName.set(row.name as IntegrationName, row);
+    byName.set(row.name as IntegrationName, toView(row));
   }
 
   return (
