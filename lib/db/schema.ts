@@ -595,3 +595,51 @@ export const careerApplications = pgTable(
 export type CareerApplication = InferSelectModel<typeof careerApplications>;
 export type NewCareerApplication = InferInsertModel<typeof careerApplications>;
 
+// ─── subscribers ──────────────────────────────────────────────────────────────
+//
+// Newsletter subscriber list. Soft-unsubscribe via unsubscribed_at (null = active).
+// Email stored lowercased and enforced by DB check + zod validator.
+// No created_by — public anonymous inserts via anon policy.
+// updated_by → auth.users(id) on delete set null (hand-written FK in RLS
+// migration — Drizzle cannot cross-reference the auth schema).
+// source is a free-text provenance label: 'public_form', 'manual', etc.
+// Phase 7 will wire the public form; the anon INSERT policy is already set up.
+
+export const subscribers = pgTable(
+  'subscribers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    email: text('email').notNull().unique(),
+    source: text('source').notNull().default('public_form'),
+    subscribedAt: timestamp('subscribed_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    unsubscribedAt: timestamp('unsubscribed_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: uuid('updated_by'),
+  },
+  (t) => [
+    index('subscribers_subscribed_at_idx').on(t.subscribedAt.desc()),
+    index('subscribers_active_idx')
+      .on(t.subscribedAt.desc())
+      .where(sql`${t.unsubscribedAt} is null`),
+    check(
+      'subscribers_email_length_check',
+      sql`char_length(${t.email}) between 3 and 320`,
+    ),
+    check(
+      'subscribers_email_format_check',
+      sql`${t.email} ~* '^[^[:space:]@]+@[^[:space:]@]+\\.[^[:space:]@]+$'`,
+    ),
+    check(
+      'subscribers_email_lowercase_check',
+      sql`${t.email} = lower(${t.email})`,
+    ),
+  ],
+);
+
+export type Subscriber = InferSelectModel<typeof subscribers>;
+export type NewSubscriber = InferInsertModel<typeof subscribers>;
+
