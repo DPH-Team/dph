@@ -50,6 +50,13 @@
       "when": 1779490490596,
       "tag": "20260522000016_careers_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1779501439441,
+      "tag": "20260523000019_subscribers_schema",
+      "breakpoints": true
     }
   ]
 }
