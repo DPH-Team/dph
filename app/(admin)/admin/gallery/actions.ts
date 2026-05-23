@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireStaff } from '@/lib/auth';
 import {
@@ -23,6 +23,7 @@ import type { ActionState } from '@/lib/types/action-state';
 // ─── Revalidation helper ──────────────────────────────────────────────────────
 
 function revalidateGallery() {
+  revalidateTag('gallery', 'max');
   revalidatePath('/admin/gallery');
   revalidatePath('/gallery');
 }

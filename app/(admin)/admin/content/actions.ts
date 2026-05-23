@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { requireStaff } from '@/lib/auth';
 import { updateContentBlock } from '@/lib/db/queries/content-blocks';
 import { CONTENT_BLOCK_KEYS, CONTENT_BLOCK_SCHEMAS } from '@/lib/validators/content-blocks';
@@ -69,6 +69,16 @@ export async function updateContentBlockAction(
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     return { ok: false, error: `Failed to save content block: ${msg}` };
+  }
+
+  // Revalidate the public cache for this content block.
+  revalidateTag(`content:${key}`, 'max');
+
+  // Also revalidate the public page(s) that consume this block.
+  if (key === 'home_hero' || key === 'home_callouts') {
+    revalidatePath('/');
+  } else if (key === 'about_body') {
+    revalidatePath('/about');
   }
 
   revalidatePath('/admin/content');
