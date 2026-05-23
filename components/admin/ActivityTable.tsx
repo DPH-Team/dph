@@ -1,25 +1,46 @@
+import Link from 'next/link';
 import { ScrollText } from 'lucide-react';
 import { ActivityRow } from './ActivityRow';
 import type { AuditLogEntry } from '@/lib/db/schema';
 
 interface ActivityTableProps {
   entries: AuditLogEntry[];
+  hasFilters?: boolean;
 }
 
-export function ActivityTable({ entries }: ActivityTableProps) {
+export function ActivityTable({ entries, hasFilters = false }: ActivityTableProps) {
   if (entries.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border bg-card/50 px-8 py-16 text-center">
         <div className="flex size-12 items-center justify-center rounded-full bg-muted mb-4">
           <ScrollText className="size-6 text-muted-foreground" aria-hidden="true" />
         </div>
-        <h3 className="text-base font-semibold text-foreground mb-1">
-          Nothing to show yet
-        </h3>
-        <p className="text-sm text-muted-foreground max-w-xs">
-          No activity recorded yet. Once your team starts working — logging in,
-          saving events, or updating hours — every action shows up right here.
-        </p>
+        {hasFilters ? (
+          <>
+            <h3 className="text-base font-semibold text-foreground mb-1">
+              No activity matches these filters
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-xs mb-3">
+              Try widening your date range or clearing filters to see all activity.
+            </p>
+            <Link
+              href="/admin/activity"
+              className="text-sm text-muted-foreground underline underline-offset-4 hover:text-foreground transition-colors"
+            >
+              Clear filters
+            </Link>
+          </>
+        ) : (
+          <>
+            <h3 className="text-base font-semibold text-foreground mb-1">
+              Nothing to show yet
+            </h3>
+            <p className="text-sm text-muted-foreground max-w-xs">
+              No activity recorded yet. Once your team starts working — logging in,
+              saving events, or updating hours — every action shows up right here.
+            </p>
+          </>
+        )}
       </div>
     );
   }
