@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { cn } from "@/lib/utils"
-import { INSTAGRAM_PROFILE_URL } from "@/lib/fixtures/instagram"
+import { INSTAGRAM_PROFILE_URL } from "@/app/__fixtures__/instagram"
 import type { IgPost } from "@/lib/fixtures/types"
 
 export type InstagramSlotProps = {
