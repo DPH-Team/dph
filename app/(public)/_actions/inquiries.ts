@@ -1,6 +1,9 @@
 "use server"
 
 import { z } from "zod"
+import { db } from "@/lib/db"
+import { inquiries } from "@/lib/db/schema"
+import { formTypeToDbType } from "@/lib/validators/inquiries"
 
 export type InquiryState =
   | { ok: true; message: string }
@@ -67,7 +70,30 @@ export async function submitInquiry(
     return { ok: false, fieldErrors }
   }
 
-  await new Promise((r) => setTimeout(r, 600))
+  // Map form wire value to DB enum value ('private-event' → 'private_event').
+  const dbType = formTypeToDbType(data.type)
+
+  try {
+    await db.insert(inquiries).values({
+      type: dbType,
+      name: data.name,
+      email: data.email,
+      phone: data.phone?.trim() || null,
+      partySize: data.partySize ? Number(data.partySize) : null,
+      preferredDate: data.preferredDate?.trim() || null,
+      preferredTime: data.preferredTime?.trim() || null,
+      message: data.message,
+      consent: true,
+      // status defaults to 'pending' via DB default — not passed explicitly.
+    })
+  } catch (err) {
+    console.error("[inquiries] Failed to insert inquiry:", err)
+    return {
+      ok: false,
+      fieldErrors: {},
+      message: "Something went wrong. Please try again.",
+    }
+  }
 
   return {
     ok: true,
