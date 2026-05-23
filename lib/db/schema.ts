@@ -476,3 +476,122 @@ export const inquiries = pgTable(
 export type Inquiry = InferSelectModel<typeof inquiries>;
 export type NewInquiry = InferInsertModel<typeof inquiries>;
 
+// ─── career_postings ──────────────────────────────────────────────────────────
+//
+// Admin-managed job postings shown on the public /careers page.
+// created_by / updated_by → auth.users(id) on delete set null (hand-written
+// FKs in the RLS migration — Drizzle cannot cross-reference the auth schema).
+
+export const employmentTypeEnum = pgEnum('employment_type', [
+  'full_time',
+  'part_time',
+]);
+
+export const careerPostings = pgTable(
+  'career_postings',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    title: text('title').notNull(),
+    type: employmentTypeEnum('type').notNull(),
+    department: text('department').notNull(),
+    description: text('description').notNull(),
+    responsibilities: text('responsibilities').array().notNull().default(sql`'{}'`),
+    requirements: text('requirements').array().notNull().default(sql`'{}'`),
+    isOpen: boolean('is_open').notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: uuid('created_by'),
+    updatedBy: uuid('updated_by'),
+  },
+  (t) => [
+    index('career_postings_sort_order_title_idx').on(t.sortOrder, t.title),
+    check(
+      'career_postings_title_length_check',
+      sql`char_length(${t.title}) between 1 and 120`,
+    ),
+    check(
+      'career_postings_department_length_check',
+      sql`char_length(${t.department}) between 1 and 80`,
+    ),
+    check(
+      'career_postings_description_length_check',
+      sql`char_length(${t.description}) between 1 and 2000`,
+    ),
+  ],
+);
+
+export type CareerPosting = InferSelectModel<typeof careerPostings>;
+export type NewCareerPosting = InferInsertModel<typeof careerPostings>;
+
+// ─── career_applications ──────────────────────────────────────────────────────
+//
+// Applications submitted by anonymous public visitors via the careers form.
+// No created_by — the submitter is anonymous.
+// updated_by → auth.users(id) on delete set null (hand-written FK in RLS
+// migration — Drizzle cannot cross-reference the auth schema).
+// handled_at is stamped when status moves off 'new'; cleared when returned to 'new'.
+// posting_id → career_postings(id) ON DELETE SET NULL so deleting a posting
+// does not destroy its associated applications.
+
+export const applicationStatusEnum = pgEnum('application_status', [
+  'new',
+  'reviewed',
+  'archived',
+]);
+
+export const careerApplications = pgTable(
+  'career_applications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    postingId: uuid('posting_id'),
+    name: text('name').notNull(),
+    email: text('email').notNull(),
+    phone: text('phone'),
+    message: text('message').notNull(),
+    resumePath: text('resume_path'),
+    status: applicationStatusEnum('status').notNull().default('new'),
+    internalNotes: text('internal_notes'),
+    handledAt: timestamp('handled_at', { withTimezone: true }),
+    consent: boolean('consent').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedBy: uuid('updated_by'),
+  },
+  (t) => [
+    index('career_applications_status_created_at_idx').on(
+      t.status,
+      t.createdAt.desc(),
+    ),
+    index('career_applications_posting_id_idx').on(t.postingId),
+    index('career_applications_email_idx').on(t.email),
+    check(
+      'career_applications_name_length_check',
+      sql`char_length(${t.name}) between 2 and 80`,
+    ),
+    check(
+      'career_applications_email_length_check',
+      sql`char_length(${t.email}) between 1 and 320`,
+    ),
+    check(
+      'career_applications_message_length_check',
+      sql`char_length(${t.message}) between 10 and 4000`,
+    ),
+    check(
+      'career_applications_internal_notes_length_check',
+      sql`${t.internalNotes} is null or char_length(${t.internalNotes}) <= 4000`,
+    ),
+  ],
+);
+
+export type CareerApplication = InferSelectModel<typeof careerApplications>;
+export type NewCareerApplication = InferInsertModel<typeof careerApplications>;
+

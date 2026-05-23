@@ -4,8 +4,20 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+/** Public buckets — objects are world-readable via their public URL. */
+type PublicBucket = 'media';
+
+/**
+ * Private buckets — objects are not publicly accessible.
+ * Access is gated via signed URLs generated server-side with the admin client.
+ */
+type PrivateBucket = 'applications';
+
+/** All known storage buckets. */
+type AnyBucket = PublicBucket | PrivateBucket;
+
 export interface CreateSignedUploadUrlOpts {
-  bucket: 'media';
+  bucket: AnyBucket;
   path: string;
   /** Seconds until the signed URL expires. Defaults to 60. */
   expiresIn?: number;
@@ -18,13 +30,20 @@ export interface SignedUploadResult {
 }
 
 export interface GetPublicUrlOpts {
-  bucket: 'media';
+  bucket: PublicBucket;
   path: string;
 }
 
 export interface DeleteObjectOpts {
-  bucket: 'media';
+  bucket: AnyBucket;
   path: string;
+}
+
+export interface CreateSignedDownloadUrlOpts {
+  bucket: PrivateBucket;
+  path: string;
+  /** Seconds until the signed URL expires. Defaults to 60. */
+  expiresIn?: number;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -62,6 +81,35 @@ export async function createSignedUploadUrl(
   // createSignedUploadUrl does not expose a TTL option in the JS SDK v2;
   // the default server-side TTL (60 s) applies.
   void expiresIn;
+}
+
+/**
+ * Create a short-lived signed download URL for an object in a private bucket.
+ *
+ * Uses the admin client (service-role) so the URL is generated regardless of
+ * the caller's auth context — access control is enforced in the server action
+ * layer (requireStaff) before this helper is invoked.
+ *
+ * Default TTL is 60 seconds — enough for the browser to receive the redirect
+ * from the admin UI and begin the download.
+ */
+export async function createSignedDownloadUrl(
+  opts: CreateSignedDownloadUrlOpts,
+): Promise<string> {
+  const { bucket, path, expiresIn = 60 } = opts;
+  const admin = createAdminClient();
+
+  const { data, error } = await admin.storage
+    .from(bucket)
+    .createSignedUrl(path, expiresIn);
+
+  if (error || !data) {
+    throw new Error(
+      `storage.createSignedDownloadUrl failed: ${error?.message ?? 'no data'}`,
+    );
+  }
+
+  return data.signedUrl;
 }
 
 /**
