@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { DollarSign, TrendingUp, Heart } from "lucide-react"
 import { pageMetadata } from "@/lib/seo"
-import { getOpenPostings } from "@/lib/fixtures"
+import { getPublicCareerPostings } from "@/lib/db/public"
 import { PageHero } from "@/components/marketing/PageHero"
 import { Section } from "@/components/marketing/layout/Section"
 import { Container } from "@/components/marketing/layout/Container"
@@ -37,7 +37,7 @@ const WHY_US = [
 ] as const
 
 export default async function CareersPage() {
-  const positions = await getOpenPostings()
+  const positions = await getPublicCareerPostings()
 
   return (
     <>

@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { CreditCard, Beer, Receipt } from "lucide-react"
 import { pageMetadata } from "@/lib/seo"
-import { getAboutContent, getTeam } from "@/lib/fixtures"
+import { getPublicContentBlock, getPublicTeam } from "@/lib/db/public"
 import { PageHero } from "@/components/marketing/PageHero"
 import { TeamCard } from "@/components/marketing/TeamCard"
 import { SectionHeading } from "@/components/marketing/SectionHeading"
@@ -26,7 +26,11 @@ const STEP_ICONS = {
 } as const
 
 export default async function AboutPage() {
-  const [about, members] = await Promise.all([getAboutContent(), getTeam()])
+  const [aboutBlock, members] = await Promise.all([
+    getPublicContentBlock('about_body')(),
+    getPublicTeam(),
+  ])
+  const about = aboutBlock
 
   return (
     <>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { pageMetadata } from "@/lib/seo"
-import { getGalleryImages } from "@/lib/fixtures"
+import { getPublicGallery } from "@/lib/db/public"
 import { PageHero } from "@/components/marketing/PageHero"
 import { GalleryGrid } from "@/components/marketing/GalleryGrid"
 import { Section } from "@/components/marketing/layout/Section"
@@ -13,7 +13,7 @@ export const metadata: Metadata = pageMetadata({
 })
 
 export default async function GalleryPage() {
-  const images = await getGalleryImages()
+  const images = await getPublicGallery()
 
   return (
     <>

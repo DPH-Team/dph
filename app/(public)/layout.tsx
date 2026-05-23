@@ -1,6 +1,6 @@
 import { SiteHeader } from "@/components/marketing/SiteHeader"
 import { SiteFooter } from "@/components/marketing/SiteFooter"
-import { getWeeklyHours, getHoursOverrides } from "@/lib/fixtures"
+import { getPublicWeeklyHours, getPublicHoursOverrides } from "@/lib/db/public"
 
 export default async function PublicLayout({
   children,
@@ -8,8 +8,8 @@ export default async function PublicLayout({
   children: React.ReactNode
 }) {
   const [hours, overrides] = await Promise.all([
-    getWeeklyHours(),
-    getHoursOverrides(),
+    getPublicWeeklyHours(),
+    getPublicHoursOverrides(),
   ])
 
   return (

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 import { pageMetadata } from "@/lib/seo"
-import { getLegalDoc } from "@/lib/fixtures"
+import { getLegalDoc } from "@/app/__fixtures__/legal"
 import { LegalPage, LegalBody } from "@/components/marketing/LegalPage"
 
 export const metadata: Metadata = pageMetadata({

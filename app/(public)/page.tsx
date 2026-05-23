@@ -1,15 +1,10 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { pageMetadata } from "@/lib/seo"
-import {
-  getHero,
-  getUpcomingEvents,
-  getFeaturedMenuItems,
-  getWeeklyHours,
-  getHoursOverrides,
-  getIgPosts,
-  getLocation,
-} from "@/lib/fixtures"
+import { getPublicContentBlock, getPublicMenu, getPublicWeeklyHours, getPublicHoursOverrides } from "@/lib/db/public"
+import { getUpcomingEvents } from "@/lib/fixtures"
+import { getIgPosts } from "@/app/__fixtures__/instagram"
+import { getLocation } from "@/app/__fixtures__/location"
 import { HomeHero } from "@/components/marketing/HomeHero"
 import { EventCard } from "@/components/marketing/EventCard"
 import { MenuItem } from "@/components/marketing/MenuItem"
@@ -30,19 +25,29 @@ export const metadata: Metadata = pageMetadata({
   path: "/",
 })
 
+const FEATURED_ITEM_COUNT = 4
+
 export default async function HomePage() {
-  const [hero, events, featuredItems, hours, overrides, igPosts, loc] =
+  const [hero, callouts, sections, hours, overrides, events, igPosts, loc] =
     await Promise.all([
-      getHero(),
+      getPublicContentBlock('home_hero')(),
+      getPublicContentBlock('home_callouts')(),
+      getPublicMenu(),
+      getPublicWeeklyHours(),
+      getPublicHoursOverrides(),
       getUpcomingEvents(),
-      getFeaturedMenuItems(),
-      getWeeklyHours(),
-      getHoursOverrides(),
       getIgPosts(),
       getLocation(),
     ])
 
   const upcomingThree = events.slice(0, 3)
+
+  // No featured flag in schema — take the first N available items across all sections.
+  const featuredItems = sections
+    .flatMap((s) => s.items)
+    .slice(0, FEATURED_ITEM_COUNT)
+
+  const calloutsArray = callouts
 
   return (
     <>
@@ -136,6 +141,41 @@ export default async function HomePage() {
           </div>
         </Container>
       </Section>
+
+      {/* Home callouts — rendered only when the admin has saved at least one callout */}
+      {calloutsArray.length > 0 && (
+        <Section padding="md" className="bg-background">
+          <Container>
+            <Stagger className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {calloutsArray.map((callout) => (
+                <StaggerItem key={callout.title}>
+                  <article className="flex flex-col gap-3 rounded-xl border border-border bg-card p-6 h-full">
+                    {callout.eyebrow && (
+                      <p className="text-xs font-medium tracking-widest uppercase text-primary">
+                        {callout.eyebrow}
+                      </p>
+                    )}
+                    <h3 className="font-display font-medium text-xl leading-snug text-foreground">
+                      {callout.title}
+                    </h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed flex-1">
+                      {callout.body}
+                    </p>
+                    {callout.href && callout.cta && (
+                      <Link
+                        href={callout.href}
+                        className="text-sm font-medium text-primary hover:text-[--color-copper-hover] transition-colors underline underline-offset-4 self-start"
+                      >
+                        {callout.cta} →
+                      </Link>
+                    )}
+                  </article>
+                </StaggerItem>
+              ))}
+            </Stagger>
+          </Container>
+        </Section>
+      )}
 
       {/* Hours / Location */}
       <Section padding="md" className="bg-background">
