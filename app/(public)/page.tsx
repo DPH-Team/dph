@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { pageMetadata } from "@/lib/seo"
 import { getPublicContentBlock, getPublicMenu, getPublicWeeklyHours, getPublicHoursOverrides } from "@/lib/db/public"
-import { getUpcomingEvents } from "@/lib/fixtures"
+import { getPublicUpcomingEvents } from "@/lib/db/public"
 import { getIgPosts } from "@/app/__fixtures__/instagram"
 import { getLocation } from "@/app/__fixtures__/location"
 import { HomeHero } from "@/components/marketing/HomeHero"
@@ -35,12 +35,12 @@ export default async function HomePage() {
       getPublicMenu(),
       getPublicWeeklyHours(),
       getPublicHoursOverrides(),
-      getUpcomingEvents(),
+      getPublicUpcomingEvents(),
       getIgPosts(),
       getLocation(),
     ])
 
-  const upcomingThree = events.slice(0, 3)
+  const upcomingThree = events.data.slice(0, 3)
 
   // No featured flag in schema — take the first N available items across all sections.
   const featuredItems = sections
