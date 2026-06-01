@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { pageMetadata } from "@/lib/seo"
-import { getMerchProducts } from "@/lib/fixtures"
+import { fetchProducts } from "@/lib/printify"
 import { PRINTIFY_STORE_URL } from "@/lib/fixtures/merch"
 import { PageHero } from "@/components/marketing/PageHero"
 import { MerchProductCard } from "@/components/marketing/MerchProductCard"
@@ -11,7 +11,7 @@ import { Container } from "@/components/marketing/layout/Container"
 import { ScrollReveal } from "@/components/motion/ScrollReveal"
 import { Stagger, StaggerItem } from "@/components/motion/Stagger"
 import { Button } from "@/components/ui/button"
-import { ExternalLink } from "lucide-react"
+import { ExternalLink, ShoppingBag } from "lucide-react"
 
 export const metadata: Metadata = pageMetadata({
   title: "Merch — District Pour Haus",
@@ -20,7 +20,7 @@ export const metadata: Metadata = pageMetadata({
 })
 
 export default async function MerchPage() {
-  const products = await getMerchProducts()
+  const { data: products } = await fetchProducts()
 
   return (
     <>
@@ -87,13 +87,40 @@ export default async function MerchPage() {
             </SectionHeading>
           </ScrollReveal>
 
-          <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-            {products.map((product) => (
-              <StaggerItem key={product.id}>
-                <MerchProductCard product={product} />
-              </StaggerItem>
-            ))}
-          </Stagger>
+          {products.length === 0 ? (
+            <div className="flex flex-col items-center gap-4 py-20 text-center">
+              <ShoppingBag
+                size={40}
+                className="text-muted-foreground/50"
+                aria-hidden="true"
+              />
+              <div className="flex flex-col gap-1">
+                <p className="text-base font-medium text-foreground">
+                  No products available right now
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  New drops coming soon —{" "}
+                  <a
+                    href={PRINTIFY_STORE_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:text-[--color-copper-hover] transition-colors underline underline-offset-4"
+                  >
+                    visit the pop-up store
+                  </a>{" "}
+                  to see what&apos;s available.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <Stagger className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+              {products.map((product) => (
+                <StaggerItem key={product.id}>
+                  <MerchProductCard product={product} />
+                </StaggerItem>
+              ))}
+            </Stagger>
+          )}
 
           <div className="mt-10 pt-6 border-t border-border">
             <p className="text-xs text-muted-foreground">

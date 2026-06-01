@@ -1,20 +1,26 @@
 /**
  * lib/db/queries/events-cache.ts — DB helpers for the events_cache table.
  *
- * Public read functions use the user-session Drizzle client (`db`) so RLS
- * applies (select policy: deleted_at IS NULL).
+ * Public read functions use the Drizzle `db` client so RLS applies
+ * (select policy: deleted_at IS NULL).
  *
- * Write helpers (upsertEventRows, softDeleteMissingEvents) use the service-role
- * admin client via createAdminClient() because there is no write RLS policy —
- * all mutations are performed by the cron sync task, not by authenticated users.
+ * Write helpers (upsertEventRows, softDeleteMissingEvents) also use the Drizzle
+ * `db` client, which connects directly to Postgres via DATABASE_URL (the pooler
+ * `postgres` role). That role owns the tables and therefore bypasses RLS — the
+ * same pattern every other query module in this project uses. events_cache has
+ * no write RLS policy, and these helpers are server-only, invoked exclusively
+ * by the events sync cron route.
+ *
+ * upsertEventRows deliberately omits `slug` from the ON CONFLICT DO UPDATE set
+ * so that deep-link slugs stay stable across sync cycles even if the event
+ * title changes on Untappd.
  */
 
 import 'server-only';
 
-import { isNull, desc, asc, sql } from 'drizzle-orm';
+import { isNull, notInArray, desc, asc, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { eventsCache } from '@/lib/db/schema';
-import { createAdminClient } from '@/lib/supabase/admin';
 import type { EventCacheRow, NewEventCacheRow } from '@/lib/db/schema';
 
 // ─── Public read helpers ──────────────────────────────────────────────────────
@@ -120,7 +126,7 @@ export async function getEventsSyncStatus(): Promise<EventsSyncStatus> {
   };
 }
 
-// ─── Write helpers (service-role, called by cron — not by user sessions) ──────
+// ─── Write helpers (db client / postgres role, called by cron — not by user sessions) ──────
 
 /**
  * Upsert a batch of event rows from the Untappd sync.
@@ -129,49 +135,68 @@ export async function getEventsSyncStatus(): Promise<EventsSyncStatus> {
  * exist are refreshed in-place. Sets synced_at = now() and clears deleted_at so
  * previously soft-deleted events resurface if Untappd reports them again.
  *
- * MUST use the service-role admin client — RLS has no write policy on this table.
+ * SLUG STABILITY: slug is intentionally excluded from the DO UPDATE set.
+ * Slugs are generated once at first insert and never recomputed, so deep-links
+ * remain stable across sync cycles even if the event title changes on Untappd.
+ *
+ * Uses the Drizzle `db` client (DATABASE_URL / postgres role) which bypasses
+ * RLS as the table owner — no service-role client needed.
  */
 export async function upsertEventRows(rows: NewEventCacheRow[]): Promise<void> {
   if (rows.length === 0) return;
 
-  const admin = createAdminClient();
+  const now = new Date();
 
   const records = rows.map((r) => ({
-    untappd_event_id: r.untappdEventId,
+    untappdEventId: r.untappdEventId,
     slug: r.slug,
     title: r.title,
     description: r.description ?? '',
-    starts_at: r.startsAt instanceof Date ? r.startsAt.toISOString() : r.startsAt,
-    ends_at:
-      r.endsAt instanceof Date
-        ? r.endsAt.toISOString()
-        : (r.endsAt ?? null),
-    cover_image_url: r.coverImageUrl ?? null,
-    external_url: r.externalUrl ?? null,
-    synced_at: new Date().toISOString(),
-    deleted_at: null,
+    startsAt: r.startsAt instanceof Date ? r.startsAt : new Date(r.startsAt as string),
+    endsAt:
+      r.endsAt == null
+        ? null
+        : r.endsAt instanceof Date
+          ? r.endsAt
+          : new Date(r.endsAt as string),
+    coverImageUrl: r.coverImageUrl ?? null,
+    externalUrl: r.externalUrl ?? null,
+    syncedAt: now,
+    deletedAt: null,
+    updatedAt: now,
   }));
 
-  const { error } = await admin
-    .from('events_cache')
-    .upsert(records, {
-      onConflict: 'untappd_event_id',
-      ignoreDuplicates: false,
+  await db
+    .insert(eventsCache)
+    .values(records)
+    .onConflictDoUpdate({
+      target: eventsCache.untappdEventId,
+      // slug is intentionally absent — never overwrite an existing slug.
+      set: {
+        title: sql`excluded.title`,
+        description: sql`excluded.description`,
+        startsAt: sql`excluded.starts_at`,
+        endsAt: sql`excluded.ends_at`,
+        coverImageUrl: sql`excluded.cover_image_url`,
+        externalUrl: sql`excluded.external_url`,
+        syncedAt: sql`excluded.synced_at`,
+        deletedAt: sql`excluded.deleted_at`,
+        updatedAt: sql`excluded.updated_at`,
+      },
     });
-
-  if (error) {
-    throw new Error(`upsertEventRows failed: ${error.message}`);
-  }
 }
 
 /**
  * Soft-delete events that are no longer reported by Untappd.
  *
- * Sets deleted_at = now() on all rows where untappd_event_id is NOT in the
- * provided list and deleted_at IS NULL. Skips the query entirely when
- * liveUntappdIds is empty to avoid generating an invalid NOT IN () clause.
+ * Sets deleted_at = now() (and updated_at = now()) on all rows where
+ * untappd_event_id is NOT IN the provided list and deleted_at IS NULL.
+ * Skips the query entirely when liveUntappdIds is empty to avoid wiping
+ * the whole table — the caller should treat an empty response as a fetch
+ * error, not a "no events" signal.
  *
- * MUST use the service-role admin client — RLS has no write policy on this table.
+ * Uses the Drizzle `db` client (DATABASE_URL / postgres role) — same as
+ * upsertEventRows. No service-role client needed.
  */
 export async function softDeleteMissingEvents(
   liveUntappdIds: string[],
@@ -180,15 +205,12 @@ export async function softDeleteMissingEvents(
   // should treat an empty response as a fetch error, not a "no events" signal.
   if (liveUntappdIds.length === 0) return;
 
-  const admin = createAdminClient();
+  const now = new Date();
 
-  const { error } = await admin
-    .from('events_cache')
-    .update({ deleted_at: new Date().toISOString() })
-    .not('untappd_event_id', 'in', `(${liveUntappdIds.map((id) => `"${id}"`).join(',')})`)
-    .is('deleted_at', null);
-
-  if (error) {
-    throw new Error(`softDeleteMissingEvents failed: ${error.message}`);
-  }
+  await db
+    .update(eventsCache)
+    .set({ deletedAt: now, updatedAt: now })
+    .where(
+      sql`${notInArray(eventsCache.untappdEventId, liveUntappdIds)} AND ${isNull(eventsCache.deletedAt)}`,
+    );
 }

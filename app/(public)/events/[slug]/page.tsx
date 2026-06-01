@@ -5,20 +5,22 @@ import Link from "next/link"
 import { Calendar, MapPin, ExternalLink, Share2, Clock } from "lucide-react"
 import { pageMetadata } from "@/lib/seo"
 import {
-  getEvents,
-  getEventBySlugAsync,
-  getUpcomingEvents,
-} from "@/lib/fixtures"
+  getPublicEventBySlug,
+  getPublicEventSlugs,
+  getPublicUpcomingEvents,
+} from "@/lib/db/public"
 import { EventCard } from "@/components/marketing/EventCard"
 import { Section } from "@/components/marketing/layout/Section"
 import { Container } from "@/components/marketing/layout/Container"
 import { SectionHeading } from "@/components/marketing/SectionHeading"
 
+export const dynamicParams = true
+
 type Params = { slug: string }
 
 export async function generateStaticParams(): Promise<Params[]> {
-  const events = await getEvents()
-  return events.map((e) => ({ slug: e.slug }))
+  const slugs = await getPublicEventSlugs()
+  return slugs.map((slug) => ({ slug }))
 }
 
 export async function generateMetadata({
@@ -27,14 +29,14 @@ export async function generateMetadata({
   params: Promise<Params>
 }): Promise<Metadata> {
   const { slug } = await params
-  const event = await getEventBySlugAsync(slug)
+  const event = await getPublicEventBySlug(slug)
   if (!event) return {}
 
   return pageMetadata({
     title: `${event.title} — District Pour Haus`,
     description: event.description.slice(0, 155),
     path: `/events/${event.slug}`,
-    ogImage: event.imageUrl ?? undefined,
+    ogImage: event.imageUrl || undefined,
   })
 }
 
@@ -86,22 +88,24 @@ export default async function EventDetailPage({
   params: Promise<Params>
 }) {
   const { slug } = await params
-  const event = await getEventBySlugAsync(slug)
+  const event = await getPublicEventBySlug(slug)
 
   if (!event) notFound()
 
   const past = isPast(event.startsAt)
   const calLinks = buildCalendarLinks(event.title, event.startsAt, event.endsAt)
-  const allUpcoming = await getUpcomingEvents()
-  const related = allUpcoming
+  const upcomingResult = await getPublicUpcomingEvents()
+  const related = upcomingResult.data
     .filter((e) => e.slug !== event.slug)
     .slice(0, 3)
+
+  const hasImage = Boolean(event.imageUrl)
 
   return (
     <>
       {/* Event hero */}
       <div className="relative w-full aspect-[16/7] min-h-[300px] bg-neutral-900 overflow-hidden">
-        {event.imageUrl ? (
+        {hasImage ? (
           <Image
             src={event.imageUrl}
             alt={event.title}
