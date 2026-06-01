@@ -595,6 +595,46 @@ export const careerApplications = pgTable(
 export type CareerApplication = InferSelectModel<typeof careerApplications>;
 export type NewCareerApplication = InferInsertModel<typeof careerApplications>;
 
+// ─── events_cache ─────────────────────────────────────────────────────────────
+//
+// One row per Untappd event. Written exclusively by the cron sync task via the
+// service-role admin client (RLS has no write policy). Soft-deleted rows remain
+// in the table and are excluded by the select policy and all query helpers.
+// untappd_event_id is the upsert key; slug is derived and persisted at sync time.
+
+export const eventsCache = pgTable(
+  'events_cache',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    untappdEventId: text('untappd_event_id').notNull().unique(),
+    slug: text('slug').notNull().unique(),
+    title: text('title').notNull(),
+    description: text('description').notNull().default(''),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }),
+    coverImageUrl: text('cover_image_url'),
+    externalUrl: text('external_url'),
+    syncedAt: timestamp('synced_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('events_cache_starts_at_active_idx')
+      .on(t.startsAt)
+      .where(sql`${t.deletedAt} IS NULL`),
+  ],
+);
+
+export type EventCacheRow = InferSelectModel<typeof eventsCache>;
+export type NewEventCacheRow = InferInsertModel<typeof eventsCache>;
+
 // ─── subscribers ──────────────────────────────────────────────────────────────
 //
 // Newsletter subscriber list. Soft-unsubscribe via unsubscribed_at (null = active).

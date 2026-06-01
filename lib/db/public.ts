@@ -34,8 +34,15 @@ import { listTeamMembers } from '@/lib/db/queries/team-members';
 import { listGalleryImages } from '@/lib/db/queries/gallery';
 import { listPostings } from '@/lib/db/queries/career-postings';
 import { getContentBlock } from '@/lib/db/queries/content-blocks';
+import {
+  listUpcomingEventRows,
+  listPastEventRows,
+  getEventRowBySlug,
+  getEventsSyncStatus,
+  listEventSlugs,
+} from '@/lib/db/queries/events-cache';
 import { getPublicUrl } from '@/lib/supabase/storage';
-import type { MenuSection, MenuItem, WeeklyHours, HoursOverride, TeamMember, GalleryImage, Posting } from '@/lib/fixtures/types';
+import type { MenuSection, MenuItem, WeeklyHours, HoursOverride, TeamMember, GalleryImage, Posting, Event } from '@/lib/fixtures/types';
 import type { ContentBlockKey } from '@/lib/validators/content-blocks';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -278,3 +285,130 @@ export function getPublicContentBlock<K extends ContentBlockKey>(key: K) {
     { tags: [`content:${key}`] },
   );
 }
+
+// ─── Events ───────────────────────────────────────────────────────────────────
+
+/**
+ * Wrapper type for public event reads.
+ * stale: true when the cache has never been populated or was last synced >1 hour ago.
+ * lastSyncedAt: ISO string of the most recent successful sync, or null.
+ */
+export type PublicResult<T> = {
+  data: T;
+  stale: boolean;
+  lastSyncedAt: string | null;
+};
+
+/** One hour in milliseconds — stale threshold for events data. */
+const EVENTS_STALE_MS = 60 * 60 * 1000;
+
+/**
+ * Map a DB row to the public Event fixture type.
+ * cover_image_url is nullable in the DB; the fixture type requires imageUrl: string,
+ * so we emit '' when null and let the frontend handle the empty-string case.
+ */
+function rowToEvent(row: {
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  startsAt: Date;
+  endsAt: Date | null;
+  coverImageUrl: string | null;
+  externalUrl: string | null;
+}): Event {
+  return {
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    description: row.description,
+    startsAt: row.startsAt.toISOString(),
+    endsAt: row.endsAt ? row.endsAt.toISOString() : null,
+    imageUrl: row.coverImageUrl ?? '',
+    ticketUrl: row.externalUrl ?? null,
+    featured: false,
+    tags: [],
+  };
+}
+
+/**
+ * Compute stale flag: true when lastSyncedAt is null or older than EVENTS_STALE_MS.
+ */
+function computeStale(lastSyncedAt: string | null): boolean {
+  if (!lastSyncedAt) return true;
+  return Date.now() - new Date(lastSyncedAt).getTime() > EVENTS_STALE_MS;
+}
+
+/**
+ * Return upcoming events with staleness metadata.
+ * Cached under the 'events' tag — revalidated by the cron after each sync.
+ */
+export const getPublicUpcomingEvents = unstable_cache(
+  async (): Promise<PublicResult<Event[]>> => {
+    const [rows, syncStatus] = await Promise.all([
+      listUpcomingEventRows(),
+      getEventsSyncStatus(),
+    ]);
+    return {
+      data: rows.map(rowToEvent),
+      stale: computeStale(syncStatus.lastSyncedAt),
+      lastSyncedAt: syncStatus.lastSyncedAt,
+    };
+  },
+  ['public-upcoming-events'],
+  { tags: ['events'] },
+);
+
+/**
+ * Return past events with staleness metadata.
+ * Cached under the 'events' tag — revalidated by the cron after each sync.
+ */
+export const getPublicPastEvents = unstable_cache(
+  async (): Promise<PublicResult<Event[]>> => {
+    const [rows, syncStatus] = await Promise.all([
+      listPastEventRows(),
+      getEventsSyncStatus(),
+    ]);
+    return {
+      data: rows.map(rowToEvent),
+      stale: computeStale(syncStatus.lastSyncedAt),
+      lastSyncedAt: syncStatus.lastSyncedAt,
+    };
+  },
+  ['public-past-events'],
+  { tags: ['events'] },
+);
+
+/**
+ * Return a single event by slug, or null if not found / soft-deleted.
+ * Cached under the 'events' tag.
+ */
+export const getPublicEventBySlug = unstable_cache(
+  async (slug: string): Promise<Event | null> => {
+    const row = await getEventRowBySlug(slug);
+    if (!row) return null;
+    return rowToEvent(row);
+  },
+  ['public-event-by-slug'],
+  { tags: ['events'] },
+);
+
+/**
+ * Return sync status for the public "Last updated…" line and the admin card.
+ * Cached under the 'events' tag.
+ */
+export const getEventsSyncStatusCached = unstable_cache(
+  async () => getEventsSyncStatus(),
+  ['public-events-sync-status'],
+  { tags: ['events'] },
+);
+
+/**
+ * Return all event slugs for generateStaticParams.
+ * Cached under the 'events' tag.
+ */
+export const getPublicEventSlugs = unstable_cache(
+  async (): Promise<string[]> => listEventSlugs(),
+  ['public-event-slugs'],
+  { tags: ['events'] },
+);
