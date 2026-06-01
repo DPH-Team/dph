@@ -12,10 +12,14 @@
  *   3. creds present                                         → live fetch
  *   4. live fetch throws / non-2xx / timeout                 → graceful fallback
  *
- * NOTE: The Untappd for Business API endpoint used here
- * (GET /api/v1/menus?location_id=…) is a Phase-4 assumption carried over from
- * lib/integrations/test-connections.ts. The exact response envelope may differ
- * from the live API. All JSON→type mapping is isolated in normalizeTaps() and
+ * Auth is HTTP Basic: Authorization: Basic <base64(email:read_write_token)>
+ * per verified Untappd for Business API docs. Bearer auth was a Phase-4
+ * assumption and is now corrected.
+ *
+ * Menus endpoint: GET /api/v1/locations/{location_id}/menus (verified path).
+ * Events endpoint: GET /api/v1/locations/{location_id}/events (best-guess
+ * location-scoped path — isolate in fetchEvents() pending real-creds
+ * confirmation). All JSON→type mapping is isolated in normalizeTaps() and
  * normalizeEvents() so a shape correction is a one-function fix per export.
  */
 
@@ -47,7 +51,7 @@ export type UntappdEvent = {
 
 type UntappdMode =
   | { mode: 'mock' }
-  | { mode: 'live'; creds: { location_id: string; read_write_token: string } };
+  | { mode: 'live'; creds: { email: string; location_id: string; read_write_token: string } };
 
 /**
  * resolveUntappdMode — shared decision logic for fetchTaps and fetchEvents.
@@ -86,16 +90,17 @@ async function resolveUntappdMode(): Promise<UntappdMode> {
     return { mode: 'mock' };
   }
 
+  const email = typeof rawCreds['email'] === 'string' ? rawCreds['email'] : '';
   const location_id = typeof rawCreds['location_id'] === 'string' ? rawCreds['location_id'] : '';
   const read_write_token =
     typeof rawCreds['read_write_token'] === 'string' ? rawCreds['read_write_token'] : '';
 
-  if (!location_id || !read_write_token) {
+  if (!email || !location_id || !read_write_token) {
     console.warn('[untappd] mode=live but required credential keys absent — falling back to mock');
     return { mode: 'mock' };
   }
 
-  return { mode: 'live', creds: { location_id, read_write_token } };
+  return { mode: 'live', creds: { email, location_id, read_write_token } };
 }
 
 // ─── Tap normalisation ────────────────────────────────────────────────────────
@@ -261,13 +266,14 @@ function normalizeEvents(raw: unknown): UntappdEvent[] {
  * button busts this entry.
  */
 const getCachedTapsRaw = unstable_cache(
-  async (location_id: string, read_write_token: string): Promise<Tap[]> => {
-    const url = `https://business.untappd.com/api/v1/menus?location_id=${encodeURIComponent(location_id)}`;
+  async (email: string, location_id: string, read_write_token: string): Promise<Tap[]> => {
+    const basicToken = Buffer.from(`${email}:${read_write_token}`).toString('base64');
+    const url = `https://business.untappd.com/api/v1/locations/${encodeURIComponent(location_id)}/menus`;
 
     const res = await fetch(url, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${read_write_token}`,
+        Authorization: `Basic ${basicToken}`,
         Accept: 'application/json',
       },
       signal: AbortSignal.timeout(5_000),
@@ -305,10 +311,10 @@ export async function fetchTaps(): Promise<{ data: Tap[]; stale: boolean }> {
     return { data: mockTaps, stale: false };
   }
 
-  const { location_id, read_write_token } = modeResult.creds;
+  const { email, location_id, read_write_token } = modeResult.creds;
 
   try {
-    const data = await getCachedTapsRaw(location_id, read_write_token);
+    const data = await getCachedTapsRaw(email, location_id, read_write_token);
     return { data, stale: false };
   } catch (err) {
     console.error('[untappd] fetchTaps live fetch failed — returning stale/mock fallback:', err);
@@ -346,16 +352,20 @@ export async function fetchEvents(): Promise<UntappdEvent[]> {
     }));
   }
 
-  const { location_id, read_write_token } = modeResult.creds;
+  const { email, location_id, read_write_token } = modeResult.creds;
 
-  // NOTE: /api/v1/events?location_id=… is a best-guess path; isolate in
-  // normalizeEvents() above if the real endpoint path differs.
-  const url = `https://business.untappd.com/api/v1/events?location_id=${encodeURIComponent(location_id)}`;
+  const basicToken = Buffer.from(`${email}:${read_write_token}`).toString('base64');
+
+  // NOTE (INFERRED — isolate for easy correction): The events sub-path
+  // /api/v1/locations/{id}/events is a best-guess location-scoped URL matching
+  // the verified menus pattern. Confirm with real creds and adjust here if the
+  // actual path differs; normalizeEvents() handles the response shape separately.
+  const url = `https://business.untappd.com/api/v1/locations/${encodeURIComponent(location_id)}/events`;
 
   const res = await fetch(url, {
     method: 'GET',
     headers: {
-      Authorization: `Bearer ${read_write_token}`,
+      Authorization: `Basic ${basicToken}`,
       Accept: 'application/json',
     },
     signal: AbortSignal.timeout(5_000),

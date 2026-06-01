@@ -9,10 +9,24 @@ export type IntegrationName = (typeof INTEGRATION_NAMES)[number];
 
 /**
  * Untappd credential schema.
- * The read_write_token is a single token covering both tap list and events sync
- * (per PHASES.md Phase 6 — there is no separate read token).
+ *
+ * Auth is HTTP Basic (NOT Bearer): the Authorization header is built as
+ *   Authorization: Basic <base64(email + ":" + read_write_token)>
+ * per the official Untappd for Business API docs.
+ *
+ * Fields:
+ *   email           — the email address used to log into business.untappd.com
+ *   location_id     — found in Settings & Integrations > Location Settings
+ *   read_write_token — the Read & Write API token from business.untappd.com/account
+ *
+ * The read_write_token covers both tap list (menus endpoint) and events sync.
  */
 export const untappdCredentialsSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .email('Enter the account email for your Untappd for Business login')
+    .max(120, 'Email must be 120 characters or fewer'),
   location_id: z
     .string()
     .trim()

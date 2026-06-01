@@ -120,16 +120,23 @@ interface FieldConfig {
 
 const UNTAPPD_FIELDS: FieldConfig[] = [
   {
+    name: 'email',
+    label: 'Account Email',
+    placeholder: 'The email you log into Untappd for Business with',
+    type: 'text',
+    maxLength: 120,
+  },
+  {
     name: 'location_id',
     label: 'Location ID',
-    placeholder: 'e.g. 12345',
+    placeholder: 'e.g. 12345 (Settings & Integrations > Location Settings)',
     type: 'text',
     maxLength: 50,
   },
   {
     name: 'read_write_token',
-    label: 'Read / Write Token',
-    placeholder: 'Bearer token from Untappd for Business',
+    label: 'Read & Write Token',
+    placeholder: 'Read & Write API token (business.untappd.com/account)',
     type: 'password',
     maxLength: 200,
   },

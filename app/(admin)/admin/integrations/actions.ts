@@ -221,11 +221,12 @@ export async function testConnectionAction(
   let testResult: { ok: true } | { ok: false; error: string };
 
   if (name === 'untappd') {
-    const { location_id, read_write_token } = creds as {
+    const { email, location_id, read_write_token } = creds as {
+      email: string;
       location_id: string;
       read_write_token: string;
     };
-    testResult = await testUntappdConnection({ location_id, read_write_token });
+    testResult = await testUntappdConnection({ email, location_id, read_write_token });
   } else {
     const { api_key, shop_id } = creds as {
       api_key: string;
