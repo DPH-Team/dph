@@ -1,4 +1,4 @@
-import type { IgPost } from "./types"
+import type { IgPost } from "@/lib/fixtures/types"
 
 export const INSTAGRAM_PROFILE_URL = "https://instagram.com/districtpourhaus"
 

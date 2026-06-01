@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireStaff } from '@/lib/auth';
 import { postingSchema } from '@/lib/validators/careers';
@@ -16,6 +16,8 @@ import type { ActionState } from '@/lib/types/action-state';
 // ─── Revalidation helper ──────────────────────────────────────────────────────
 
 function revalidateCareers(id?: string) {
+  revalidateTag('careers', 'max');
+  revalidatePath('/careers');
   revalidatePath('/admin/careers');
   revalidatePath('/admin/careers/postings');
   if (id) revalidatePath(`/admin/careers/postings/${id}`);

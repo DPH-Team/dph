@@ -1,4 +1,4 @@
-import type { FaqEntry } from "./types"
+import type { FaqEntry } from "@/lib/fixtures/types"
 
 export const faqEntries: FaqEntry[] = [
   {

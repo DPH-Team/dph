@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { pageMetadata } from "@/lib/seo"
-import { getMenuSections } from "@/lib/fixtures"
+import { getPublicMenu } from "@/lib/db/public"
 import { PageHero } from "@/components/marketing/PageHero"
 import { MenuSectionTabs } from "@/components/marketing/MenuSectionTabs"
 import { Section } from "@/components/marketing/layout/Section"
@@ -14,7 +14,7 @@ export const metadata: Metadata = pageMetadata({
 })
 
 export default async function MenuPage() {
-  const sections = await getMenuSections()
+  const sections = await getPublicMenu()
 
   return (
     <>

@@ -1,4 +1,4 @@
-import type { Location } from "./types"
+import type { Location } from "@/lib/fixtures/types"
 
 export const location: Location = {
   name: "District Pour Haus",

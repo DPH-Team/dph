@@ -1,4 +1,4 @@
-import type { LegalDoc } from "./types"
+import type { LegalDoc } from "@/lib/fixtures/types"
 
 const privacyParagraphs: string[] = [
   "District Pour Haus, LLC ('District Pour Haus,' 'we,' 'us,' or 'our') respects your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website at districtpourhaus.com, use our online reservation and inquiry forms, or otherwise interact with us digitally.",

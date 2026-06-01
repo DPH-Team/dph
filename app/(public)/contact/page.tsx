@@ -2,7 +2,8 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { Phone, Mail, MapPin, ParkingCircle, Bus, Accessibility } from "lucide-react"
 import { pageMetadata } from "@/lib/seo"
-import { getLocation, getWeeklyHours, getHoursOverrides } from "@/lib/fixtures"
+import { getLocation } from "@/app/__fixtures__/location"
+import { getPublicWeeklyHours, getPublicHoursOverrides } from "@/lib/db/public"
 import { PageHero } from "@/components/marketing/PageHero"
 import { HoursCard } from "@/components/marketing/HoursCard"
 import { MapBlock } from "@/components/marketing/MapBlock"
@@ -21,8 +22,8 @@ export const metadata: Metadata = pageMetadata({
 export default async function ContactPage() {
   const [location, hours, overrides] = await Promise.all([
     getLocation(),
-    getWeeklyHours(),
-    getHoursOverrides(),
+    getPublicWeeklyHours(),
+    getPublicHoursOverrides(),
   ])
 
   const formattedAddress = `${location.address}, ${location.city}, ${location.state} ${location.zip}`

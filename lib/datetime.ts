@@ -157,6 +157,66 @@ export function venueLocalToUTC(localInput: string): Date {
   return new Date(inputAsUtcMs + offsetMs);
 }
 
+// ─── Venue-date helpers ────────────────────────────────────────────────────────
+
+/**
+ * Return today's date in the venue's local timezone as a YYYY-MM-DD string.
+ *
+ * Uses `Intl.DateTimeFormat` rather than `.toISOString()` so the date is always
+ * correct for `America/Chicago` regardless of what timezone the server runs in.
+ */
+export function todayInVenueDate(): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    // en-CA produces 'YYYY-MM-DD' natively
+    timeZone: VENUE_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+
+  const get = (type: string) =>
+    parts.find((p) => p.type === type)?.value ?? '00';
+
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+/**
+ * Derive the day-of-week for a YYYY-MM-DD date string interpreted in venue
+ * local time.
+ *
+ * We anchor to noon (T12:00:00) in venue local time before constructing the
+ * Date so that DST transitions around midnight can never shift the wall-clock
+ * date to the previous or following day.
+ *
+ * Returns a lowercase English weekday name that matches the `day_of_week`
+ * DB enum: 'monday' | 'tuesday' | … | 'sunday'.
+ */
+export function venueDateToDow(
+  date: string,
+): 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday' {
+  // Construct a Date that represents noon on the given calendar date in venue TZ.
+  // Using the datetime-local string appended with the TZ offset would be cleaner
+  // but is fragile across DST. Instead we parse as if UTC-noon and then use Intl
+  // to read back the weekday — the noon anchor means the date cannot flip.
+  const d = new Date(`${date}T12:00:00`);
+
+  const weekday = new Intl.DateTimeFormat('en-US', {
+    timeZone: VENUE_TZ,
+    weekday: 'long',
+  })
+    .format(d)
+    .toLowerCase() as
+    | 'monday'
+    | 'tuesday'
+    | 'wednesday'
+    | 'thursday'
+    | 'friday'
+    | 'saturday'
+    | 'sunday';
+
+  return weekday;
+}
+
 /**
  * Convert a UTC Date to the 'YYYY-MM-DDTHH:mm' string expected by
  * <input type="datetime-local">, expressed in America/Chicago.
