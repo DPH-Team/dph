@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useActionState, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Loader2,
@@ -179,22 +180,26 @@ function CredentialsForm({
   hasExistingCreds: boolean;
   fieldErrors?: Record<string, string[]>;
 }) {
+  const router = useRouter();
   const boundAction = saveCredentialsAction.bind(null, name);
   const [state, formAction, isPending] = useActionState<ActionState | null, FormData>(
     boundAction,
     null,
   );
   const prevRef = useRef<ActionState | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (!state || state === prevRef.current) return;
     prevRef.current = state;
     if (state.ok) {
+      formRef.current?.reset();
+      router.refresh();
       toast.success('Credentials saved.');
     } else if (state.error) {
       toast.error(state.error);
     }
-  }, [state]);
+  }, [state, router]);
 
   const fields = getFields(name);
   const errors =
@@ -203,7 +208,7 @@ function CredentialsForm({
       : fieldErrors ?? {};
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form ref={formRef} action={formAction} className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {fields.map((field) => (
           <div key={field.name} className="space-y-1.5">
@@ -279,6 +284,7 @@ function TogglesForm({
   enabled: boolean;
   mode: string;
 }) {
+  const router = useRouter();
   const boundAction = updateTogglesAction.bind(null, name);
   const [state, formAction, isPending] = useActionState<ActionState | null, FormData>(
     boundAction,
@@ -292,11 +298,12 @@ function TogglesForm({
     if (!state || state === prevRef.current) return;
     prevRef.current = state;
     if (state.ok) {
+      router.refresh();
       toast.success('Settings saved.');
     } else if (state.error) {
       toast.error(state.error);
     }
-  }, [state]);
+  }, [state, router]);
 
   return (
     <form action={formAction} className="flex flex-wrap items-center gap-3">
@@ -375,6 +382,7 @@ function TestConnectionButton({
   name: IntegrationName;
   hasExistingCreds: boolean;
 }) {
+  const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const [lastResult, setLastResult] = useState<TestActionState | null>(null);
 
@@ -383,6 +391,7 @@ function TestConnectionButton({
     try {
       const result = await testConnectionAction(name);
       setLastResult(result);
+      router.refresh();
       if (result.ok) {
         toast.success(result.message);
       } else {
@@ -391,6 +400,7 @@ function TestConnectionButton({
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       setLastResult({ ok: false, error: msg });
+      router.refresh();
       toast.error(msg);
     } finally {
       setIsPending(false);
