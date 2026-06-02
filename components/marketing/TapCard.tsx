@@ -177,8 +177,11 @@ export function TapCard({ tap, className }: TapCardProps) {
           articleBase,
           // Scale + shadow lift animate with the same easing as the description reveal
           "transition-[border-color,transform,box-shadow] duration-[250ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
-          "hover:scale-[1.025] hover:shadow-[0_12px_32px_-8px_oklch(0_0_0_/_0.55)]",
-          "focus-within:scale-[1.025] focus-within:shadow-[0_12px_32px_-8px_oklch(0_0_0_/_0.55)]",
+          "hover:scale-[1.025] focus-within:scale-[1.025]",
+          // Depth shadow + brand-coloured glow layered in one box-shadow value
+          tap.isFeatured
+            ? "hover:shadow-[0_12px_32px_-8px_oklch(0_0_0_/_0.55),_0_0_28px_4px_oklch(0.806_0.165_81_/_0.38)] focus-within:shadow-[0_12px_32px_-8px_oklch(0_0_0_/_0.55),_0_0_28px_4px_oklch(0.806_0.165_81_/_0.38)]"
+            : "hover:shadow-[0_12px_32px_-8px_oklch(0_0_0_/_0.55),_0_0_28px_4px_oklch(0.648_0.130_47_/_0.40)] focus-within:shadow-[0_12px_32px_-8px_oklch(0_0_0_/_0.55),_0_0_28px_4px_oklch(0.648_0.130_47_/_0.40)]",
           // Reduced-motion: suppress transforms; description still reveals instantly
           "motion-reduce:hover:scale-100 motion-reduce:focus-within:scale-100",
           // Featured vs normal hover border colour
