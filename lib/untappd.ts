@@ -17,9 +17,9 @@
  * assumption and is now corrected.
  *
  * Menus endpoint: GET /api/v1/locations/{location_id}/menus (verified path).
- * Events endpoint: GET /api/v1/locations/{location_id}/events (best-guess
- * location-scoped path — isolate in fetchEvents() pending real-creds
- * confirmation). All JSON→type mapping is isolated in normalizeTaps() and
+ * Events endpoint: GET /api/v1/locations/{location_id}/events (VERIFIED —
+ * confirmed against a real API sample; response shape and Basic auth are both
+ * correct). All JSON→type mapping is isolated in normalizeTaps() and
  * normalizeEvents() so a shape correction is a one-function fix per export.
  */
 
@@ -203,54 +203,82 @@ function normalizeTaps(raw: unknown): Tap[] {
 /**
  * normalizeEvents — maps the Untappd for Business events JSON to UntappdEvent[].
  *
- * ASSUMPTION (same Phase-4 caveat as normalizeTaps): The events endpoint is
- * assumed to be GET /api/v1/events?location_id={id} and to return an envelope
- * shaped like:
+ * VERIFIED against a real API sample. Endpoint:
+ *   GET /api/v1/locations/{location_id}/events  (HTTP Basic auth)
+ *
+ * Real response envelope:
  *   {
  *     events: [{
- *       id: number | string,
- *       name: string,
- *       description: string,
- *       start_time: string,   // ISO-8601
- *       end_time: string | null,
- *       cover_url: string | null,
- *       event_url: string | null,
+ *       id:           number,          // required — skip row if absent
+ *       name:         string,          // -> title (skip row if absent)
+ *       description:  string,          // -> description (may be empty string)
+ *       start_time:   string,          // UTC ISO-8601 "…Z" -> startsAt (required)
+ *       end_time:     string | null,   // UTC ISO-8601 "…Z" -> endsAt (may be null/absent)
+ *       start_time_in_zone: string,    // local-timezone variant — ignored
+ *       end_time_in_zone:   string,    // local-timezone variant — ignored
+ *       location_id:  number,
+ *       link:         string | null,   // venue/website link -> externalUrl
+ *       place_json:   object,          // generic Google Maps business icon — NOT a cover image
+ *       from_facebook: boolean,
+ *       // …location address fields, created_at, updated_at (all ignored)
  *     }]
  *   }
  *
- * Isolate any schema corrections here.
+ * Real-API caveats (verified):
+ *   - No event cover image: the UTFB events API does not return a per-event
+ *     image. place_json.icon is a generic Google Maps business icon and must
+ *     NOT be used as a cover. coverImageUrl is always null from this source.
+ *   - No public Untappd event URL: UTFB events have no public Untappd event
+ *     page. `link` is a venue/website link and is the closest available
+ *     external URL; it maps to externalUrl.
+ *
+ * Sync note: ALL events (past and future) are returned and stored. Past events
+ * (e.g. from 2017) are valid and belong in the past tab — do not date-filter here.
  */
 function normalizeEvents(raw: unknown): UntappdEvent[] {
   if (!raw || typeof raw !== 'object') return [];
 
   const envelope = raw as Record<string, unknown>;
-  const items = Array.isArray(envelope['events']) ? envelope['events'] : [];
 
-  return items.map((item, index): UntappdEvent => {
-    if (!item || typeof item !== 'object') {
-      return {
-        untappdEventId: `event-unknown-${index}`,
-        title: 'Unknown Event',
-        description: '',
-        startsAt: new Date().toISOString(),
-        endsAt: null,
-        coverImageUrl: null,
-        externalUrl: null,
-      };
-    }
+  // Defensive: if 'events' key is absent or not an array, return empty list.
+  // This is a legitimate empty-list result, not a fetch error — fetchEvents()
+  // only throws on transport/non-2xx failures so the two cases stay distinct.
+  if (!Array.isArray(envelope['events'])) return [];
+
+  const items = envelope['events'];
+  const results: UntappdEvent[] = [];
+
+  for (const item of items) {
+    // Skip non-object entries defensively.
+    if (!item || typeof item !== 'object') continue;
 
     const e = item as Record<string, unknown>;
 
-    return {
-      untappdEventId: String(e['id'] ?? `event-${index}`),
-      title: String(e['name'] ?? 'Untitled Event'),
-      description: String(e['description'] ?? ''),
-      startsAt: typeof e['start_time'] === 'string' ? e['start_time'] : new Date().toISOString(),
-      endsAt: typeof e['end_time'] === 'string' ? e['end_time'] : null,
-      coverImageUrl: typeof e['cover_url'] === 'string' ? e['cover_url'] : null,
-      externalUrl: typeof e['event_url'] === 'string' ? e['event_url'] : null,
-    };
-  });
+    // id and start_time are both required (starts_at is NOT NULL in the cache).
+    // Skip the event if either is absent.
+    if (e['id'] == null || typeof e['start_time'] !== 'string' || !e['start_time']) continue;
+
+    // title (name) is required — skip if absent or empty.
+    if (typeof e['name'] !== 'string' || !e['name']) continue;
+
+    results.push({
+      untappdEventId: String(e['id']),
+      title: e['name'],
+      description: typeof e['description'] === 'string' ? e['description'] : '',
+      // Use start_time (UTC "…Z" value), NOT start_time_in_zone.
+      startsAt: e['start_time'],
+      // Use end_time (UTC "…Z" value), NOT end_time_in_zone. Null/absent → null.
+      endsAt: typeof e['end_time'] === 'string' && e['end_time'] ? e['end_time'] : null,
+      // UTFB events API has no per-event cover image. place_json.icon is a
+      // generic Google Maps business icon — do not use it here.
+      coverImageUrl: null,
+      // UTFB has no public Untappd event page. `link` is the venue/website URL
+      // and is the closest available external link.
+      externalUrl: typeof e['link'] === 'string' && e['link'] ? e['link'] : null,
+    });
+  }
+
+  return results;
 }
 
 // ─── Cached live fetch (taps) ─────────────────────────────────────────────────
@@ -356,10 +384,9 @@ export async function fetchEvents(): Promise<UntappdEvent[]> {
 
   const basicToken = Buffer.from(`${email}:${read_write_token}`).toString('base64');
 
-  // NOTE (INFERRED — isolate for easy correction): The events sub-path
-  // /api/v1/locations/{id}/events is a best-guess location-scoped URL matching
-  // the verified menus pattern. Confirm with real creds and adjust here if the
-  // actual path differs; normalizeEvents() handles the response shape separately.
+  // VERIFIED: /api/v1/locations/{id}/events with HTTP Basic auth is the confirmed
+  // path and auth mechanism, validated against a real API sample. Auth header
+  // construction below matches the verified menus endpoint pattern.
   const url = `https://business.untappd.com/api/v1/locations/${encodeURIComponent(location_id)}/events`;
 
   const res = await fetch(url, {
