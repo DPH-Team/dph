@@ -13,10 +13,16 @@
  *   4. live fetch throws / non-2xx / timeout                 → graceful fallback
  *
  * Auth is HTTP Basic: Authorization: Basic <base64(email:read_write_token)>
- * per verified Untappd for Business API docs. Bearer auth was a Phase-4
- * assumption and is now corrected.
+ * per verified Untappd for Business API docs.
  *
- * Menus endpoint: GET /api/v1/locations/{location_id}/menus (verified path).
+ * Tap list traversal (real hierarchical API — three separate endpoints):
+ *   1. GET /api/v1/locations/{location_id}/menus
+ *        → collect menu ids
+ *   2. GET /api/v1/menus/{menu_id}/sections  (per menu, in parallel)
+ *        → keep only sections where public===true AND type!=='OnDeckSection'
+ *   3. GET /api/v1/sections/{section_id}/items  (per section, in parallel)
+ *        → flatten all items, normalize each via normalizeTaps(item, index)
+ *
  * Events endpoint: GET /api/v1/locations/{location_id}/events (VERIFIED —
  * confirmed against a real API sample; response shape and Basic auth are both
  * correct). All JSON→type mapping is isolated in normalizeTaps() and
@@ -106,96 +112,113 @@ async function resolveUntappdMode(): Promise<UntappdMode> {
 // ─── Tap normalisation ────────────────────────────────────────────────────────
 
 /**
- * normalizeTaps — maps the Untappd for Business menu JSON to Tap[].
+ * normalizeTaps — maps a single raw item from /api/v1/sections/{id}/items to Tap.
  *
- * ASSUMPTION: The API returns a JSON envelope like:
+ * VERIFIED item shape (from real Untappd for Business API sample):
  *   {
- *     menus: [{
- *       menu_sections: [{
- *         items: [{
- *           id: number | string,
- *           name: string,
- *           brewery: { brewery_name: string },
- *           style: string,
- *           abv: number,
- *           ibu: number | null,
- *           description: string,
- *           label_image: string | null,
- *           tap_number: number | null,
- *           is_featured: boolean | null,
- *         }]
- *       }]
- *     }]
+ *     id:                 number,
+ *     tap_number:         string | null,   // STRING, not number; null for non-draft items
+ *     name:               string,
+ *     custom_name:        string | null,
+ *     brewery:            string | null,   // beer; null for wine/spirit (use producer)
+ *     custom_brewery:     string | null,
+ *     producer:           string | null,   // wine/spirit
+ *     style:              string | null,
+ *     custom_style:       string | null,
+ *     category:           string | null,
+ *     characteristics:    string | null,
+ *     abv:                string | null,   // STRING e.g. "4.2"
+ *     custom_abv:         string | null,
+ *     original_abv:       string | null,
+ *     ibu:                string | null,   // STRING e.g. "45.0", may be null
+ *     custom_ibu:         string | null,
+ *     description:        string | null,
+ *     custom_description: string | null,
+ *     label_image:        string | null,
+ *     label_image_hd:     string | null,
+ *     custom_label_image: string | null,
+ *     default_image:      string | null,
+ *     type:               "beer" | "wine" | "spirit",
  *   }
  *
- * Defensive access throughout: every field defaults gracefully when absent.
- * If the real shape differs, this function is the single point to correct.
+ * Defensive access throughout — every field defaults gracefully when absent.
+ * abv is always returned as a number (never null) because TapCard calls .toFixed(1).
  */
-function normalizeTaps(raw: unknown): Tap[] {
-  if (!raw || typeof raw !== 'object') return [];
-
-  const envelope = raw as Record<string, unknown>;
-
-  // Flatten all items across all menus and all sections.
-  const menus = Array.isArray(envelope['menus']) ? envelope['menus'] : [];
-
-  const items: unknown[] = [];
-  for (const menu of menus) {
-    if (!menu || typeof menu !== 'object') continue;
-    const sections = Array.isArray((menu as Record<string, unknown>)['menu_sections'])
-      ? ((menu as Record<string, unknown>)['menu_sections'] as unknown[])
-      : [];
-    for (const section of sections) {
-      if (!section || typeof section !== 'object') continue;
-      const sectionItems = Array.isArray((section as Record<string, unknown>)['items'])
-        ? ((section as Record<string, unknown>)['items'] as unknown[])
-        : [];
-      items.push(...sectionItems);
-    }
+function normalizeTaps(item: unknown, index: number): Tap {
+  if (!item || typeof item !== 'object') {
+    return {
+      id: `tap-unknown-${index}`,
+      name: 'Unknown',
+      brewery: '',
+      style: '',
+      abv: 0,
+      ibu: null,
+      description: '',
+      imageUrl: null,
+      tapNumber: index + 1,
+      isFeatured: false,
+    };
   }
 
-  return items.map((item, index): Tap => {
-    if (!item || typeof item !== 'object') {
-      return {
-        id: `tap-unknown-${index}`,
-        name: 'Unknown',
-        brewery: 'Unknown Brewery',
-        style: 'Unknown Style',
-        abv: 0,
-        ibu: null,
-        description: '',
-        imageUrl: null,
-        tapNumber: index + 1,
-        isFeatured: false,
-      };
-    }
+  const t = item as Record<string, unknown>;
 
-    const t = item as Record<string, unknown>;
-    const breweryObj = t['brewery'];
-    const brewery =
-      breweryObj && typeof breweryObj === 'object'
-        ? String((breweryObj as Record<string, unknown>)['brewery_name'] ?? 'Unknown Brewery')
-        : 'Unknown Brewery';
+  const str = (v: unknown): string | null =>
+    typeof v === 'string' && v.length > 0 ? v : null;
 
-    // tap_number may be null for unlabelled taps — fall back to position.
-    const tapNumber =
-      typeof t['tap_number'] === 'number' && t['tap_number'] > 0
-        ? t['tap_number']
-        : index + 1;
+  // name: prefer custom_name, then name
+  const name = str(t['custom_name']) ?? str(t['name']) ?? 'Untitled';
 
-    return {
-      id: String(t['id'] ?? `tap-${index}`),
-      name: String(t['name'] ?? 'Untitled'),
-      brewery,
-      style: String(t['style'] ?? ''),
-      abv: typeof t['abv'] === 'number' ? t['abv'] : 0,
-      ibu: typeof t['ibu'] === 'number' ? t['ibu'] : null,
-      description: String(t['description'] ?? ''),
-      imageUrl: typeof t['label_image'] === 'string' ? t['label_image'] : null,
-      tapNumber,
-      isFeatured: t['is_featured'] === true,
-    };
-  });
+  // brewery: prefer custom_brewery, then brewery (beer), then producer (wine/spirit)
+  const brewery = str(t['custom_brewery']) ?? str(t['brewery']) ?? str(t['producer']) ?? '';
+
+  // style: prefer custom_style, then style, then category, then characteristics
+  const style =
+    str(t['custom_style']) ??
+    str(t['style']) ??
+    str(t['category']) ??
+    str(t['characteristics']) ??
+    '';
+
+  // abv: prefer custom_abv, then abv, then original_abv — all come as STRING from API
+  const abvRaw = str(t['custom_abv']) ?? str(t['abv']) ?? str(t['original_abv']);
+  const abv = abvRaw !== null ? parseFloat(abvRaw) : NaN;
+
+  // ibu: prefer custom_ibu, then ibu — STRING or null
+  const ibuRaw = str(t['custom_ibu']) ?? str(t['ibu']);
+  const ibuParsed = ibuRaw !== null ? parseFloat(ibuRaw) : NaN;
+  const ibu = !isNaN(ibuParsed) ? ibuParsed : null;
+
+  // description: prefer custom_description, then description
+  const description = str(t['custom_description']) ?? str(t['description']) ?? '';
+
+  // imageUrl: first non-empty of custom_label_image, label_image_hd, label_image, default_image
+  const imageUrl =
+    str(t['custom_label_image']) ??
+    str(t['label_image_hd']) ??
+    str(t['label_image']) ??
+    str(t['default_image']) ??
+    null;
+
+  // tap_number is a STRING in the real API (e.g. "1"), not a number; may be null.
+  // Many non-draft items have null tap_number — fall back to traversal index+1.
+  const tapRaw = str(t['tap_number']);
+  const tapParsed = tapRaw !== null ? parseInt(tapRaw, 10) : NaN;
+  const tapNumber = !isNaN(tapParsed) && tapParsed > 0 ? tapParsed : index + 1;
+
+  return {
+    id: String(t['id'] ?? `tap-${index}`),
+    name,
+    brewery,
+    style,
+    // TapCard calls abv.toFixed(1) — must be a number, never null; default 0 when unset.
+    abv: !isNaN(abv) ? abv : 0,
+    ibu,
+    description,
+    imageUrl,
+    tapNumber,
+    // The Untappd for Business items API has no per-item featured flag.
+    isFeatured: false,
+  };
 }
 
 // ─── Event normalisation ──────────────────────────────────────────────────────
@@ -286,33 +309,112 @@ function normalizeEvents(raw: unknown): UntappdEvent[] {
 /**
  * getCachedTapsRaw — private Next Data Cache wrapper around the live tap fetch.
  *
- * Only SUCCESSFUL responses are cached (throws on failure so the failed fetch
- * is never stored). The public fetchTaps() wrapper catches the throw and falls
- * back to the last-good cache or mock fixture.
+ * Traverses the real Untappd for Business hierarchical API across three
+ * endpoint levels:
+ *   locations/{id}/menus  →  menus/{id}/sections  →  sections/{id}/items
  *
- * Tagged ['taps'] so revalidateTag('taps', 'max') from the admin "refresh now"
- * button busts this entry.
+ * Per-menu and per-section calls are parallelised with Promise.all so a
+ * cache-miss does not serialize dozens of round-trips.
+ *
+ * Any fetch failure (network, timeout, non-2xx) throws, which prevents caching
+ * the failure. fetchTaps() catches and falls back to the last-good cache or the
+ * mock fixture.
+ *
+ * Tagged ['taps'] so revalidateTag('taps') from the admin "refresh now" button
+ * busts this entry.
  */
 const getCachedTapsRaw = unstable_cache(
   async (email: string, location_id: string, read_write_token: string): Promise<Tap[]> => {
     const basicToken = Buffer.from(`${email}:${read_write_token}`).toString('base64');
-    const url = `https://business.untappd.com/api/v1/locations/${encodeURIComponent(location_id)}/menus`;
+    const BASE = 'https://business.untappd.com/api/v1';
 
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Basic ${basicToken}`,
-        Accept: 'application/json',
-      },
-      signal: AbortSignal.timeout(5_000),
-    });
-
-    if (!res.ok) {
-      throw new Error(`[untappd] menus endpoint returned ${res.status}`);
+    /**
+     * untappdGet — fetches a single Untappd for Business API path and returns
+     * the parsed JSON. Throws on any network error, AbortSignal timeout, or
+     * non-2xx HTTP status so the outer Promise.all propagates the failure.
+     * Never logs credential values.
+     */
+    async function untappdGet(path: string): Promise<unknown> {
+      const res = await fetch(`${BASE}${path}`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Basic ${basicToken}`,
+          Accept: 'application/json',
+        },
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (!res.ok) {
+        throw new Error(`[untappd] ${path} returned HTTP ${res.status}`);
+      }
+      return res.json() as Promise<unknown>;
     }
 
-    const json: unknown = await res.json();
-    return normalizeTaps(json);
+    // ── Step 1: list menus for this location ──────────────────────────────────
+    //
+    // ASSUMED (not 100%-confirmed from a real sample) envelope shape:
+    //   { "menus": [ { "id": <number>, "name": <string>, ... } ] }
+    // This follows the consistent {plural:[...]} pattern of the UTFB API.
+    // Code reads menus[].id defensively: skips entries without a numeric id
+    // so a shape deviation degrades to fewer menus rather than a crash.
+    const menusJson = await untappdGet(`/locations/${encodeURIComponent(location_id)}/menus`);
+    const menusEnvelope =
+      menusJson && typeof menusJson === 'object' ? (menusJson as Record<string, unknown>) : {};
+    const rawMenus = Array.isArray(menusEnvelope['menus']) ? menusEnvelope['menus'] : [];
+
+    const menuIds: number[] = [];
+    for (const m of rawMenus) {
+      if (!m || typeof m !== 'object') continue;
+      const id = (m as Record<string, unknown>)['id'];
+      // Coerce to number defensively; skip entries without a usable id.
+      const numId = typeof id === 'number' ? id : typeof id === 'string' ? parseInt(id, 10) : NaN;
+      if (!isNaN(numId) && numId > 0) menuIds.push(numId);
+    }
+
+    // ── Step 2: list sections for each menu (parallel) ────────────────────────
+    //
+    // VERIFIED response: { "sections": [{ "id", "type", "public", ... }] }
+    // Keep only sections where public===true AND type!=='OnDeckSection'.
+    // On-deck items are not currently pouring and must be excluded.
+    const allSectionArrays = await Promise.all(
+      menuIds.map((menuId) => untappdGet(`/menus/${menuId}/sections`)),
+    );
+
+    const sectionIds: number[] = [];
+    for (const sectionsJson of allSectionArrays) {
+      if (!sectionsJson || typeof sectionsJson !== 'object') continue;
+      const envelope = sectionsJson as Record<string, unknown>;
+      const rawSections = Array.isArray(envelope['sections']) ? envelope['sections'] : [];
+      for (const s of rawSections) {
+        if (!s || typeof s !== 'object') continue;
+        const sec = s as Record<string, unknown>;
+        if (sec['public'] !== true) continue;
+        if (sec['type'] === 'OnDeckSection') continue;
+        const id = sec['id'];
+        const numId =
+          typeof id === 'number' ? id : typeof id === 'string' ? parseInt(id, 10) : NaN;
+        if (!isNaN(numId) && numId > 0) sectionIds.push(numId);
+      }
+    }
+
+    // ── Step 3: list items for each section (parallel) ────────────────────────
+    //
+    // VERIFIED response: { "items": [ { tap_number, name, brewery, abv, ... } ] }
+    // Flatten all item arrays; preserve traversal order (menu order → section
+    // position order → item position order) for a stable tap-number fallback.
+    const allItemArrays = await Promise.all(
+      sectionIds.map((sectionId) => untappdGet(`/sections/${sectionId}/items`)),
+    );
+
+    const flatItems: unknown[] = [];
+    for (const itemsJson of allItemArrays) {
+      if (!itemsJson || typeof itemsJson !== 'object') continue;
+      const envelope = itemsJson as Record<string, unknown>;
+      const rawItems = Array.isArray(envelope['items']) ? envelope['items'] : [];
+      flatItems.push(...rawItems);
+    }
+
+    // ── Step 4: normalize each item to Tap ───────────────────────────────────
+    return flatItems.map((item, index) => normalizeTaps(item, index));
   },
   ['untappd-taps-raw'],
   { tags: ['taps'], revalidate: 300 },
