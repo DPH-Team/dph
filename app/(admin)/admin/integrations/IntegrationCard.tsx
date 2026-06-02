@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useActionState, useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   Loader2,
@@ -120,16 +121,23 @@ interface FieldConfig {
 
 const UNTAPPD_FIELDS: FieldConfig[] = [
   {
+    name: 'email',
+    label: 'Account Email',
+    placeholder: 'The email you log into Untappd for Business with',
+    type: 'text',
+    maxLength: 120,
+  },
+  {
     name: 'location_id',
     label: 'Location ID',
-    placeholder: 'e.g. 12345',
+    placeholder: 'e.g. 12345 (Settings & Integrations > Location Settings)',
     type: 'text',
     maxLength: 50,
   },
   {
     name: 'read_write_token',
-    label: 'Read / Write Token',
-    placeholder: 'Bearer token from Untappd for Business',
+    label: 'Read & Write Token',
+    placeholder: 'Read & Write API token (business.untappd.com/account)',
     type: 'password',
     maxLength: 200,
   },
@@ -172,22 +180,26 @@ function CredentialsForm({
   hasExistingCreds: boolean;
   fieldErrors?: Record<string, string[]>;
 }) {
+  const router = useRouter();
   const boundAction = saveCredentialsAction.bind(null, name);
   const [state, formAction, isPending] = useActionState<ActionState | null, FormData>(
     boundAction,
     null,
   );
   const prevRef = useRef<ActionState | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (!state || state === prevRef.current) return;
     prevRef.current = state;
     if (state.ok) {
+      formRef.current?.reset();
+      router.refresh();
       toast.success('Credentials saved.');
     } else if (state.error) {
       toast.error(state.error);
     }
-  }, [state]);
+  }, [state, router]);
 
   const fields = getFields(name);
   const errors =
@@ -196,7 +208,7 @@ function CredentialsForm({
       : fieldErrors ?? {};
 
   return (
-    <form action={formAction} className="space-y-4">
+    <form ref={formRef} action={formAction} className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {fields.map((field) => (
           <div key={field.name} className="space-y-1.5">
@@ -272,6 +284,7 @@ function TogglesForm({
   enabled: boolean;
   mode: string;
 }) {
+  const router = useRouter();
   const boundAction = updateTogglesAction.bind(null, name);
   const [state, formAction, isPending] = useActionState<ActionState | null, FormData>(
     boundAction,
@@ -285,11 +298,12 @@ function TogglesForm({
     if (!state || state === prevRef.current) return;
     prevRef.current = state;
     if (state.ok) {
+      router.refresh();
       toast.success('Settings saved.');
     } else if (state.error) {
       toast.error(state.error);
     }
-  }, [state]);
+  }, [state, router]);
 
   return (
     <form action={formAction} className="flex flex-wrap items-center gap-3">
@@ -368,6 +382,7 @@ function TestConnectionButton({
   name: IntegrationName;
   hasExistingCreds: boolean;
 }) {
+  const router = useRouter();
   const [isPending, setIsPending] = useState(false);
   const [lastResult, setLastResult] = useState<TestActionState | null>(null);
 
@@ -376,6 +391,7 @@ function TestConnectionButton({
     try {
       const result = await testConnectionAction(name);
       setLastResult(result);
+      router.refresh();
       if (result.ok) {
         toast.success(result.message);
       } else {
@@ -384,6 +400,7 @@ function TestConnectionButton({
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
       setLastResult({ ok: false, error: msg });
+      router.refresh();
       toast.error(msg);
     } finally {
       setIsPending(false);

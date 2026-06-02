@@ -45,5 +45,6 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 | `DATABASE_URL` | Postgres connection string for Drizzle ORM (use the Supabase connection pooler URL in transaction mode) |
 | `RESEND_API_KEY` | Resend API key for transactional email |
 | `INTEGRATIONS_ENCRYPTION_KEY` | Random secret used to pgp_sym_encrypt Untappd and Printify credentials at rest. Generate with `openssl rand -base64 32`. **Rotating this key invalidates all stored credentials — you must re-enter them in the Integrations admin panel after any rotation.** |
+| `CRON_SECRET` | Bearer token that Vercel Cron attaches to scheduled requests (Authorization header). Protects `/api/cron/sync-events`. Generate with `openssl rand -base64 32`. Set in Vercel project environment variables and Vercel will inject it automatically into cron invocations. |
 
 Set these in `.env.local` for local development and in the Vercel project settings for staging/production.

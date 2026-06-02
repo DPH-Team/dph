@@ -20,30 +20,41 @@ function withTimeout(ms: number): AbortSignal {
 // ─── Untappd ──────────────────────────────────────────────────────────────────
 
 /**
- * Verify Untappd credentials by calling the Untappd for Business menu endpoint.
+ * Verify Untappd credentials by calling the Untappd for Business menus endpoint.
  *
- * ASSUMPTION (Phase 4): We use GET /api/v1/menus?location_id={id} with a
- * Bearer token. The actual shape may differ slightly when the Phase 6 team
- * exercises the full API — Phase 6 should adjust lib/untappd.ts independently;
- * this file only needs to verify auth succeeds (2xx) vs fails (401/403).
+ * VERIFIED: Auth is HTTP Basic — header is:
+ *   Authorization: Basic <base64(email + ":" + read_write_token)>
+ * per official Untappd for Business API docs. Bearer auth is incorrect.
  *
- * 401/403 = bad token or location ID.
- * 404 = endpoint shape wrong but auth may still be valid (we still report failure
- *   since we cannot confirm the creds work without a known-good endpoint).
- * Other non-2xx = upstream problem.
+ * Endpoint used: GET /api/v1/locations/{location_id}/menus
+ * This is the location-scoped menus path that exercises BOTH auth credentials
+ * AND the location ID in a single request.
+ *
+ * INFERRED (isolate for easy update): The menus sub-path
+ * (/api/v1/locations/{id}/menus) is not 100% confirmed from public docs — if
+ * a real-creds test returns 404 change the path here only; the auth scheme
+ * itself is verified.
+ *
+ * Status handling:
+ *   2xx            → success
+ *   401 / 403      → auth failed (bad email, token not Read & Write, or wrong account)
+ *   404            → location not found or menus path wrong (check Location ID)
+ *   other non-2xx  → upstream error
  */
 export async function testUntappdConnection(creds: {
+  email: string;
   location_id: string;
   read_write_token: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
-  const url = `https://business.untappd.com/api/v1/menus?location_id=${encodeURIComponent(creds.location_id)}`;
+  const basicToken = Buffer.from(`${creds.email}:${creds.read_write_token}`).toString('base64');
+  const url = `https://business.untappd.com/api/v1/locations/${encodeURIComponent(creds.location_id)}/menus`;
 
   let res: Response;
   try {
     res = await fetch(url, {
       method: 'GET',
       headers: {
-        Authorization: `Bearer ${creds.read_write_token}`,
+        Authorization: `Basic ${basicToken}`,
         Accept: 'application/json',
       },
       signal: withTimeout(5_000),
@@ -60,7 +71,15 @@ export async function testUntappdConnection(creds: {
   if (res.status === 401 || res.status === 403) {
     return {
       ok: false,
-      error: 'Authentication failed (check token / location ID)',
+      error:
+        'Authentication failed — check email, token, and that you are using the Read & Write token',
+    };
+  }
+
+  if (res.status === 404) {
+    return {
+      ok: false,
+      error: 'Location not found or menus endpoint unavailable — check your Location ID',
     };
   }
 
