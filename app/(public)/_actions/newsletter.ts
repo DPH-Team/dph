@@ -1,10 +1,10 @@
 "use server"
 
-import { z } from "zod"
-
-const schema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-})
+import { headers } from "next/headers"
+import { db } from "@/lib/db"
+import { subscribers } from "@/lib/db/schema"
+import { subscribeNewsletterSchema } from "@/lib/validators/newsletter"
+import { verifyTurnstile } from "@/lib/security/turnstile"
 
 export type NewsletterState = {
   ok: boolean
@@ -17,8 +17,8 @@ export async function subscribeToNewsletter(
   formData: FormData
 ): Promise<NewsletterState> {
   const raw = { email: formData.get("email") }
-  const result = schema.safeParse(raw)
 
+  const result = subscribeNewsletterSchema.safeParse(raw)
   if (!result.success) {
     return {
       ok: false,
@@ -26,6 +26,40 @@ export async function subscribeToNewsletter(
     }
   }
 
-  await new Promise((r) => setTimeout(r, 600))
+  const { email } = result.data
+
+  // ── Turnstile verification ───────────────────────────────────────────────────
+  const turnstileToken = formData.get("cf-turnstile-response")
+  const headersList = await headers()
+  const ip =
+    headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    headersList.get("x-real-ip") ??
+    undefined
+
+  const turnstileOk = await verifyTurnstile(
+    typeof turnstileToken === "string" ? turnstileToken : null,
+    ip,
+  )
+  if (!turnstileOk) {
+    return {
+      ok: false,
+      message: "Bot verification failed. Please try again.",
+    }
+  }
+
+  // ── DB insert — unique-violation = already subscribed = success ──────────────
+  try {
+    await db
+      .insert(subscribers)
+      .values({ email, source: "public_form" })
+      .onConflictDoNothing()
+  } catch (err) {
+    console.error("[newsletter] Failed to insert subscriber:", err)
+    return {
+      ok: false,
+      message: "Something went wrong. Please try again.",
+    }
+  }
+
   return { ok: true, message: "you're on the list — see you soon." }
 }

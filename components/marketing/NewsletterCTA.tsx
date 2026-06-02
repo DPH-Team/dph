@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
 import { subscribeToNewsletter, type NewsletterState } from "@/app/(public)/_actions/newsletter"
+import { Turnstile, type TurnstileHandle } from "@/components/marketing/forms/Turnstile"
 
 const initialState: NewsletterState = { ok: false }
 
@@ -17,12 +18,16 @@ export type NewsletterCTAProps = {
 export function NewsletterCTA({ variant = "section", className }: NewsletterCTAProps) {
   const [state, action, pending] = useActionState(subscribeToNewsletter, initialState)
   const inputRef = useRef<HTMLInputElement>(null)
+  const turnstileRef = useRef<TurnstileHandle | null>(null)
 
   useEffect(() => {
     if (state.ok && inputRef.current) {
       inputRef.current.value = ""
     }
-  }, [state.ok])
+    if (!state.ok && state.message) {
+      turnstileRef.current?.reset()
+    }
+  }, [state.ok, state.message])
 
   const emailId = variant === "footer" ? "newsletter-footer-email" : "newsletter-section-email"
   const errorId = `${emailId}-error`
@@ -31,18 +36,24 @@ export function NewsletterCTA({ variant = "section", className }: NewsletterCTAP
     return (
       <p
         role="status"
+        aria-live="polite"
         className={cn(
-          "text-sm text-[--color-cream]",
-          variant === "footer" && "text-muted-foreground"
+          "text-sm font-medium",
+          variant === "footer" ? "text-muted-foreground" : "text-[--color-cream]"
         )}
       >
-        {state.message}
+        {state.message ?? "You're on the list — see you soon."}
       </p>
     )
   }
 
+  const handleAction = (formData: FormData) => {
+    turnstileRef.current?.reset()
+    return action(formData)
+  }
+
   return (
-    <form action={action} className={cn("flex flex-col gap-2", className)} noValidate>
+    <form action={handleAction} className={cn("flex flex-col gap-3", className)} noValidate>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor={emailId} className="sr-only">
           Email address
@@ -82,6 +93,16 @@ export function NewsletterCTA({ variant = "section", className }: NewsletterCTAP
             {state.fieldErrors.email[0]}
           </p>
         )}
+        {state.message && !state.ok && !state.fieldErrors?.email && (
+          <p role="alert" className="text-xs text-destructive">
+            {state.message}
+          </p>
+        )}
+      </div>
+
+      {/* Bot protection — compact, blends into footer/section contexts */}
+      <div className="[&_iframe]:scale-90 [&_iframe]:origin-left">
+        <Turnstile handleRef={turnstileRef} />
       </div>
     </form>
   )

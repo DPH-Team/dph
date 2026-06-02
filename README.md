@@ -44,6 +44,10 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service-role key — server only, never expose to browser |
 | `DATABASE_URL` | Postgres connection string for Drizzle ORM (use the Supabase connection pooler URL in transaction mode) |
 | `RESEND_API_KEY` | Resend API key for transactional email |
+| `RESEND_FROM_EMAIL` | Sender address for outbound email, e.g. `Pour Haus <hello@districtpourhaus.com>`. Must be a verified domain in Resend. |
+| `RESEND_REPLY_TO` | Reply-to address for outbound email. Falls back to `RESEND_FROM_EMAIL` if unset. |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key (public — safe to expose to the browser). Get from the Turnstile dashboard. |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret key — server only, never expose to browser. If unset, verification is bypassed (dev fallback). |
 | `INTEGRATIONS_ENCRYPTION_KEY` | Random secret used to pgp_sym_encrypt Untappd and Printify credentials at rest. Generate with `openssl rand -base64 32`. **Rotating this key invalidates all stored credentials — you must re-enter them in the Integrations admin panel after any rotation.** |
 | `CRON_SECRET` | Bearer token that Vercel Cron attaches to scheduled requests (Authorization header). Protects `/api/cron/sync-events`. Generate with `openssl rand -base64 32`. Set in Vercel project environment variables and Vercel will inject it automatically into cron invocations. |
 
