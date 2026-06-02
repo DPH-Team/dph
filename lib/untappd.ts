@@ -248,12 +248,13 @@ function normalizeTaps(item: unknown, index: number): Tap {
  *   }
  *
  * Real-API caveats (verified):
- *   - No event cover image: the UTFB events API does not return a per-event
- *     image. place_json.icon is a generic Google Maps business icon and must
- *     NOT be used as a cover. coverImageUrl is always null from this source.
+ *   - Cover image: image_url is the verified per-event cover image field.
+ *     Host is utfb-images.untappd.com; the value includes resize query params.
+ *     Maps to coverImageUrl; null when absent or empty string.
+ *     (place_json.icon is a generic Google Maps business icon — not used.)
  *   - No public Untappd event URL: UTFB events have no public Untappd event
  *     page. `link` is a venue/website link and is the closest available
- *     external URL; it maps to externalUrl.
+ *     external URL; it maps to externalUrl. Often an empty string → null.
  *
  * Sync note: ALL events (past and future) are returned and stored. Past events
  * (e.g. from 2017) are valid and belong in the past tab — do not date-filter here.
@@ -292,9 +293,10 @@ function normalizeEvents(raw: unknown): UntappdEvent[] {
       startsAt: e['start_time'],
       // Use end_time (UTC "…Z" value), NOT end_time_in_zone. Null/absent → null.
       endsAt: typeof e['end_time'] === 'string' && e['end_time'] ? e['end_time'] : null,
-      // UTFB events API has no per-event cover image. place_json.icon is a
-      // generic Google Maps business icon — do not use it here.
-      coverImageUrl: null,
+      // image_url is the verified per-event cover image field (host:
+      // utfb-images.untappd.com; comes with resize query params). Use it when
+      // present as a non-empty string; otherwise null.
+      coverImageUrl: typeof e['image_url'] === 'string' && e['image_url'] ? e['image_url'] : null,
       // UTFB has no public Untappd event page. `link` is the venue/website URL
       // and is the closest available external link.
       externalUrl: typeof e['link'] === 'string' && e['link'] ? e['link'] : null,
