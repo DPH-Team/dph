@@ -12,7 +12,7 @@ import { Container } from "@/components/marketing/layout/Container"
 import { SectionHeading } from "@/components/marketing/SectionHeading"
 
 export const metadata: Metadata = pageMetadata({
-  title: "Reserve · Inquire — District Pour Haus",
+  title: "Reserve · Inquire",
   description: "Reserve a table, plan a private event, or send us a note.",
   path: "/reservations",
 })

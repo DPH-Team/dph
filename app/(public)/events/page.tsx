@@ -12,7 +12,7 @@ import { EventsClient } from "./EventsClient"
 import { CalendarX } from "lucide-react"
 
 export const metadata: Metadata = pageMetadata({
-  title: "Events — District Pour Haus",
+  title: "Events",
   description: "Live music, trivia, game-day specials, and private events at District Pour Haus.",
   path: "/events",
 })

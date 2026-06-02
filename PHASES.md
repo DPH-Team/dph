@@ -211,7 +211,7 @@ Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with
 
 **Deliverables**
 - Per-page metadata via Next `generateMetadata` (titles, descriptions, OG images)
-- Dynamic OG image generation for event pages (`@vercel/og`)
+- OG images: event pages use the live Untappd event image; all other pages use the District Pour Haus brand logo as the default OG image (falls back to the brand logo when an event has no Untappd image)
 - JSON-LD structured data: `Restaurant` (sitewide), `Event` (per event), `Menu` (menu page)
 - `sitemap.ts`, `robots.ts`
 - Canonical URLs, no-index on admin routes

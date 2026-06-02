@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Wordmark } from "./Wordmark"
 import { HoursCard } from "./HoursCard"
 import { cn } from "@/lib/utils"
-import type { WeeklyHours, HoursOverride } from "@/lib/fixtures/types"
+import type { WeeklyHours, HoursOverride, Location } from "@/lib/fixtures/types"
 
 const NAV_LINKS = [
   { href: "/menu", label: "Menu" },
@@ -30,9 +30,11 @@ export type MobileNavProps = {
   onOpenChange: (open: boolean) => void
   hours: WeeklyHours
   overrides: HoursOverride[]
+  location: Pick<Location, "address" | "city" | "state" | "phone">
 }
 
-export function MobileNav({ open, onOpenChange, hours, overrides }: MobileNavProps) {
+export function MobileNav({ open, onOpenChange, hours, overrides, location }: MobileNavProps) {
+  const phoneDigits = location.phone.replace(/\D/g, "")
   const pathname = usePathname()
 
   return (
@@ -100,12 +102,12 @@ export function MobileNav({ open, onOpenChange, hours, overrides }: MobileNavPro
 
           <div className="flex flex-col gap-1.5">
             <a
-              href="tel:+19205550142"
+              href={`tel:+1${phoneDigits}`}
               className="text-sm text-primary hover:text-[--color-copper-hover] transition-colors font-medium"
             >
-              (920) 555-0142
+              {location.phone}
             </a>
-            <p className="text-sm text-muted-foreground">123 Main Street, Green Bay, WI</p>
+            <p className="text-sm text-muted-foreground">{location.address}, {location.city}, {location.state}</p>
           </div>
 
           <div className="flex items-center gap-3">

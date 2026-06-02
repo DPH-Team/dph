@@ -8,7 +8,7 @@ import { TapsClient } from "./TapsClient"
 import { AlertTriangle } from "lucide-react"
 
 export const metadata: Metadata = pageMetadata({
-  title: "Taps — District Pour Haus",
+  title: "Taps",
   description: "Live tap list from our 32-tap wall. Filter by style or ABV — updated every five minutes.",
   path: "/taps",
 })

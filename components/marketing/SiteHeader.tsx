@@ -10,7 +10,7 @@ import { Wordmark } from "./Wordmark"
 import { OpenStatusPill } from "./OpenStatusPill"
 import { MobileNav } from "./MobileNav"
 import { cn } from "@/lib/utils"
-import type { WeeklyHours, HoursOverride } from "@/lib/fixtures/types"
+import type { WeeklyHours, HoursOverride, Location } from "@/lib/fixtures/types"
 
 const NAV_LINKS = [
   { href: "/menu", label: "Menu" },
@@ -25,9 +25,10 @@ const NAV_LINKS = [
 export type SiteHeaderProps = {
   hours: WeeklyHours
   overrides: HoursOverride[]
+  location: Pick<Location, "address" | "city" | "state" | "phone">
 }
 
-export function SiteHeader({ hours, overrides }: SiteHeaderProps) {
+export function SiteHeader({ hours, overrides, location }: SiteHeaderProps) {
   const [scrolled, setScrolled] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const pathname = usePathname()
@@ -134,6 +135,7 @@ export function SiteHeader({ hours, overrides }: SiteHeaderProps) {
           onOpenChange={setMobileNavOpen}
           hours={hours}
           overrides={overrides}
+          location={location}
         />
       </div>
 

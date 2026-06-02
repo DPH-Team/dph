@@ -5,7 +5,7 @@ import { getLegalDoc } from "@/app/__fixtures__/legal"
 import { LegalPage, LegalBody } from "@/components/marketing/LegalPage"
 
 export const metadata: Metadata = pageMetadata({
-  title: "Privacy Policy — District Pour Haus",
+  title: "Privacy Policy",
   description: "Privacy policy for District Pour Haus.",
   path: "/privacy",
 })

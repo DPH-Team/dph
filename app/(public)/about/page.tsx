@@ -3,6 +3,7 @@ import Link from "next/link"
 import { CreditCard, Beer, Receipt } from "lucide-react"
 import { pageMetadata } from "@/lib/seo"
 import { getPublicContentBlock, getPublicTeam } from "@/lib/db/public"
+import { getLocation } from "@/app/__fixtures__/location"
 import { PageHero } from "@/components/marketing/PageHero"
 import { TeamCard } from "@/components/marketing/TeamCard"
 import { SectionHeading } from "@/components/marketing/SectionHeading"
@@ -14,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export const metadata: Metadata = pageMetadata({
-  title: "About — District Pour Haus",
+  title: "About",
   description: "How District Pour Haus came to be — Wisconsin roots, RFID self-pour, craft beer first.",
   path: "/about",
 })
@@ -26,9 +27,10 @@ const STEP_ICONS = {
 } as const
 
 export default async function AboutPage() {
-  const [aboutBlock, members] = await Promise.all([
+  const [aboutBlock, members, loc] = await Promise.all([
     getPublicContentBlock('about_body')(),
     getPublicTeam(),
+    getLocation(),
   ])
   const about = aboutBlock
 
@@ -172,7 +174,7 @@ export default async function AboutPage() {
                 Come See Us
               </h2>
               <p className="text-muted-foreground max-w-md">
-                123 Main Street, Green Bay, WI. Open seven days a week. Door&apos;s always open.
+                {loc.address}, {loc.city}, {loc.state}. Open seven days a week. Door&apos;s always open.
               </p>
               <Button size="lg" nativeButton={false} render={<Link href="/contact" />}>
                 Find Us

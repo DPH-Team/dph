@@ -5,7 +5,7 @@ import { Wordmark } from '@/components/marketing/Wordmark';
 import { LoginForm } from './LoginForm';
 
 export const metadata: Metadata = {
-  title: 'Sign In — District Pour Haus',
+  title: 'Sign In',
   robots: { index: false, follow: false },
 };
 

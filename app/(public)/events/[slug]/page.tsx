@@ -3,12 +3,15 @@ import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { Calendar, MapPin, ExternalLink, Share2, Clock, CalendarDays } from "lucide-react"
-import { pageMetadata } from "@/lib/seo"
+import { pageMetadata, eventJsonLd } from "@/lib/seo"
+import type { Location } from "@/lib/fixtures/types"
 import {
   getPublicEventBySlug,
   getPublicEventSlugs,
   getPublicUpcomingEvents,
 } from "@/lib/db/public"
+import { getLocation } from "@/app/__fixtures__/location"
+import { JsonLd } from "@/components/seo/JsonLd"
 import { EventCard } from "@/components/marketing/EventCard"
 import { Section } from "@/components/marketing/layout/Section"
 import { Container } from "@/components/marketing/layout/Container"
@@ -33,7 +36,7 @@ export async function generateMetadata({
   if (!event) return {}
 
   return pageMetadata({
-    title: `${event.title} — District Pour Haus`,
+    title: event.title,
     description: event.description.slice(0, 155),
     path: `/events/${event.slug}`,
     ogImage: event.imageUrl || undefined,
@@ -63,7 +66,12 @@ function isPast(startsAt: string): boolean {
   return new Date(startsAt) < new Date()
 }
 
-function buildCalendarLinks(title: string, startsAt: string, endsAt: string | null) {
+function buildCalendarLinks(
+  title: string,
+  startsAt: string,
+  endsAt: string | null,
+  loc: Pick<Location, "address" | "city" | "state" | "zip">,
+) {
   const start = new Date(startsAt)
   const end = endsAt ? new Date(endsAt) : new Date(start.getTime() + 2 * 60 * 60 * 1000)
 
@@ -77,7 +85,7 @@ function buildCalendarLinks(title: string, startsAt: string, endsAt: string | nu
   googleUrl.searchParams.set("action", "TEMPLATE")
   googleUrl.searchParams.set("text", title)
   googleUrl.searchParams.set("dates", `${fmt(start)}/${fmt(end)}`)
-  googleUrl.searchParams.set("location", "District Pour Haus, 123 Main Street, Green Bay, WI 54301")
+  googleUrl.searchParams.set("location", `District Pour Haus, ${loc.address}, ${loc.city}, ${loc.state} ${loc.zip}`)
 
   return { google: googleUrl.toString() }
 }
@@ -112,8 +120,13 @@ export default async function EventDetailPage({
 
   if (!event) notFound()
 
+  const base = process.env.NEXT_PUBLIC_SITE_URL ?? "https://districtpourhaus.com"
+  const canonicalUrl = `${base}/events/${event.slug}`
+  const jsonLdImageUrl = event.imageUrl || `${base}/og/default.png`
+  const location = await getLocation()
+
   const past = isPast(event.startsAt)
-  const calLinks = buildCalendarLinks(event.title, event.startsAt, event.endsAt)
+  const calLinks = buildCalendarLinks(event.title, event.startsAt, event.endsAt, location)
   const upcomingResult = await getPublicUpcomingEvents()
   const related = upcomingResult.data
     .filter((e) => e.slug !== event.slug)
@@ -127,6 +140,7 @@ export default async function EventDetailPage({
 
   return (
     <>
+      <JsonLd data={eventJsonLd(event, canonicalUrl, jsonLdImageUrl, location)} />
       {/* ── Compact hero ─────────────────────────────────────────────── */}
       <header className="relative overflow-hidden border-b border-border/60 bg-background">
         {/* Restrained copper wash + grain-friendly vignette */}
@@ -261,7 +275,7 @@ export default async function EventDetailPage({
                       <span>
                         District Pour Haus
                         <br />
-                        123 Main Street, Green Bay, WI
+                        {location.address}, {location.city}, {location.state}
                       </span>
                     </span>
                   </div>

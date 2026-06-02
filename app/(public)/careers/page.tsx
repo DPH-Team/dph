@@ -10,7 +10,7 @@ import { ScrollReveal } from "@/components/motion/ScrollReveal"
 import { CareersPageClient } from "./CareersPageClient"
 
 export const metadata: Metadata = pageMetadata({
-  title: "Careers — District Pour Haus",
+  title: "Careers",
   description: "Hiring people who give a damn. Open roles at District Pour Haus.",
   path: "/careers",
 })
@@ -90,10 +90,10 @@ export default async function CareersPage() {
                   We&apos;re not actively hiring right now, but we&apos;re always interested in great people.
                   Feel free to reach out at{" "}
                   <a
-                    href="mailto:hello@districtpourhaus.com"
+                    href="mailto:info@districtpourhaus.com"
                     className="text-primary hover:text-[--color-copper-hover] transition-colors"
                   >
-                    hello@districtpourhaus.com
+                    info@districtpourhaus.com
                   </a>
                   .
                 </p>

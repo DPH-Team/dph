@@ -25,6 +25,9 @@
 import 'server-only';
 
 import { unstable_cache } from 'next/cache';
+import { isNull } from 'drizzle-orm';
+import { db } from '@/lib/db';
+import { eventsCache } from '@/lib/db/schema';
 import { listAllItemsWithSection } from '@/lib/db/queries/menu';
 import { listWeeklyHours } from '@/lib/db/queries/weekly-hours';
 import { listHoursOverrides } from '@/lib/db/queries/hours-overrides';
@@ -410,5 +413,29 @@ export const getEventsSyncStatusCached = unstable_cache(
 export const getPublicEventSlugs = unstable_cache(
   async (): Promise<string[]> => listEventSlugs(),
   ['public-event-slugs'],
+  { tags: ['events'] },
+);
+
+export interface EventSlugWithDate {
+  slug: string;
+  updatedAt: Date;
+}
+
+/**
+ * Return all event slugs with their updatedAt timestamps for sitemap generation.
+ * Cached under the 'events' tag.
+ */
+export const getPublicEventSlugsWithDates = unstable_cache(
+  async (): Promise<EventSlugWithDate[]> => {
+    const rows = await db
+      .select({
+        slug: eventsCache.slug,
+        updatedAt: eventsCache.updatedAt,
+      })
+      .from(eventsCache)
+      .where(isNull(eventsCache.deletedAt));
+    return rows.map((r) => ({ slug: r.slug, updatedAt: r.updatedAt }));
+  },
+  ['public-event-slugs-with-dates'],
   { tags: ['events'] },
 );
