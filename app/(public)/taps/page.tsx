@@ -1,7 +1,6 @@
 import type { Metadata } from "next"
 import { pageMetadata } from "@/lib/seo"
 import { fetchTaps } from "@/lib/untappd"
-import { PageHero } from "@/components/marketing/PageHero"
 import { Section } from "@/components/marketing/layout/Section"
 import { Container } from "@/components/marketing/layout/Container"
 import { TapsClient } from "./TapsClient"
@@ -15,36 +14,29 @@ export const metadata: Metadata = pageMetadata({
 
 export default async function TapsPage() {
   const { data: taps, stale } = await fetchTaps()
-  const total = 32
-  const flowing = taps.length
 
   return (
     <>
-      <PageHero
-        title="On Tap"
-        lead="Pour your own at our self-pour wall. Updated live from Untappd every ~5 minutes."
-      >
-        <div className="flex items-center gap-3 mt-1">
-          {stale ? (
-            /* Amber warning indicator when stale */
-            <span className="relative flex size-2.5 shrink-0" aria-hidden="true">
-              <span className="relative inline-flex rounded-full size-2.5 bg-[--color-packers-gold]" />
-            </span>
-          ) : (
-            /* Green live indicator dot when fresh */
-            <span className="relative flex size-2.5 shrink-0" aria-hidden="true">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[--color-packers-green] opacity-75" />
-              <span className="relative inline-flex rounded-full size-2.5 bg-[--color-packers-green]" />
-            </span>
-          )}
-          <p className="text-sm text-muted-foreground">
-            <span className="tabular-nums font-medium text-foreground">
-              {flowing} of {total}
-            </span>{" "}
-            flowing
-          </p>
-        </div>
-      </PageHero>
+      <header className="relative overflow-hidden border-b border-border/60 bg-background">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-[radial-gradient(120%_120%_at_15%_-10%,oklch(0.648_0.130_47_/_0.16),transparent_55%)]"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[--color-copper]/60 to-transparent"
+        />
+        <Container className="relative [padding-block:clamp(2rem,5vw,3.5rem)]">
+          <div className="flex flex-col gap-4 max-w-3xl">
+            <h1 className="font-display font-medium text-[clamp(2rem,1.4rem+3vw,3.5rem)] leading-[1.08] tracking-[-0.02em] text-foreground">
+              On Tap
+            </h1>
+            <p className="text-lg text-muted-foreground leading-relaxed max-w-2xl">
+              Pour your own at our self-pour wall. Updated live from Untappd every ~5 minutes.
+            </p>
+          </div>
+        </Container>
+      </header>
 
       {stale && (
         <div
