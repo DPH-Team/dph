@@ -1,6 +1,6 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { requireAdmin } from '@/lib/auth';
 import {
   getCredentialsSchema,
@@ -18,12 +18,14 @@ import {
   decryptCredentials,
   recordTestResult,
 } from '@/lib/db/queries/integrations';
-import { auditUpdate, auditIntegrationTest } from '@/lib/audit';
+import { auditUpdate, auditIntegrationTest, audit } from '@/lib/audit';
 import {
   testUntappdConnection,
   testPrintifyConnection,
   testResendConnection,
 } from '@/lib/integrations/test-connections';
+import { runEventsSync } from '@/lib/untappd-sync';
+import { fetchProducts } from '@/lib/printify';
 import type { ActionState } from '@/lib/types/action-state';
 import type { Integration } from '@/lib/db/schema';
 
@@ -415,6 +417,161 @@ export async function savePlausibleConfigAction(
 
   revalidatePath('/admin/integrations');
   return { ok: true };
+}
+
+// ─── Sync result types ────────────────────────────────────────────────────────
+
+/**
+ * Structured result for sync-now actions. The client toasts this directly.
+ * success includes a human-readable summary (counts / "refreshed" / skipped).
+ */
+export type SyncActionState =
+  | { ok: true; message: string }
+  | { ok: false; error: string };
+
+// ─── Untappd: sync now ────────────────────────────────────────────────────────
+
+/**
+ * syncUntappdNowAction — admin-only manual sync trigger for Untappd.
+ *
+ * Delegates to runEventsSync() (the same function the Vercel Cron calls) which:
+ *   1. Calls fetchEvents() — skips DB write on upstream failure.
+ *   2. Maps events to rows and upserts into events_cache.
+ *   3. Soft-deletes removed events.
+ *   4. Calls revalidateTag('events','max').
+ *
+ * Additionally busts the taps cache (revalidateTag('taps')) so the tap list
+ * also refreshes in case menu items changed since the last auto-refresh.
+ *
+ * Audit action: integration.untappd_sync_now
+ */
+export async function syncUntappdNowAction(): Promise<SyncActionState> {
+  await requireAdmin();
+
+  const result = await runEventsSync();
+
+  // Bust taps cache on top of the events cache bust inside runEventsSync().
+  // This forces a fresh traversal of menus/sections/items on the next tap-list
+  // RSC render, regardless of whether the events sync succeeded.
+  revalidateTag('taps', 'max');
+
+  // Audit — non-fatal; failures are logged by the audit helper itself.
+  if (result.ok) {
+    await audit(
+      'integration.untappd_sync_now',
+      'integration',
+      'untappd',
+      { upserted: result.upserted },
+    );
+  } else {
+    await audit(
+      'integration.untappd_sync_now',
+      'integration',
+      'untappd',
+      {
+        ok: false,
+        skipped: result.skipped,
+        reason: result.reason,
+      },
+    );
+  }
+
+  revalidatePath('/admin/integrations');
+
+  if (result.ok) {
+    const noun = result.upserted === 1 ? 'event' : 'events';
+    return {
+      ok: true,
+      message:
+        result.upserted === 0
+          ? 'Sync complete — no new or changed events.'
+          : `Sync complete — ${result.upserted} ${noun} refreshed.`,
+    };
+  }
+
+  if (result.skipped) {
+    return {
+      ok: false,
+      error: `Sync skipped — Untappd upstream unavailable: ${result.reason}`,
+    };
+  }
+
+  return {
+    ok: false,
+    error: `Sync failed — could not write to database: ${result.reason}`,
+  };
+}
+
+// ─── Printify: sync now ───────────────────────────────────────────────────────
+
+/**
+ * syncPrintifyNowAction — admin-only manual sync trigger for Printify.
+ *
+ * Busts the 'merch' cache with revalidateTag('merch','max') so the next
+ * public render re-fetches products from Printify. Then calls fetchProducts()
+ * to warm the cache and detect whether upstream is healthy or stale.
+ *
+ * Returns "refreshed" when the warm fetch succeeds (stale=false) and the
+ * integration is in live mode. Returns "mock data refreshed" in mock mode.
+ * Returns a degraded-gracefully message when stale=true (last-known-good cache).
+ *
+ * Audit action: integration.printify_sync_now
+ */
+export async function syncPrintifyNowAction(): Promise<SyncActionState> {
+  await requireAdmin();
+
+  // Bust the merch ISR cache so the next page render re-fetches from Printify.
+  revalidateTag('merch', 'max');
+
+  // Warm the cache immediately and surface whether upstream was healthy.
+  let stale = false;
+  let productCount = 0;
+  let isMock = false;
+  try {
+    const { data, stale: fetchStale } = await fetchProducts();
+    stale = fetchStale;
+    productCount = data.length;
+    // fetchProducts returns mock data (stale=false) when mode is not 'live'.
+    // We can infer mock mode when stale is false but the integration row says mock.
+    const row = await getIntegration('printify');
+    isMock = !row || !row.enabled || row.mode !== 'live';
+  } catch (err) {
+    // fetchProducts itself never throws (graceful fallback), but guard anyway.
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error('[syncPrintifyNowAction] fetchProducts threw unexpectedly:', reason);
+    stale = true;
+  }
+
+  // Audit — non-fatal.
+  await audit(
+    'integration.printify_sync_now',
+    'integration',
+    'printify',
+    { stale, productCount, isMock },
+  );
+
+  revalidatePath('/admin/integrations');
+
+  if (isMock) {
+    return {
+      ok: true,
+      message: 'Cache refreshed — running in mock mode (no live Printify data).',
+    };
+  }
+
+  if (stale) {
+    return {
+      ok: true,
+      message:
+        'Cache refreshed — Printify upstream unavailable. Showing last-known-good products.',
+    };
+  }
+
+  const noun = productCount === 1 ? 'product' : 'products';
+  return {
+    ok: true,
+    message: `Cache refreshed — ${productCount} ${noun} fetched from Printify.`,
+  };
 }
 
 // ─── Plausible: enabled toggle ────────────────────────────────────────────────

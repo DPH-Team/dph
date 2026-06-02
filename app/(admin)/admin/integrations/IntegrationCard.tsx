@@ -10,6 +10,7 @@ import {
   Plug,
   Beer,
   ShoppingBag,
+  RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -36,7 +37,10 @@ import {
   saveCredentialsAction,
   updateTogglesAction,
   testConnectionAction,
+  syncUntappdNowAction,
+  syncPrintifyNowAction,
 } from './actions';
+import type { SyncActionState } from './actions';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -462,6 +466,111 @@ function TestConnectionButton({
   );
 }
 
+// ─── Sync now button ──────────────────────────────────────────────────────────
+
+/**
+ * SyncNowButton — triggers an on-demand sync for Untappd or Printify.
+ *
+ * Rendered only for 'untappd' and 'printify' (Plausible and Resend have no
+ * sync). Matches the TestConnectionButton UX: pending/disabled while running,
+ * then a toast with the result and router.refresh().
+ *
+ * The button is disabled when the integration is disabled (no-op sync), but
+ * the underlying action is still safe to call — it degrades gracefully.
+ */
+function SyncNowButton({
+  name,
+  integrationEnabled,
+}: {
+  name: 'untappd' | 'printify';
+  integrationEnabled: boolean;
+}) {
+  const router = useRouter();
+  const [isPending, setIsPending] = useState(false);
+  const [lastResult, setLastResult] = useState<SyncActionState | null>(null);
+
+  async function handleSync() {
+    setIsPending(true);
+    try {
+      const result =
+        name === 'untappd'
+          ? await syncUntappdNowAction()
+          : await syncPrintifyNowAction();
+      setLastResult(result);
+      router.refresh();
+      if (result.ok) {
+        toast.success(result.message);
+      } else {
+        toast.error(result.error);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setLastResult({ ok: false, error: msg });
+      router.refresh();
+      toast.error(msg);
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  const disabledReason = !integrationEnabled
+    ? 'Enable the integration first'
+    : undefined;
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={isPending || !integrationEnabled}
+        onClick={handleSync}
+        title={disabledReason}
+      >
+        {isPending ? (
+          <>
+            <Loader2 className="size-4 animate-spin mr-1.5" aria-hidden="true" />
+            Syncing…
+          </>
+        ) : (
+          <>
+            <RefreshCw className="size-4 mr-1.5" aria-hidden="true" />
+            Sync now
+          </>
+        )}
+      </Button>
+
+      {!integrationEnabled && (
+        <span className="text-xs text-muted-foreground">
+          Enable the integration to trigger a manual sync.
+        </span>
+      )}
+
+      {lastResult && (
+        <span
+          className={cn(
+            'text-xs',
+            lastResult.ok ? 'text-emerald-400' : 'text-destructive',
+          )}
+          role="status"
+        >
+          {lastResult.ok ? (
+            <>
+              <CheckCircle2 className="inline size-3.5 mr-1" aria-hidden="true" />
+              {lastResult.message}
+            </>
+          ) : (
+            <>
+              <XCircle className="inline size-3.5 mr-1" aria-hidden="true" />
+              {lastResult.error}
+            </>
+          )}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ─── Main card ────────────────────────────────────────────────────────────────
 
 export interface IntegrationCardProps {
@@ -562,6 +671,23 @@ export function IntegrationCard({ integration }: IntegrationCardProps) {
             Test connection
           </h3>
           <TestConnectionButton name={name} hasExistingCreds={hasCreds} />
+        </div>
+
+        {/* Divider */}
+        <hr className="border-border" />
+
+        {/* Manual sync */}
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium text-foreground">Manual sync</h3>
+          <p className="text-xs text-muted-foreground">
+            {name === 'untappd'
+              ? 'Supplements the automatic 5-minute cron. Fetches the latest events and tap list from Untappd and updates the public site immediately.'
+              : 'Supplements the automatic 5-minute cron. Busts the merch cache and re-fetches products from Printify so the public shop reflects the latest inventory.'}
+          </p>
+          <SyncNowButton
+            name={name as 'untappd' | 'printify'}
+            integrationEnabled={integration.enabled}
+          />
         </div>
       </CardContent>
     </Card>
