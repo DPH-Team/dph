@@ -1,10 +1,11 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useRef } from "react"
 import { Loader2, CheckCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { submitInquiry } from "@/app/(public)/_actions/inquiries"
 import { FormField } from "./FormField"
+import { Turnstile, type TurnstileHandle } from "./Turnstile"
 
 const INQUIRY_TYPES = [
   { value: "reservation", label: "Reservation" },
@@ -21,10 +22,16 @@ export type InquiryFormProps = {
 
 export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
   const [state, formAction, isPending] = useActionState(submitInquiry, null)
+  const turnstileRef = useRef<TurnstileHandle | null>(null)
 
   const fieldError = (field: string) => {
     if (!state || state.ok) return undefined
     return state.fieldErrors?.[field]?.[0]
+  }
+
+  const handleFormAction = (formData: FormData) => {
+    turnstileRef.current?.reset()
+    return formAction(formData)
   }
 
   if (state?.ok) {
@@ -45,7 +52,7 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
   }
 
   return (
-    <form action={formAction} noValidate aria-label="Inquiry form">
+    <form action={handleFormAction} noValidate aria-label="Inquiry form">
       <div className="flex flex-col gap-4">
         {/* Inquiry type selector */}
         <FormField
@@ -328,6 +335,9 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             </p>
           )}
         </div>
+
+        {/* Bot protection */}
+        <Turnstile handleRef={turnstileRef} />
 
         {/* General error */}
         {state && !state.ok && !state.fieldErrors && state.message && (

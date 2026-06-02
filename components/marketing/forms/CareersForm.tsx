@@ -1,10 +1,11 @@
 "use client"
 
-import { useActionState, useState, useRef } from "react"
-import { Loader2, CheckCircle, Paperclip } from "lucide-react"
+import { useActionState, useState, useRef, useCallback } from "react"
+import { Loader2, CheckCircle, Paperclip, UploadCloud, AlertCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { submitCareerApplication } from "@/app/(public)/_actions/careers"
 import { FormField } from "./FormField"
+import { Turnstile, type TurnstileHandle } from "./Turnstile"
 import type { Posting } from "@/lib/fixtures/types"
 
 export type CareersFormProps = {
@@ -21,34 +22,170 @@ function formatFileSize(bytes: number): string {
 const ACCEPTED_TYPES = ".pdf,.doc,.docx"
 const MAX_FILE_BYTES = 5 * 1024 * 1024
 
+type UploadState =
+  | { status: "idle" }
+  | { status: "uploading"; progress: number }
+  | { status: "done"; path: string }
+  | { status: "error"; message: string }
+
 export function CareersForm({ positions, defaultPositionId }: CareersFormProps) {
   const [state, formAction, isPending] = useActionState(submitCareerApplication, null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
+  const [uploadState, setUploadState] = useState<UploadState>({ status: "idle" })
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const turnstileRef = useRef<TurnstileHandle | null>(null)
+  const turnstileTokenRef = useRef<string | null>(null)
+  const resumePathRef = useRef<string>("")
 
   const fieldError = (field: string) => {
     if (!state || state.ok) return undefined
     return state.fieldErrors?.[field]?.[0]
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] ?? null
-    setFileError(null)
+  const handleTurnstileToken = useCallback((token: string) => {
+    turnstileTokenRef.current = token
+  }, [])
 
-    if (!file) {
-      setSelectedFile(null)
+  const handleTurnstileExpire = useCallback(() => {
+    turnstileTokenRef.current = null
+  }, [])
+
+  const handleTurnstileError = useCallback(() => {
+    turnstileTokenRef.current = null
+  }, [])
+
+  const uploadResume = useCallback(async (file: File): Promise<string | null> => {
+    const token = turnstileTokenRef.current
+    if (!token) {
+      setUploadState({ status: "error", message: "Bot verification not ready — please wait a moment and try again." })
+      return null
+    }
+
+    setUploadState({ status: "uploading", progress: 0 })
+
+    let signedUrl: string
+    let path: string
+    try {
+      const res = await fetch("/api/uploads/sign-resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+          size: file.size,
+          "cf-turnstile-response": token,
+        }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error((body as { error?: string }).error ?? `HTTP ${res.status}`)
+      }
+      const data = (await res.json()) as { signedUrl: string; token: string; path: string }
+      signedUrl = data.signedUrl
+      path = data.path
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to get upload URL."
+      setUploadState({ status: "error", message: msg })
+      // Token consumed — reset so user can retry with a fresh one
+      turnstileRef.current?.reset()
+      turnstileTokenRef.current = null
+      return null
+    }
+
+    return new Promise<string | null>((resolve) => {
+      const xhr = new XMLHttpRequest()
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          setUploadState({
+            status: "uploading",
+            progress: Math.round((e.loaded / e.total) * 100),
+          })
+        }
+      }
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          setUploadState({ status: "done", path })
+          resumePathRef.current = path
+          // Token consumed for sign-resume; reset so submit gets a fresh one
+          turnstileRef.current?.reset()
+          turnstileTokenRef.current = null
+          resolve(path)
+        } else {
+          const msg = `Upload failed: HTTP ${xhr.status}`
+          setUploadState({ status: "error", message: msg })
+          turnstileRef.current?.reset()
+          turnstileTokenRef.current = null
+          resolve(null)
+        }
+      }
+
+      xhr.onerror = () => {
+        const msg = "Network error during upload."
+        setUploadState({ status: "error", message: msg })
+        turnstileRef.current?.reset()
+        turnstileTokenRef.current = null
+        resolve(null)
+      }
+
+      xhr.open("PUT", signedUrl)
+      xhr.setRequestHeader("Content-Type", file.type)
+      xhr.setRequestHeader("x-upsert", "true")
+      xhr.send(file)
+    })
+  }, [])
+
+  const handleFileChange = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0] ?? null
+      setFileError(null)
+      setUploadState({ status: "idle" })
+      resumePathRef.current = ""
+
+      if (!file) {
+        setSelectedFile(null)
+        return
+      }
+
+      if (file.size > MAX_FILE_BYTES) {
+        setFileError("File must be smaller than 5 MB")
+        setSelectedFile(null)
+        if (fileInputRef.current) fileInputRef.current.value = ""
+        return
+      }
+
+      setSelectedFile(file)
+      await uploadResume(file)
+    },
+    [uploadResume],
+  )
+
+  const handleFormAction = (formData: FormData) => {
+    if (!selectedFile) {
+      setFileError("Please attach your resume")
       return
     }
 
-    if (file.size > MAX_FILE_BYTES) {
-      setFileError("File must be smaller than 5 MB")
-      setSelectedFile(null)
-      if (fileInputRef.current) fileInputRef.current.value = ""
+    if (uploadState.status === "uploading") {
+      setFileError("Please wait for the upload to finish")
       return
     }
 
-    setSelectedFile(file)
+    if (uploadState.status === "error") {
+      setFileError("Resume upload failed — please try again")
+      return
+    }
+
+    if (uploadState.status !== "done" || !resumePathRef.current) {
+      setFileError("Resume upload is incomplete — please re-attach your file")
+      return
+    }
+
+    formData.set("resumePath", resumePathRef.current)
+    turnstileRef.current?.reset()
+    return formAction(formData)
   }
 
   if (state?.ok) {
@@ -65,9 +202,12 @@ export function CareersForm({ positions, defaultPositionId }: CareersFormProps) 
   }
 
   const openPositions = positions.filter((p) => p.isOpen)
+  const isUploadPending = uploadState.status === "uploading"
+  const isUploadError = uploadState.status === "error"
+  const isSubmitDisabled = isPending || isUploadPending || (!!selectedFile && isUploadError)
 
   return (
-    <form action={formAction} noValidate aria-label="Career application form">
+    <form action={handleFormAction} noValidate aria-label="Career application form">
       <div className="flex flex-col gap-5">
         {/* Position */}
         <FormField
@@ -287,7 +427,7 @@ export function CareersForm({ positions, defaultPositionId }: CareersFormProps) 
           />
         </FormField>
 
-        {/* Resume file input */}
+        {/* Resume upload */}
         <div className="flex flex-col gap-1.5">
           <label
             htmlFor="career-resume"
@@ -306,16 +446,23 @@ export function CareersForm({ positions, defaultPositionId }: CareersFormProps) 
               "flex items-center gap-3 h-10 px-3 rounded-[var(--radius-md)] border border-border bg-input cursor-pointer",
               "hover:border-[oklch(0.400_0.006_80)] transition-colors",
               "focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/35",
-              (fileError || fieldError("resume")) && "border-destructive",
+              (fileError || fieldError("resumePath")) && "border-destructive",
+              isUploadPending && "opacity-70 cursor-wait",
             )}
           >
             <Paperclip size={14} className="text-muted-foreground shrink-0" aria-hidden="true" />
-            <span className={cn("text-sm", selectedFile ? "text-foreground" : "text-muted-foreground")}>
+            <span className={cn("text-sm truncate", selectedFile ? "text-foreground" : "text-muted-foreground")}>
               {selectedFile ? selectedFile.name : "Choose file…"}
             </span>
-            {selectedFile && (
+            {selectedFile && uploadState.status === "done" && (
               <span className="ml-auto text-xs text-muted-foreground tabular-nums shrink-0">
                 {formatFileSize(selectedFile.size)}
+              </span>
+            )}
+            {isUploadPending && (
+              <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums shrink-0">
+                <Loader2 size={12} className="animate-spin" aria-hidden="true" />
+                {uploadState.status === "uploading" ? `${uploadState.progress}%` : "…"}
               </span>
             )}
             <input
@@ -323,29 +470,56 @@ export function CareersForm({ positions, defaultPositionId }: CareersFormProps) 
               name="resume"
               type="file"
               accept={ACCEPTED_TYPES}
-              required
               aria-required="true"
-              aria-invalid={fileError || fieldError("resume") ? "true" : undefined}
+              aria-invalid={fileError || fieldError("resumePath") ? "true" : undefined}
               aria-describedby={[
                 "career-resume-desc",
-                fileError || fieldError("resume") ? "career-resume-error" : undefined,
+                fileError || fieldError("resumePath") ? "career-resume-error" : undefined,
               ]
                 .filter(Boolean)
                 .join(" ")}
               onChange={handleFileChange}
               ref={fileInputRef}
+              disabled={isUploadPending}
               className="sr-only"
             />
           </label>
 
-          {(fileError || fieldError("resume")) && (
+          {/* Upload progress bar */}
+          {isUploadPending && uploadState.status === "uploading" && (
+            <div
+              role="progressbar"
+              aria-valuenow={uploadState.progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label="Resume upload progress"
+              className="h-1 rounded-full bg-border overflow-hidden"
+            >
+              <div
+                className="h-full bg-primary transition-all duration-150"
+                style={{ width: `${uploadState.progress}%` }}
+              />
+            </div>
+          )}
+
+          {/* Upload done confirmation */}
+          {uploadState.status === "done" && !fileError && (
+            <p className="text-xs text-primary flex items-center gap-1">
+              <UploadCloud size={12} aria-hidden="true" />
+              Uploaded successfully
+            </p>
+          )}
+
+          {/* File / upload error */}
+          {(fileError || fieldError("resumePath") || isUploadError) && (
             <p
               id="career-resume-error"
               role="alert"
               aria-live="polite"
-              className="text-xs text-destructive"
+              className="text-xs text-destructive flex items-center gap-1"
             >
-              {fileError ?? fieldError("resume")}
+              <AlertCircle size={12} aria-hidden="true" />
+              {fileError ?? (isUploadError ? uploadState.message : fieldError("resumePath"))}
             </p>
           )}
         </div>
@@ -388,6 +562,14 @@ export function CareersForm({ positions, defaultPositionId }: CareersFormProps) 
           )}
         </div>
 
+        {/* Bot protection */}
+        <Turnstile
+          handleRef={turnstileRef}
+          onToken={handleTurnstileToken}
+          onExpire={handleTurnstileExpire}
+          onError={handleTurnstileError}
+        />
+
         {/* General error */}
         {state && !state.ok && !state.fieldErrors && state.message && (
           <p role="alert" className="text-sm text-destructive">
@@ -398,9 +580,9 @@ export function CareersForm({ positions, defaultPositionId }: CareersFormProps) 
         {/* Submit */}
         <button
           type="submit"
-          disabled={isPending}
-          aria-busy={isPending}
-          aria-label={isPending ? "Submitting your application…" : "Submit application"}
+          disabled={isSubmitDisabled}
+          aria-busy={isPending || isUploadPending}
+          aria-label={isPending ? "Submitting your application…" : isUploadPending ? "Uploading resume…" : "Submit application"}
           className={cn(
             "flex items-center justify-center gap-2",
             "w-full sm:w-auto sm:px-8",
@@ -411,8 +593,8 @@ export function CareersForm({ positions, defaultPositionId }: CareersFormProps) 
             "disabled:opacity-60 disabled:cursor-not-allowed",
           )}
         >
-          {isPending && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
-          {isPending ? "Submitting…" : "Apply now"}
+          {(isPending || isUploadPending) && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}
+          {isPending ? "Submitting…" : isUploadPending ? "Uploading…" : "Apply now"}
         </button>
       </div>
     </form>
