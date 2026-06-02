@@ -14,7 +14,7 @@ import { SectionHeading } from "@/components/marketing/SectionHeading"
 import { ScrollReveal } from "@/components/motion/ScrollReveal"
 
 export const metadata: Metadata = pageMetadata({
-  title: "Contact — District Pour Haus",
+  title: "Contact",
   description: "Find us, call us, park easy. Open seven days a week.",
   path: "/contact",
 })

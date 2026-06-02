@@ -2,6 +2,8 @@ import { Plug, TriangleAlert } from 'lucide-react';
 import { requireAdmin } from '@/lib/auth';
 import { listIntegrations } from '@/lib/db/queries/integrations';
 import { IntegrationCard, type IntegrationView } from './IntegrationCard';
+import { PlausibleCard } from './PlausibleCard';
+import { ResendCard } from './ResendCard';
 import type { Integration } from '@/lib/db/schema';
 import type { IntegrationName } from '@/lib/validators/integrations';
 
@@ -33,11 +35,29 @@ export default async function IntegrationsPage() {
 
   const integrations = await listIntegrations();
 
-  // Build a map for deterministic rendering (untappd first, printify second).
+  // Build a map for deterministic rendering.
   const byName = new Map<IntegrationName, IntegrationView>();
   for (const row of integrations) {
     byName.set(row.name as IntegrationName, toView(row));
   }
+
+  // Plausible config is stored in the `config` jsonb column (not encrypted).
+  const plausibleRow = byName.get('plausible');
+  const plausibleConfig =
+    plausibleRow?.config &&
+    typeof plausibleRow.config === 'object' &&
+    !Array.isArray(plausibleRow.config)
+      ? (plausibleRow.config as Record<string, unknown>)
+      : {};
+
+  // Resend config (non-secret sender addresses) from the `config` jsonb column.
+  const resendRow = byName.get('resend');
+  const resendConfig =
+    resendRow?.config &&
+    typeof resendRow.config === 'object' &&
+    !Array.isArray(resendRow.config)
+      ? (resendRow.config as Record<string, unknown>)
+      : {};
 
   return (
     <div className="space-y-6">
@@ -50,7 +70,7 @@ export default async function IntegrationsPage() {
           </h1>
         </div>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Configure Untappd and Printify. Test connections before going live.
+          Configure Untappd, Printify, Plausible Analytics, and Resend email.
         </p>
       </header>
 
@@ -79,7 +99,7 @@ export default async function IntegrationsPage() {
         </div>
       </div>
 
-      {/* Integration cards */}
+      {/* Untappd + Printify cards */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {(['untappd', 'printify'] as IntegrationName[]).map((name) => {
           const row = byName.get(name);
@@ -87,6 +107,28 @@ export default async function IntegrationsPage() {
           return <IntegrationCard key={name} integration={row} />;
         })}
       </div>
+
+      {/* Plausible card */}
+      {plausibleRow && (
+        <PlausibleCard
+          enabled={plausibleRow.enabled}
+          domain={typeof plausibleConfig.domain === 'string' ? plausibleConfig.domain : ''}
+          host={typeof plausibleConfig.host === 'string' ? plausibleConfig.host : 'https://plausible.io'}
+        />
+      )}
+
+      {/* Resend card */}
+      {resendRow && (
+        <ResendCard
+          enabled={resendRow.enabled}
+          hasCredentials={resendRow.hasCredentials}
+          fromEmail={typeof resendConfig.from_email === 'string' ? resendConfig.from_email : ''}
+          replyTo={typeof resendConfig.reply_to === 'string' ? resendConfig.reply_to : ''}
+          lastTestStatus={resendRow.lastTestStatus}
+          lastTestedAt={resendRow.lastTestedAt ? new Date(resendRow.lastTestedAt) : null}
+          lastTestError={resendRow.lastTestError}
+        />
+      )}
     </div>
   );
 }

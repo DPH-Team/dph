@@ -1,8 +1,8 @@
 /**
  * lib/integrations/test-connections.ts
  *
- * Credential-verification helpers for Untappd and Printify.
- * Scoped to Phase 4 only — do NOT import from lib/untappd.ts or lib/printify.ts,
+ * Credential-verification helpers for Untappd, Printify, and Resend.
+ * Scoped to Phase 4/7 only — do NOT import from lib/untappd.ts or lib/printify.ts,
  * which are Phase 6 fetcher files and do not exist yet.
  *
  * Phase 6 may need to adjust the exact Untappd endpoint once the live API shape
@@ -15,6 +15,49 @@ import 'server-only';
 
 function withTimeout(ms: number): AbortSignal {
   return AbortSignal.timeout(ms);
+}
+
+// ─── Resend ───────────────────────────────────────────────────────────────────
+
+/**
+ * Verify a Resend API key by calling GET https://api.resend.com/domains.
+ *
+ * Status handling:
+ *   200            → key is valid
+ *   401            → invalid key
+ *   other non-2xx  → upstream error (still distinguishable from auth failure)
+ *
+ * The /domains endpoint is lightweight and does not create any side-effects.
+ */
+export async function testResendConnection(creds: {
+  api_key: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const url = 'https://api.resend.com/domains';
+
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${creds.api_key}`,
+        Accept: 'application/json',
+      },
+      signal: withTimeout(5_000),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: `Network error: ${msg}` };
+  }
+
+  if (res.ok) {
+    return { ok: true };
+  }
+
+  if (res.status === 401) {
+    return { ok: false, error: 'Invalid API key — check the value starts with re_' };
+  }
+
+  return { ok: false, error: `Resend returned ${res.status}` };
 }
 
 // ─── Untappd ──────────────────────────────────────────────────────────────────

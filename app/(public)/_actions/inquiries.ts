@@ -124,7 +124,7 @@ export async function submitInquiry(
 
   // ── Emails — fire-and-forget, failure cannot fail the submit ─────────────────
   void sendEmail({
-    to: process.env.RESEND_REPLY_TO ?? process.env.RESEND_FROM_EMAIL ?? "hello@districtpourhaus.com",
+    to: process.env.RESEND_REPLY_TO ?? process.env.RESEND_FROM_EMAIL ?? "info@districtpourhaus.com",
     subject: `New ${dbType.replace("_", " ")} inquiry from ${data.name}`,
     react: React.createElement(InquiryStaffNotification, {
       name: data.name,

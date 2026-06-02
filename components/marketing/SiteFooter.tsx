@@ -3,6 +3,7 @@ import { Link2 } from "lucide-react"
 import { Wordmark } from "./Wordmark"
 import { NewsletterCTA } from "./NewsletterCTA"
 import { Container } from "@/components/marketing/layout/Container"
+import type { Location } from "@/lib/fixtures/types"
 
 const EXPLORE_LINKS = [
   { href: "/menu", label: "Menu" },
@@ -15,7 +16,13 @@ const EXPLORE_LINKS = [
 
 const currentYear = new Date().getFullYear()
 
-export function SiteFooter() {
+export type SiteFooterProps = {
+  location: Pick<Location, "address" | "city" | "state" | "zip" | "phone" | "email">
+}
+
+export function SiteFooter({ location }: SiteFooterProps) {
+  const phoneDigits = location.phone.replace(/\D/g, "")
+
   return (
     <footer aria-label="Site footer">
       <div className="bg-card">
@@ -36,19 +43,19 @@ export function SiteFooter() {
                 Visit
               </h3>
               <address className="not-italic flex flex-col gap-1.5 text-sm text-muted-foreground">
-                <span>123 Main Street</span>
-                <span>Green Bay, WI 54301</span>
+                <span>{location.address}</span>
+                <span>{location.city}, {location.state} {location.zip}</span>
                 <a
-                  href="tel:+19205550142"
+                  href={`tel:+1${phoneDigits}`}
                   className="text-primary hover:text-[--color-copper-hover] transition-colors w-fit"
                 >
-                  (920) 555-0142
+                  {location.phone}
                 </a>
                 <a
-                  href="mailto:hello@districtpourhaus.com"
+                  href={`mailto:${location.email}`}
                   className="text-primary hover:text-[--color-copper-hover] transition-colors w-fit"
                 >
-                  hello@districtpourhaus.com
+                  {location.email}
                 </a>
               </address>
             </div>

@@ -20,7 +20,11 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "District Pour Haus",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://districtpourhaus.com"),
+  title: {
+    default: "District Pour Haus",
+    template: "%s · District Pour Haus",
+  },
   description: "Our Haus is Your Haus",
 };
 

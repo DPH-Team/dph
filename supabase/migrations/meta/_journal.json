@@ -57,6 +57,13 @@
       "when": 1779501439441,
       "tag": "20260523000019_subscribers_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1748822400000,
+      "tag": "20260602000023_plausible_integration",
+      "breakpoints": true
     }
   ]
 }

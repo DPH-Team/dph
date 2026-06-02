@@ -1,14 +1,15 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { pageMetadata } from "@/lib/seo"
+import { pageMetadata, menuJsonLd } from "@/lib/seo"
 import { getPublicMenu } from "@/lib/db/public"
+import { JsonLd } from "@/components/seo/JsonLd"
 import { PageHero } from "@/components/marketing/PageHero"
 import { MenuSectionTabs } from "@/components/marketing/MenuSectionTabs"
 import { Section } from "@/components/marketing/layout/Section"
 import { Container } from "@/components/marketing/layout/Container"
 
 export const metadata: Metadata = pageMetadata({
-  title: "Menu — District Pour Haus",
+  title: "Menu",
   description: "Scratch kitchen menu — shareables, mains, sides, desserts. Pairs with whatever you pour.",
   path: "/menu",
 })
@@ -18,6 +19,7 @@ export default async function MenuPage() {
 
   return (
     <>
+      <JsonLd data={menuJsonLd(sections)} />
       <PageHero
         eyebrow="Food"
         title="From the Kitchen"

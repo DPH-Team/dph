@@ -7,7 +7,7 @@ import { Section } from "@/components/marketing/layout/Section"
 import { Container } from "@/components/marketing/layout/Container"
 
 export const metadata: Metadata = pageMetadata({
-  title: "Gallery — District Pour Haus",
+  title: "Gallery",
   description: "Inside the Haus — taproom, kitchen, events.",
   path: "/gallery",
 })

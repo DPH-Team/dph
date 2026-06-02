@@ -18,12 +18,19 @@ import { Container } from "@/components/marketing/layout/Container"
 import { ScrollReveal } from "@/components/motion/ScrollReveal"
 import { Stagger, StaggerItem } from "@/components/motion/Stagger"
 
-export const metadata: Metadata = pageMetadata({
-  title: "District Pour Haus — Our Haus is Your Haus",
+const _baseMeta = pageMetadata({
+  title: "Our Haus is Your Haus",
   description:
     "Wisconsin self-pour taproom with 32 craft taps, scratch kitchen, and live events. Our Haus is Your Haus.",
   path: "/",
 })
+
+export const metadata: Metadata = {
+  ..._baseMeta,
+  title: {
+    absolute: "District Pour Haus — Our Haus is Your Haus",
+  },
+}
 
 const FEATURED_ITEM_COUNT = 4
 

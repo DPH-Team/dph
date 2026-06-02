@@ -2,8 +2,9 @@ import 'server-only';
 
 import { render } from '@react-email/render';
 import type { ReactElement } from 'react';
-import { getResendClient } from './client';
+import { getResendClient, getResendClientForKey } from './client';
 import { getFromAddress, getReplyTo } from './addresses';
+import { getResendConfig } from '@/lib/db/queries/integrations';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,18 +39,56 @@ export interface SendEmailResult {
  * surfaces as `{ ok: false }`. This guarantees that an email failure cannot
  * fail a form submit — the DB write is always the source of truth.
  *
- * Dev fallback: if RESEND_API_KEY is absent the send is skipped silently
- * and returns `{ ok: true, skipped: true }`.
+ * Precedence for API key and sender addresses (highest first):
+ *   1. Admin integration config in the `integrations` DB table (when enabled
+ *      and api_key is set).
+ *   2. RESEND_* env vars (preserves pre-integration behaviour so nothing
+ *      breaks when the admin integration is not yet configured).
+ *
+ * The api_key is NEVER passed to the client — it is decrypted server-side
+ * inside `getResendConfig()` and used only to instantiate the Resend SDK here.
+ *
+ * Dev fallback: if neither the admin key nor RESEND_API_KEY is present, the
+ * send is skipped silently and returns `{ ok: true, skipped: true }`.
  */
 export async function sendEmail(opts: SendEmailOpts): Promise<SendEmailResult> {
   const { to, subject, react, replyTo, template } = opts;
 
-  const client = getResendClient();
+  // ── Resolve API key + sender addresses (admin config takes precedence) ────────
+  let adminApiKey: string | undefined;
+  let adminFromEmail: string | undefined;
+  let adminReplyTo: string | undefined;
+
+  try {
+    const config = await getResendConfig();
+    if (config && config.enabled && config.apiKey) {
+      adminApiKey = config.apiKey;
+      adminFromEmail = config.fromEmail || undefined;
+      adminReplyTo = config.replyTo || undefined;
+    }
+  } catch (err) {
+    // Non-fatal — fall through to env-var path.
+    console.warn('[email] getResendConfig failed, falling back to env vars:', err);
+  }
+
+  // ── Pick the Resend client ────────────────────────────────────────────────────
+  const client = adminApiKey
+    ? getResendClientForKey(adminApiKey)
+    : getResendClient();
+
   if (!client) {
-    // No-op in dev — key absent
+    // No-op in dev — neither admin key nor env var is set.
     return { ok: true, skipped: true };
   }
 
+  // ── Resolve sender addresses ──────────────────────────────────────────────────
+  const from = getFromAddress(adminFromEmail);
+  // If a per-call replyTo override was provided (e.g. customer's email for staff
+  // notifications), that takes the highest precedence. Otherwise fall through to
+  // admin config reply_to, then env var, then from address.
+  const resolvedReplyTo = replyTo ?? getReplyTo(adminReplyTo, adminFromEmail);
+
+  // ── Render ────────────────────────────────────────────────────────────────────
   let html: string;
   try {
     html = await render(react);
@@ -58,13 +97,14 @@ export async function sendEmail(opts: SendEmailOpts): Promise<SendEmailResult> {
     return { ok: false };
   }
 
+  // ── Send ──────────────────────────────────────────────────────────────────────
   try {
     const result = await client.emails.send({
-      from: getFromAddress(),
+      from,
       to: Array.isArray(to) ? to : [to],
       subject,
       html,
-      replyTo: replyTo ?? getReplyTo(),
+      replyTo: resolvedReplyTo,
     });
 
     if (result.error) {

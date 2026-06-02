@@ -129,7 +129,7 @@ export const integrations = pgTable(
     updatedBy: uuid('updated_by'),
   },
   (t) => [
-    check('integrations_name_check', sql`${t.name} IN ('untappd', 'printify')`),
+    check('integrations_name_check', sql`${t.name} IN ('untappd', 'printify', 'plausible', 'resend')`),
     check('integrations_mode_check', sql`${t.mode} IN ('mock', 'live')`),
   ],
 );

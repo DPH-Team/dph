@@ -7,9 +7,9 @@ const privacyParagraphs: string[] = [
   "We do not sell, trade, or otherwise transfer your personally identifiable information to outside parties. We may share information with service providers who assist us in operating our website and conducting our business, so long as those parties agree to keep this information confidential.",
   "We implement a variety of security measures to maintain the safety of your personal information. All supplied information is transmitted via Secure Socket Layer (SSL) technology.",
   "Our website may contain links to third-party sites including our Printify store, Untappd, and social media platforms. These sites have their own privacy policies and we bear no responsibility for their content or practices.",
-  "You may opt out of receiving newsletter emails at any time by clicking the unsubscribe link in any email we send, or by contacting us directly at hello@districtpourhaus.com. You may also contact us to request access to, correction of, or deletion of any personal data we hold about you.",
+  "You may opt out of receiving newsletter emails at any time by clicking the unsubscribe link in any email we send, or by contacting us directly at info@districtpourhaus.com. You may also contact us to request access to, correction of, or deletion of any personal data we hold about you.",
   "We may update this Privacy Policy from time to time. We will notify you of significant changes by updating the 'Last Updated' date at the top of this page. Your continued use of our website following any changes constitutes your acceptance of the revised policy.",
-  "If you have questions about this Privacy Policy, please contact us at: District Pour Haus, LLC · 123 Main Street, Green Bay, WI 54301 · hello@districtpourhaus.com · (920) 555-0142.",
+  "If you have questions about this Privacy Policy, please contact us at: District Pour Haus, LLC · 686 Mike McCarthy Way, Green Bay, WI 54304 · info@districtpourhaus.com · (920) 278-2669.",
 ]
 
 const termsParagraphs: string[] = [
@@ -22,7 +22,7 @@ const termsParagraphs: string[] = [
   "District Pour Haus shall not be liable for any indirect, incidental, special, consequential, or punitive damages arising from your use of this website or our services. Our liability for any claim arising out of your use of our services shall not exceed the amount paid by you for the specific service giving rise to the claim.",
   "These terms shall be governed by the laws of the State of Wisconsin. Any disputes arising under these terms shall be subject to the exclusive jurisdiction of the state and federal courts located in Brown County, Wisconsin.",
   "We reserve the right to modify these Terms at any time. Material changes will be noted by an updated 'Last Updated' date. Continued use of the site after changes constitutes acceptance of the revised terms.",
-  "For questions about these Terms of Use, contact us at: District Pour Haus, LLC · 123 Main Street, Green Bay, WI 54301 · hello@districtpourhaus.com.",
+  "For questions about these Terms of Use, contact us at: District Pour Haus, LLC · 686 Mike McCarthy Way, Green Bay, WI 54304 · info@districtpourhaus.com.",
 ]
 
 export const legalDocs: LegalDoc[] = [

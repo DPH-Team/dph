@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button"
 import { ExternalLink, ShoppingBag } from "lucide-react"
 
 export const metadata: Metadata = pageMetadata({
-  title: "Merch — District Pour Haus",
+  title: "Merch",
   description: "Limited-run District Pour Haus merch. Wear the Wisconsin.",
   path: "/merch",
 })
@@ -127,10 +127,10 @@ export default async function MerchPage() {
               All orders fulfilled via Printify. Returns accepted within 30 days for unworn, unwashed items in original condition.
               Contact{" "}
               <a
-                href="mailto:hello@districtpourhaus.com"
+                href="mailto:info@districtpourhaus.com"
                 className="text-primary hover:text-[--color-copper-hover] transition-colors underline underline-offset-4"
               >
-                hello@districtpourhaus.com
+                info@districtpourhaus.com
               </a>
               {" "}with questions.
             </p>
