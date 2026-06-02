@@ -1,6 +1,5 @@
 import { cn } from "@/lib/utils"
 import { Container } from "@/components/marketing/layout/Container"
-import { Section } from "@/components/marketing/layout/Section"
 
 export type PageHeroProps = {
   eyebrow?: string
@@ -20,11 +19,21 @@ export function PageHero({
   children,
 }: PageHeroProps) {
   return (
-    <Section
-      padding="lg"
-      className={cn("bg-background", className)}
+    <header
+      className={cn(
+        "relative overflow-hidden border-b border-border/60 bg-background",
+        className
+      )}
     >
-      <Container>
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-[radial-gradient(120%_120%_at_15%_-10%,oklch(0.648_0.130_47_/_0.16),transparent_55%)]"
+      />
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[--color-copper]/60 to-transparent"
+      />
+      <Container className="relative [padding-block:clamp(2rem,5vw,3.5rem)]">
         <div
           className={cn(
             "flex flex-col gap-4 max-w-3xl",
@@ -42,7 +51,7 @@ export function PageHero({
               />
             </div>
           )}
-          <h1 className="font-display font-medium text-[clamp(2.25rem,1.8rem+2.5vw,4rem)] leading-[1.1] tracking-[-0.02em] text-foreground">
+          <h1 className="font-display font-medium text-[clamp(2rem,1.4rem+3vw,3.5rem)] leading-[1.08] tracking-[-0.02em] text-foreground">
             {title}
           </h1>
           {lead && (
@@ -53,6 +62,6 @@ export function PageHero({
           {children}
         </div>
       </Container>
-    </Section>
+    </header>
   )
 }
