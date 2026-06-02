@@ -47,13 +47,13 @@ export function SiteFooter({ location }: SiteFooterProps) {
                 <span>{location.city}, {location.state} {location.zip}</span>
                 <a
                   href={`tel:+1${phoneDigits}`}
-                  className="text-primary hover:text-[--color-copper-hover] transition-colors w-fit"
+                  className="text-primary hover:text-[--color-copper-hover] transition-colors w-fit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                 >
                   {location.phone}
                 </a>
                 <a
                   href={`mailto:${location.email}`}
-                  className="text-primary hover:text-[--color-copper-hover] transition-colors w-fit"
+                  className="text-primary hover:text-[--color-copper-hover] transition-colors w-fit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                 >
                   {location.email}
                 </a>
@@ -70,7 +70,7 @@ export function SiteFooter({ location }: SiteFooterProps) {
                     <li key={href}>
                       <Link
                         href={href}
-                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        className="text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                       >
                         {label}
                       </Link>
@@ -103,14 +103,14 @@ export function SiteFooter({ location }: SiteFooterProps) {
             <span aria-hidden="true"> · </span>
             <Link
               href="/privacy"
-              className="hover:text-[--color-packers-gold] transition-colors"
+              className="hover:text-[--color-packers-gold] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
             >
               Privacy
             </Link>
             <span aria-hidden="true"> · </span>
             <Link
               href="/terms"
-              className="hover:text-[--color-packers-gold] transition-colors"
+              className="hover:text-[--color-packers-gold] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
             >
               Terms
             </Link>
@@ -127,7 +127,7 @@ export function SiteFooter({ location }: SiteFooterProps) {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="District Pour Haus on Instagram"
-              className="text-[--color-packers-gold] hover:opacity-80 transition-opacity"
+              className="text-[--color-packers-gold] hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
             >
               <Link2 size={16} aria-hidden="true" />
             </a>

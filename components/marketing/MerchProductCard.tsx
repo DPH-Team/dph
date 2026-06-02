@@ -1,6 +1,7 @@
 import Image from "next/image"
 import { ExternalLink } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { BLUR_CHARCOAL } from "@/lib/blur"
 import type { MerchProduct } from "@/lib/fixtures/types"
 
 export type MerchProductCardProps = {
@@ -27,6 +28,9 @@ export function MerchProductCard({ product, className }: MerchProductCardProps) 
             src={product.imageUrl}
             alt={product.title}
             fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            placeholder="blur"
+            blurDataURL={BLUR_CHARCOAL}
             className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
         </div>

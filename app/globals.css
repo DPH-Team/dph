@@ -159,6 +159,19 @@
   --sidebar-ring:                 oklch(0.720 0.135 50);
 }
 
+/* ─── Reduced-motion safety net ─────────────────────────────────────────────
+   JS motion primitives already gate on useReducedMotion; this covers plain
+   CSS transitions and animations that bypass the JS layer.
+   ─────────────────────────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ─── Base layer ────────────────────────────────────────────────────────────── */
 @layer base {
   * {

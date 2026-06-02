@@ -4,6 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Calendar, MapPin, ExternalLink, Share2, Clock, CalendarDays } from "lucide-react"
 import { pageMetadata, eventJsonLd } from "@/lib/seo"
+import { BLUR_CHARCOAL } from "@/lib/blur"
 import type { Location } from "@/lib/fixtures/types"
 import {
   getPublicEventBySlug,
@@ -209,6 +210,8 @@ export default async function EventDetailPage({
                       fill
                       priority
                       sizes="(min-width: 1024px) 64rem, 100vw"
+                      placeholder="blur"
+                      blurDataURL={BLUR_CHARCOAL}
                       className="object-contain"
                     />
                   </div>

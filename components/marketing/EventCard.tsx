@@ -2,6 +2,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Calendar, Tag } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { BLUR_CHARCOAL } from "@/lib/blur"
 import type { Event } from "@/lib/fixtures/types"
 
 export type EventCardProps = {
@@ -72,6 +73,9 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
               src={event.imageUrl}
               alt={event.title}
               fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              placeholder="blur"
+              blurDataURL={BLUR_CHARCOAL}
               className="object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
@@ -139,6 +143,9 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
             src={event.imageUrl}
             alt={event.title}
             fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            placeholder="blur"
+            blurDataURL={BLUR_CHARCOAL}
             className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (

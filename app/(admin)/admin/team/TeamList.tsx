@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useTransition } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { Pencil, Trash2, Save } from 'lucide-react';
+import { Pencil, Trash2, Save, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
-import { SortableList } from '@/components/admin/SortableList';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -12,6 +12,24 @@ import {
   reorderTeamMembersAction,
 } from './actions';
 import type { TeamMember } from '@/lib/db/schema';
+import type { SortableListProps } from '@/components/admin/SortableList';
+
+const SortableList = dynamic<SortableListProps>(
+  () => import('@/components/admin/SortableList').then((m) => m.SortableList),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex flex-col gap-2" aria-busy="true" aria-label="Loading sortable list">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 animate-pulse">
+            <GripVertical className="size-4 text-muted-foreground/30 shrink-0" aria-hidden="true" />
+            <div className="h-4 flex-1 rounded bg-muted" />
+          </div>
+        ))}
+      </div>
+    ),
+  },
+);
 
 // ─── Public URL helper ────────────────────────────────────────────────────────
 

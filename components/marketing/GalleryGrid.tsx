@@ -1,10 +1,17 @@
 "use client"
 
 import { useState } from "react"
+import dynamic from "next/dynamic"
 import Image from "next/image"
 import { cn } from "@/lib/utils"
-import { Lightbox } from "@/components/marketing/Lightbox"
+import { BLUR_CHARCOAL } from "@/lib/blur"
 import type { GalleryImage } from "@/lib/fixtures/types"
+import type { LightboxProps } from "@/components/marketing/Lightbox"
+
+const Lightbox = dynamic<LightboxProps>(
+  () => import("@/components/marketing/Lightbox").then((m) => m.Lightbox),
+  { ssr: false }
+)
 
 export type GalleryGridProps = {
   images: GalleryImage[]
@@ -46,6 +53,9 @@ export function GalleryGrid({ images, className }: GalleryGridProps) {
                 alt={image.alt}
                 width={image.width}
                 height={image.height}
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                placeholder="blur"
+                blurDataURL={BLUR_CHARCOAL}
                 className="w-full h-auto object-cover transition-transform duration-500 group-hover:scale-105"
               />
               {image.caption && (

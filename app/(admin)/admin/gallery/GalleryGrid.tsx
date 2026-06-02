@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useTransition } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { Pencil, Trash2, Save } from 'lucide-react';
 import { toast } from 'sonner';
-import { SortableList } from '@/components/admin/SortableList';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import {
@@ -12,6 +12,21 @@ import {
   reorderGalleryImagesAction,
 } from './actions';
 import type { GalleryImage } from '@/lib/db/schema';
+import type { SortableListProps } from '@/components/admin/SortableList';
+
+const SortableList = dynamic<SortableListProps>(
+  () => import('@/components/admin/SortableList').then((m) => m.SortableList),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4" aria-busy="true" aria-label="Loading sortable grid">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="aspect-video rounded-lg border border-border bg-card animate-pulse" />
+        ))}
+      </div>
+    ),
+  },
+);
 
 // ─── Public URL helper ────────────────────────────────────────────────────────
 
