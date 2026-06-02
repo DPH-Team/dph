@@ -68,6 +68,15 @@ const DAY_MAP: Record<keyof WeeklyHours, string> = {
   sunday: `${SCHEMA_BASE}/Sunday`,
 }
 
+/**
+ * Normalize a Postgres TIME value to the HH:MM format required by schema.org.
+ * Postgres drivers may return "HH:MM:SS"; slicing to 5 chars is safe for both
+ * "HH:MM:SS" and already-correct "HH:MM". Returns "" for empty/falsy input.
+ */
+function toSchemaTime(time: string): string {
+  return time ? time.slice(0, 5) : ""
+}
+
 export function restaurantJsonLd(
   location: Location,
   hours: WeeklyHours,
@@ -79,8 +88,8 @@ export function restaurantJsonLd(
     .map(([key, day]) => ({
       "@type": "OpeningHoursSpecification",
       dayOfWeek: DAY_MAP[key],
-      opens: day.open,
-      closes: day.close,
+      opens: toSchemaTime(day.open),
+      closes: toSchemaTime(day.close),
     }))
 
   return {
