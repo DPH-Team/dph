@@ -13,7 +13,7 @@ export function TapCard({ tap, className }: TapCardProps) {
      * Outer wrapper: stable grid cell — overflow-visible so the grown card
      * can spill outside the reserved cell without reflowing rows.
      */
-    <div className="relative z-0 overflow-visible">
+    <div className="relative overflow-visible hover:z-20 focus-within:z-20">
       <article
         tabIndex={0}
         aria-label={`${tap.name} by ${tap.brewery}`}
