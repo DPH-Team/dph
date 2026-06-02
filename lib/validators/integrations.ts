@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // ─── Integration names ────────────────────────────────────────────────────────
 
-export const INTEGRATION_NAMES = ['untappd', 'printify', 'plausible'] as const;
+export const INTEGRATION_NAMES = ['untappd', 'printify', 'plausible', 'resend'] as const;
 export type IntegrationName = (typeof INTEGRATION_NAMES)[number];
 
 // ─── Untappd credentials ──────────────────────────────────────────────────────
@@ -84,6 +84,72 @@ export const plausibleConfigSchema = z.object({
 
 export type PlausibleConfig = z.infer<typeof plausibleConfigSchema>;
 
+// ─── Resend credentials ───────────────────────────────────────────────────────
+//
+// api_key is a secret — stored in the encrypted `credentials` bytea column.
+// from_email and reply_to are stored in the `config` jsonb column (not secrets).
+
+export const resendCredentialsSchema = z.object({
+  api_key: z
+    .string()
+    .trim()
+    .min(1, 'API key is required')
+    .max(200, 'API key must be 200 characters or fewer'),
+});
+
+export type ResendCredentials = z.infer<typeof resendCredentialsSchema>;
+
+// ─── Resend config ────────────────────────────────────────────────────────────
+//
+// from_email and reply_to are non-secret sender addresses stored in `config`
+// jsonb. The seed row intentionally uses empty strings; validation requires
+// valid email format only when the values are non-empty (so the seed row
+// passes). On explicit save via the admin UI both fields must be valid emails.
+
+export const resendConfigSchema = z.object({
+  from_email: z
+    .string()
+    .trim()
+    .refine(
+      (v) => v === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || /^[^<]+<[^\s@]+@[^\s@]+\.[^\s@]+>$/.test(v),
+      'Enter a valid email address or "Name <email>" format',
+    )
+    .max(320, 'From email must be 320 characters or fewer'),
+  reply_to: z
+    .string()
+    .trim()
+    .refine(
+      (v) => v === '' || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || /^[^<]+<[^\s@]+@[^\s@]+\.[^\s@]+>$/.test(v),
+      'Enter a valid email address or "Name <email>" format',
+    )
+    .max(320, 'Reply-to must be 320 characters or fewer'),
+});
+
+// Schema used on explicit admin save — both fields must be non-empty valid emails.
+export const resendConfigSaveSchema = z.object({
+  from_email: z
+    .string()
+    .trim()
+    .min(1, 'From email is required')
+    .refine(
+      (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || /^[^<]+<[^\s@]+@[^\s@]+\.[^\s@]+>$/.test(v),
+      'Enter a valid email address or "Name <email>" format',
+    )
+    .max(320, 'From email must be 320 characters or fewer'),
+  reply_to: z
+    .string()
+    .trim()
+    .min(1, 'Reply-to is required')
+    .refine(
+      (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || /^[^<]+<[^\s@]+@[^\s@]+\.[^\s@]+>$/.test(v),
+      'Enter a valid email address or "Name <email>" format',
+    )
+    .max(320, 'Reply-to must be 320 characters or fewer'),
+});
+
+export type ResendConfig = z.infer<typeof resendConfigSchema>;
+export type ResendConfigSave = z.infer<typeof resendConfigSaveSchema>;
+
 // ─── Mode / enabled toggle ────────────────────────────────────────────────────
 
 export const integrationTogglesSchema = z.object({
@@ -99,6 +165,7 @@ export type IntegrationTogglesInput = z.infer<typeof integrationTogglesSchema>;
  * Return the credentials schema for the given integration name.
  * Switch on name — safe to call from a server action.
  * Plausible has no credentials (config is stored in jsonb, not encrypted bytea).
+ * Resend stores api_key as encrypted credentials.
  */
 export function getCredentialsSchema(
   name: Exclude<IntegrationName, 'plausible'>,
@@ -108,5 +175,7 @@ export function getCredentialsSchema(
       return untappdCredentialsSchema;
     case 'printify':
       return printifyCredentialsSchema;
+    case 'resend':
+      return resendCredentialsSchema;
   }
 }

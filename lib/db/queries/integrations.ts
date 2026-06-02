@@ -18,7 +18,7 @@ import type { Integration } from '@/lib/db/schema';
 // ─── List ─────────────────────────────────────────────────────────────────────
 
 /**
- * Return all integration rows in deterministic order (untappd, printify, plausible).
+ * Return all integration rows in deterministic order (untappd, printify, plausible, resend).
  * RLS enforces admin-only access.
  */
 export async function listIntegrations(): Promise<Integration[]> {
@@ -26,7 +26,7 @@ export async function listIntegrations(): Promise<Integration[]> {
     .select()
     .from(integrations)
     .orderBy(
-      sql`CASE ${integrations.name} WHEN 'untappd' THEN 0 WHEN 'printify' THEN 1 ELSE 2 END`,
+      sql`CASE ${integrations.name} WHEN 'untappd' THEN 0 WHEN 'printify' THEN 1 WHEN 'plausible' THEN 2 WHEN 'resend' THEN 3 ELSE 4 END`,
     );
 }
 
@@ -220,6 +220,106 @@ export async function updatePlausibleConfig(
   const row = rows[0];
   if (!row) {
     throw new Error('updatePlausibleConfig: plausible integration row not found');
+  }
+  return row;
+}
+
+// ─── Resend config (jsonb — non-secret fields) + decrypted api_key ────────────
+
+/**
+ * Read the Resend config from the `config` jsonb column AND decrypt the api_key
+ * from the encrypted `credentials` column.
+ *
+ * Returns null gracefully if the row does not exist, the encryption key is
+ * absent, or decryption fails — callers must handle the null path.
+ *
+ * Uses the service-role client so the email layer can call this from server
+ * components / actions without an active user session.
+ *
+ * NEVER log or send the return value to the client.
+ */
+export async function getResendConfig(): Promise<{
+  enabled: boolean;
+  apiKey: string;
+  fromEmail: string;
+  replyTo: string;
+} | null> {
+  try {
+    const key = process.env.INTEGRATIONS_ENCRYPTION_KEY;
+    if (!key) {
+      console.error('[integrations] getResendConfig: INTEGRATIONS_ENCRYPTION_KEY is not set');
+      return null;
+    }
+
+    const admin = createAdminClient();
+
+    // Read config (non-secret jsonb) and enabled flag.
+    const { data, error } = await admin
+      .from('integrations')
+      .select('enabled, config')
+      .eq('name', 'resend')
+      .single();
+
+    if (error || !data) return null;
+
+    const config =
+      data.config &&
+      typeof data.config === 'object' &&
+      !Array.isArray(data.config)
+        ? (data.config as Record<string, unknown>)
+        : {};
+
+    // Decrypt api_key via the SECURITY DEFINER RPC.
+    const { data: creds, error: rpcError } = await admin.rpc(
+      'get_integration_credentials',
+      { p_name: 'resend', p_key: key },
+    );
+
+    if (rpcError) {
+      console.error('[integrations] getResendConfig: decrypt RPC failed:', rpcError.message);
+      return null;
+    }
+
+    const credObj =
+      creds !== null && typeof creds === 'object' && !Array.isArray(creds)
+        ? (creds as Record<string, unknown>)
+        : {};
+
+    return {
+      enabled: Boolean(data.enabled),
+      apiKey: typeof credObj.api_key === 'string' ? credObj.api_key : '',
+      fromEmail: typeof config.from_email === 'string' ? config.from_email : '',
+      replyTo: typeof config.reply_to === 'string' ? config.reply_to : '',
+    };
+  } catch (err) {
+    console.error('[integrations] getResendConfig failed:', err);
+    return null;
+  }
+}
+
+/**
+ * Persist Resend from_email + reply_to into the `config` jsonb column.
+ * Does NOT touch the `credentials` column — api_key goes through the encrypted
+ * credential write path (setIntegrationCredentials).
+ * Uses the user-session Drizzle client so RLS applies (admin-only update).
+ */
+export async function updateResendConfig(
+  config: { from_email: string; reply_to: string },
+  actorId: string,
+): Promise<Integration> {
+  const rows = await db
+    .update(integrations)
+    .set({
+      config: config as unknown as Record<string, unknown>,
+      updatedBy: actorId,
+      updatedAt: new Date(),
+    })
+    .where(eq(integrations.name, 'resend'))
+    .returning();
+
+  const row = rows[0];
+  if (!row) {
+    throw new Error('updateResendConfig: resend integration row not found');
   }
   return row;
 }

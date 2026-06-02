@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/auth';
 import { listIntegrations } from '@/lib/db/queries/integrations';
 import { IntegrationCard, type IntegrationView } from './IntegrationCard';
 import { PlausibleCard } from './PlausibleCard';
+import { ResendCard } from './ResendCard';
 import type { Integration } from '@/lib/db/schema';
 import type { IntegrationName } from '@/lib/validators/integrations';
 
@@ -49,6 +50,15 @@ export default async function IntegrationsPage() {
       ? (plausibleRow.config as Record<string, unknown>)
       : {};
 
+  // Resend config (non-secret sender addresses) from the `config` jsonb column.
+  const resendRow = byName.get('resend');
+  const resendConfig =
+    resendRow?.config &&
+    typeof resendRow.config === 'object' &&
+    !Array.isArray(resendRow.config)
+      ? (resendRow.config as Record<string, unknown>)
+      : {};
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -60,7 +70,7 @@ export default async function IntegrationsPage() {
           </h1>
         </div>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Configure Untappd, Printify, and Plausible Analytics.
+          Configure Untappd, Printify, Plausible Analytics, and Resend email.
         </p>
       </header>
 
@@ -104,6 +114,19 @@ export default async function IntegrationsPage() {
           enabled={plausibleRow.enabled}
           domain={typeof plausibleConfig.domain === 'string' ? plausibleConfig.domain : ''}
           host={typeof plausibleConfig.host === 'string' ? plausibleConfig.host : 'https://plausible.io'}
+        />
+      )}
+
+      {/* Resend card */}
+      {resendRow && (
+        <ResendCard
+          enabled={resendRow.enabled}
+          hasCredentials={resendRow.hasCredentials}
+          fromEmail={typeof resendConfig.from_email === 'string' ? resendConfig.from_email : ''}
+          replyTo={typeof resendConfig.reply_to === 'string' ? resendConfig.reply_to : ''}
+          lastTestStatus={resendRow.lastTestStatus}
+          lastTestedAt={resendRow.lastTestedAt ? new Date(resendRow.lastTestedAt) : null}
+          lastTestError={resendRow.lastTestError}
         />
       )}
     </div>

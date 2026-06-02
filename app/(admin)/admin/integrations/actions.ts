@@ -6,6 +6,7 @@ import {
   getCredentialsSchema,
   integrationTogglesSchema,
   plausibleConfigSchema,
+  resendConfigSaveSchema,
 } from '@/lib/validators/integrations';
 import type { IntegrationName } from '@/lib/validators/integrations';
 import {
@@ -13,6 +14,7 @@ import {
   setIntegrationCredentials,
   updateIntegrationToggles,
   updatePlausibleConfig,
+  updateResendConfig,
   decryptCredentials,
   recordTestResult,
 } from '@/lib/db/queries/integrations';
@@ -20,6 +22,7 @@ import { auditUpdate, auditIntegrationTest } from '@/lib/audit';
 import {
   testUntappdConnection,
   testPrintifyConnection,
+  testResendConnection,
 } from '@/lib/integrations/test-connections';
 import type { ActionState } from '@/lib/types/action-state';
 import type { Integration } from '@/lib/db/schema';
@@ -241,6 +244,9 @@ export async function testConnectionAction(
       read_write_token: string;
     };
     testResult = await testUntappdConnection({ email, location_id, read_write_token });
+  } else if (name === 'resend') {
+    const { api_key } = creds as { api_key: string };
+    testResult = await testResendConnection({ api_key });
   } else {
     const { api_key, shop_id } = creds as {
       api_key: string;
@@ -262,6 +268,101 @@ export async function testConnectionAction(
     return { ok: true, message: 'Connection successful.' };
   }
   return { ok: false, error: testResult.error };
+}
+
+// ─── Resend: save config ──────────────────────────────────────────────────────
+
+/**
+ * Persist Resend from_email + reply_to into the `config` jsonb column.
+ * The api_key is handled separately by saveCredentialsAction (encrypted path).
+ * Both fields must be valid email addresses when saving.
+ */
+export async function saveResendConfigAction(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
+  const profile = await requireAdmin();
+
+  const raw = {
+    from_email: formData.get('from_email') ?? '',
+    reply_to: formData.get('reply_to') ?? '',
+  };
+
+  const result = resendConfigSaveSchema.safeParse(raw);
+  if (!result.success) {
+    return {
+      ok: false,
+      error: 'Validation failed.',
+      fieldErrors: result.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  const before = await getIntegration('resend');
+  if (!before) {
+    return { ok: false, error: "Integration 'resend' not found." };
+  }
+
+  let after: Integration;
+  try {
+    after = await updateResendConfig(result.data, profile.id);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    return { ok: false, error: `Failed to save Resend config: ${msg}` };
+  }
+
+  await auditUpdate(
+    'integration',
+    'resend',
+    sanitizeRow(before),
+    sanitizeRow(after),
+    { action: 'resend_config_saved' },
+  );
+
+  revalidatePath('/admin/integrations');
+  return { ok: true };
+}
+
+// ─── Resend: enabled toggle ───────────────────────────────────────────────────
+
+/**
+ * Toggle Resend enabled/disabled.
+ * Resend does not use mode; we pass the current mode through unchanged.
+ */
+export async function updateResendEnabledAction(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
+  const profile = await requireAdmin();
+
+  const enabled = formData.get('enabled') === 'true';
+
+  const before = await getIntegration('resend');
+  if (!before) {
+    return { ok: false, error: "Integration 'resend' not found." };
+  }
+
+  let after: Integration;
+  try {
+    after = await updateIntegrationToggles(
+      'resend',
+      { enabled, mode: before.mode },
+      profile.id,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    return { ok: false, error: `Failed to update Resend settings: ${msg}` };
+  }
+
+  await auditUpdate(
+    'integration',
+    'resend',
+    sanitizeRow(before),
+    sanitizeRow(after),
+    { action: 'resend_enabled_toggled' },
+  );
+
+  revalidatePath('/admin/integrations');
+  return { ok: true };
 }
 
 // ─── Plausible: save config ───────────────────────────────────────────────────
