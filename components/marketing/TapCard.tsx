@@ -114,13 +114,15 @@ export function TapCard({ tap, className }: TapCardProps) {
                 "absolute top-0 left-0 right-0 z-10",
                 "text-sm text-muted-foreground leading-relaxed",
                 "bg-card pb-4 rounded-b-xl",
-                // Hidden at rest, shown on hover/focus-within
-                "opacity-0 pointer-events-none",
-                "group-hover:opacity-100 group-hover:pointer-events-auto",
-                "group-focus-within:opacity-100 group-focus-within:pointer-events-auto",
-                // Fade transition (transform suppression via motion-reduce: on article above)
-                "transition-opacity duration-[200ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
-                "motion-reduce:transition-none",
+                // At-rest: hidden + slightly raised/collapsed so it grows into place with the card
+                "opacity-0 pointer-events-none -translate-y-1 scale-[0.98] origin-top",
+                // Settled: full opacity + natural position — synced with the card's grow gesture
+                "group-hover:opacity-100 group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:scale-100",
+                "group-focus-within:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:scale-100",
+                // Matched timing + easing — opacity AND transform move together as one step
+                "transition-[opacity,transform] duration-[250ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+                // Reduced-motion: snap both opacity and transform instantly (no movement)
+                "motion-reduce:transition-none motion-reduce:-translate-y-0 motion-reduce:scale-100",
                 // Touch: not needed — collapsed layer already shows full text
                 "pointer-coarse:hidden"
               )}
