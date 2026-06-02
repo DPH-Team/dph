@@ -18,14 +18,16 @@ import type { Integration } from '@/lib/db/schema';
 // ─── List ─────────────────────────────────────────────────────────────────────
 
 /**
- * Return both integration rows in deterministic order (untappd, printify).
+ * Return all integration rows in deterministic order (untappd, printify, plausible).
  * RLS enforces admin-only access.
  */
 export async function listIntegrations(): Promise<Integration[]> {
   return db
     .select()
     .from(integrations)
-    .orderBy(sql`CASE ${integrations.name} WHEN 'untappd' THEN 0 ELSE 1 END`);
+    .orderBy(
+      sql`CASE ${integrations.name} WHEN 'untappd' THEN 0 WHEN 'printify' THEN 1 ELSE 2 END`,
+    );
 }
 
 // ─── Get by name ──────────────────────────────────────────────────────────────
@@ -154,6 +156,72 @@ export async function recordTestResult(
     // Non-fatal — log but don't block the action response.
     console.error('[integrations] recordTestResult failed:', error.message);
   }
+}
+
+// ─── Plausible config (jsonb — not encrypted) ─────────────────────────────────
+
+/**
+ * Read the Plausible config from the `config` jsonb column.
+ * Returns null if the row does not exist or config is missing expected shape.
+ * Used by the public layout to decide whether to inject the script tag.
+ *
+ * Intentionally uses the service-role client so this can be called from a
+ * server component without requiring an active user session (the public layout
+ * runs for anonymous visitors).
+ */
+export async function getPlausibleConfig(): Promise<{
+  enabled: boolean;
+  domain: string;
+  host: string;
+} | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('integrations')
+    .select('enabled, config')
+    .eq('name', 'plausible')
+    .single();
+
+  if (error || !data) return null;
+
+  const config =
+    data.config &&
+    typeof data.config === 'object' &&
+    !Array.isArray(data.config)
+      ? (data.config as Record<string, unknown>)
+      : {};
+
+  return {
+    enabled: Boolean(data.enabled),
+    domain: typeof config.domain === 'string' ? config.domain : '',
+    host:
+      typeof config.host === 'string' ? config.host : 'https://plausible.io',
+  };
+}
+
+/**
+ * Persist Plausible domain + host into the `config` jsonb column.
+ * Does NOT touch the `credentials` column — Plausible has no secrets.
+ * Uses the user-session Drizzle client so RLS applies (admin-only update).
+ */
+export async function updatePlausibleConfig(
+  config: { domain: string; host: string },
+  actorId: string,
+): Promise<Integration> {
+  const rows = await db
+    .update(integrations)
+    .set({
+      config: config as unknown as Record<string, unknown>,
+      updatedBy: actorId,
+      updatedAt: new Date(),
+    })
+    .where(eq(integrations.name, 'plausible'))
+    .returning();
+
+  const row = rows[0];
+  if (!row) {
+    throw new Error('updatePlausibleConfig: plausible integration row not found');
+  }
+  return row;
 }
 
 // ─── Decrypt credentials ──────────────────────────────────────────────────────

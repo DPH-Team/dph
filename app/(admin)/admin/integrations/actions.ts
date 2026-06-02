@@ -5,12 +5,14 @@ import { requireAdmin } from '@/lib/auth';
 import {
   getCredentialsSchema,
   integrationTogglesSchema,
+  plausibleConfigSchema,
 } from '@/lib/validators/integrations';
 import type { IntegrationName } from '@/lib/validators/integrations';
 import {
   getIntegration,
   setIntegrationCredentials,
   updateIntegrationToggles,
+  updatePlausibleConfig,
   decryptCredentials,
   recordTestResult,
 } from '@/lib/db/queries/integrations';
@@ -62,7 +64,11 @@ export async function saveCredentialsAction(
 ): Promise<ActionState> {
   const profile = await requireAdmin();
 
-  const schema = getCredentialsSchema(name);
+  if (name === 'plausible') {
+    return { ok: false, error: 'Plausible does not use credentials. Use savePlausibleConfigAction instead.' };
+  }
+
+  const schema = getCredentialsSchema(name as Exclude<IntegrationName, 'plausible'>);
   const fields = Object.keys(schema.shape) as string[];
 
   // Check if all credential fields are blank — if so, skip the save.
@@ -202,6 +208,14 @@ export async function testConnectionAction(
 ): Promise<TestActionState> {
   await requireAdmin();
 
+  // Plausible has no credentials to test.
+  if (name === 'plausible') {
+    return {
+      ok: false,
+      error: 'Plausible does not support connection testing — it has no server-side credentials.',
+    };
+  }
+
   // Decrypt credentials via service-role client.
   const creds = await decryptCredentials(name);
 
@@ -248,4 +262,99 @@ export async function testConnectionAction(
     return { ok: true, message: 'Connection successful.' };
   }
   return { ok: false, error: testResult.error };
+}
+
+// ─── Plausible: save config ───────────────────────────────────────────────────
+
+/**
+ * Persist Plausible domain + host into the `config` jsonb column.
+ * Neither field is a secret — they appear verbatim in the public script tag.
+ * The enabled toggle is handled separately by updateTogglesAction.
+ */
+export async function savePlausibleConfigAction(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
+  const profile = await requireAdmin();
+
+  const raw = {
+    domain: formData.get('domain') ?? '',
+    host: formData.get('host') ?? 'https://plausible.io',
+  };
+
+  const result = plausibleConfigSchema.safeParse(raw);
+  if (!result.success) {
+    return {
+      ok: false,
+      error: 'Validation failed.',
+      fieldErrors: result.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  const before = await getIntegration('plausible');
+  if (!before) {
+    return { ok: false, error: "Integration 'plausible' not found." };
+  }
+
+  let after: Integration;
+  try {
+    after = await updatePlausibleConfig(result.data, profile.id);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    return { ok: false, error: `Failed to save Plausible config: ${msg}` };
+  }
+
+  await auditUpdate(
+    'integration',
+    'plausible',
+    sanitizeRow(before),
+    sanitizeRow(after),
+    { action: 'plausible_config_saved' },
+  );
+
+  revalidatePath('/admin/integrations');
+  return { ok: true };
+}
+
+// ─── Plausible: enabled toggle ────────────────────────────────────────────────
+
+/**
+ * Toggle Plausible enabled/disabled.
+ * Plausible does not use mode; we pass the current mode through unchanged.
+ */
+export async function updatePlausibleEnabledAction(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
+  const profile = await requireAdmin();
+
+  const enabled = formData.get('enabled') === 'true';
+
+  const before = await getIntegration('plausible');
+  if (!before) {
+    return { ok: false, error: "Integration 'plausible' not found." };
+  }
+
+  let after: Integration;
+  try {
+    after = await updateIntegrationToggles(
+      'plausible',
+      { enabled, mode: before.mode },
+      profile.id,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    return { ok: false, error: `Failed to update Plausible settings: ${msg}` };
+  }
+
+  await auditUpdate(
+    'integration',
+    'plausible',
+    sanitizeRow(before),
+    sanitizeRow(after),
+    { action: 'plausible_enabled_toggled' },
+  );
+
+  revalidatePath('/admin/integrations');
+  return { ok: true };
 }

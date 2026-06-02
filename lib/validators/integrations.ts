@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // ─── Integration names ────────────────────────────────────────────────────────
 
-export const INTEGRATION_NAMES = ['untappd', 'printify'] as const;
+export const INTEGRATION_NAMES = ['untappd', 'printify', 'plausible'] as const;
 export type IntegrationName = (typeof INTEGRATION_NAMES)[number];
 
 // ─── Untappd credentials ──────────────────────────────────────────────────────
@@ -58,6 +58,32 @@ export const printifyCredentialsSchema = z.object({
 
 export type PrintifyCredentials = z.infer<typeof printifyCredentialsSchema>;
 
+// ─── Plausible config ─────────────────────────────────────────────────────────
+//
+// Plausible domain + host are NOT secrets — both appear in the public script tag.
+// They are stored in the `config` jsonb column (not the encrypted credentials
+// column) for consistency. The `enabled` boolean on the row gates injection.
+
+export const plausibleConfigSchema = z.object({
+  domain: z
+    .string()
+    .trim()
+    .min(1, 'Domain is required')
+    .max(253, 'Domain must be 253 characters or fewer')
+    .regex(
+      /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/,
+      'Enter a valid domain (e.g. staging.districtpourhaus.com)',
+    ),
+  host: z
+    .string()
+    .trim()
+    .url('Host must be a valid URL (e.g. https://plausible.io)')
+    .max(200, 'Host must be 200 characters or fewer')
+    .default('https://plausible.io'),
+});
+
+export type PlausibleConfig = z.infer<typeof plausibleConfigSchema>;
+
 // ─── Mode / enabled toggle ────────────────────────────────────────────────────
 
 export const integrationTogglesSchema = z.object({
@@ -72,8 +98,11 @@ export type IntegrationTogglesInput = z.infer<typeof integrationTogglesSchema>;
 /**
  * Return the credentials schema for the given integration name.
  * Switch on name — safe to call from a server action.
+ * Plausible has no credentials (config is stored in jsonb, not encrypted bytea).
  */
-export function getCredentialsSchema(name: IntegrationName) {
+export function getCredentialsSchema(
+  name: Exclude<IntegrationName, 'plausible'>,
+) {
   switch (name) {
     case 'untappd':
       return untappdCredentialsSchema;
