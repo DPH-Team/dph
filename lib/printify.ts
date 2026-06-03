@@ -76,6 +76,39 @@ async function resolvePrintifyMode(): Promise<PrintifyMode> {
   return { mode: 'live', creds: { api_key, shop_id } };
 }
 
+// ─── URL helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * isAbsoluteUrl — returns true when the value starts with "http://" or
+ * "https://". Used to detect the Pop-Up store case where external.handle is
+ * already a full URL (OBSERVED in production: external.handle arrives as
+ * "https://districtpourhaus.printify.me/product/28908097" — an absolute URL
+ * using the published/external id, NOT the internal product id).
+ */
+function isAbsoluteUrl(value: string): boolean {
+  return value.startsWith('https://') || value.startsWith('http://');
+}
+
+/**
+ * joinUrl — safely concatenate a base URL and a relative path so that the
+ * result never contains "//" in the path segment (other than after the scheme).
+ *
+ * Rules:
+ *   - Trailing slash on base is stripped before joining.
+ *   - Leading slash on path is ensured.
+ *   - Never call with an absolute `path` — use the value directly in that case.
+ *
+ * Examples:
+ *   joinUrl("https://foo.printify.me",  "/product/123")  → "https://foo.printify.me/product/123"
+ *   joinUrl("https://foo.printify.me/", "product/123")   → "https://foo.printify.me/product/123"
+ *   joinUrl("https://foo.printify.me",  "product/123")   → "https://foo.printify.me/product/123"
+ */
+function joinUrl(base: string, path: string): string {
+  const cleanBase = base.replace(/\/+$/, '');
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${cleanBase}${cleanPath}`;
+}
+
 // ─── Product normalisation ────────────────────────────────────────────────────
 
 /**
@@ -92,7 +125,7 @@ async function resolvePrintifyMode(): Promise<PrintifyMode> {
  *       tags: string[],
  *       product_type: string,
  *       // Published-to-Pop-Up-Store fields:
- *       external: { id: string; handle: string } | null,
+ *       external: { id: string; handle: string; url?: string } | null,
  *       // External-channel (Shopify/Etsy/etc.) listings — NOT populated for
  *       // the Pop-Up store, which uses the `external` object instead:
  *       sales_channel_listings: [{ channel_type: string; url?: string; ... }],
@@ -102,23 +135,37 @@ async function resolvePrintifyMode(): Promise<PrintifyMode> {
  *     last_page: number,
  *   }
  *
- * VERIFIED from Printify API docs: when a product is published to the Pop-Up
- * store the `external` object is populated with `{ id, handle }` where handle
- * is a URL slug. `sales_channel_listings` covers third-party channels
- * (Shopify, Etsy, WooCommerce, etc.) — it is typically empty for Pop-Up-only
- * products and does NOT carry a `url` field for the Pop-Up store.
+ * OBSERVED in production: when a product is published to the Pop-Up store the
+ * `external` object is populated with `{ id, handle }` where `handle` is an
+ * ABSOLUTE URL such as "https://districtpourhaus.printify.me/product/28908097"
+ * (using the published/external id, NOT the internal product `id`). The handle
+ * field is NOT a bare slug as previously assumed — it arrives as a full URL.
  *
- * Pop-Up store product URL pattern (confirmed):
- *   https://<shop>.printify.me/product/<product-id>/<handle>
+ * `sales_channel_listings` covers third-party channels (Shopify, Etsy,
+ * WooCommerce, etc.) — it is typically empty for Pop-Up-only products and does
+ * NOT carry a `url` field for the Pop-Up store.
  *
- * printifyUrl resolution (precedence):
- *   a. sales_channel_listings[0].url if it is an absolute https URL
- *      (covers products also listed on Shopify/Etsy etc.)
- *   b. Construct from PRINTIFY_STORE_URL + /product/<id>/<handle> using
- *      external.handle (if set) or slugify(title) as the handle fallback.
- *      This is the primary path for Pop-Up-store-published products.
- *   c. Fall back to bare PRINTIFY_STORE_URL when neither id nor handle is
- *      available — only unpublished products legitimately have no product page.
+ * printifyUrl resolution (candidates tried in order; first usable value wins):
+ *   1. external.handle  — OBSERVED to be an absolute URL for Pop-Up products.
+ *      If absolute → use directly. If non-empty relative → join with base.
+ *   2. external.url     — INFERRED: may be present on some API responses.
+ *      If absolute → use directly. If non-empty relative → join with base.
+ *   3. sales_channel_listings[0].url — absolute URL from a third-party channel
+ *      (Shopify, Etsy, etc.). Only use if it is an absolute https:// URL.
+ *   4. Construct from base using external.id (published id) when present, else
+ *      internal product id, plus slugify(title) as path:
+ *      joinUrl(PRINTIFY_STORE_URL, `/product/${externalId ?? productId}/${slug}`)
+ *      (INFERRED: this path is a safe approximation for products where the
+ *      external object exists with an id but no usable handle.)
+ *   5. joinUrl(PRINTIFY_STORE_URL, `/product/${productId}`) — id-only fallback
+ *      when no handle or slug is derivable.
+ *   6. Bare PRINTIFY_STORE_URL — last resort for unpublished products that have
+ *      no external object and no product page yet.
+ *
+ * CRITICAL INVARIANT: an absolute URL (http:// or https://) is ALWAYS used
+ * directly and NEVER prepended with PRINTIFY_STORE_URL. Concatenating a base
+ * onto an absolute URL produces a malformed URL
+ * (e.g. "https://foo.me/product/X/https:/foo.me/product/Y").
  *
  * priceCents: derived from the lowest enabled variant price (Printify prices
  * are in cents already for USD shops). Defaults to 0 when no enabled variant.
@@ -180,26 +227,35 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
         ? ((resolvedImage as Record<string, unknown>)['src'] as string)
         : '';
 
-    // ── printifyUrl: resolve with this precedence ──────────────────────────
+    // ── printifyUrl: resolve with candidate precedence 1 → 2 → 3 → 4 → 5 → 6 ──
     //
-    // a) sales_channel_listings[0].url — absolute URL from a third-party
-    //    channel (Shopify, Etsy, etc.).  For Pop-Up-store-only products this
-    //    array is typically empty or the entries lack a `url` field, which is
-    //    WHY the old code always fell through to the bare store fallback.
-    //    Guard: only use if it starts with "https://" to avoid relative junk.
-    //
-    // b) Construct Pop-Up store URL from id + handle.
-    //    VERIFIED URL pattern: <PRINTIFY_STORE_URL>/product/<id>/<handle>
-    //    `external.handle` is populated when the product is published to the
-    //    Pop-Up store; fall back to slugify(title) when handle is absent but
-    //    id is present.  (INFERRED: handle fallback from title not confirmed
-    //    from docs — the slugify path is a safe approximation and is only
-    //    reached if external exists with an id but no handle.)
-    //
-    // c) Bare PRINTIFY_STORE_URL — only for products with no id or handle,
-    //    i.e. products not yet published to the Pop-Up store. No product page
-    //    exists for them yet, so the store landing page is the best we can do.
+    // Gather the external object fields first.
+    const externalRaw =
+      p['external'] !== null &&
+      p['external'] !== undefined &&
+      typeof p['external'] === 'object'
+        ? (p['external'] as Record<string, unknown>)
+        : null;
 
+    // external.handle — OBSERVED: arrives as an absolute URL for Pop-Up products
+    // (e.g. "https://districtpourhaus.printify.me/product/28908097").
+    const externalHandle =
+      externalRaw && typeof externalRaw['handle'] === 'string' && externalRaw['handle']
+        ? (externalRaw['handle'] as string)
+        : null;
+
+    // external.url — INFERRED: may be present on some responses.
+    const externalUrl =
+      externalRaw && typeof externalRaw['url'] === 'string' && externalRaw['url']
+        ? (externalRaw['url'] as string)
+        : null;
+
+    // external.id — the published/external id used in Pop-Up store URLs.
+    // Prefer this over the internal product id when constructing relative paths.
+    const externalId =
+      externalRaw && externalRaw['id'] != null ? String(externalRaw['id']) : null;
+
+    // sales_channel_listings[0].url — third-party channel (Shopify, Etsy, etc.)
     const listings = Array.isArray(p['sales_channel_listings'])
       ? (p['sales_channel_listings'] as unknown[])
       : [];
@@ -212,20 +268,34 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
         ? ((firstListing as Record<string, unknown>)['url'] as string)
         : null;
 
-    // external object — populated when product is published to Pop-Up store.
-    const externalRaw =
-      p['external'] !== null &&
-      p['external'] !== undefined &&
-      typeof p['external'] === 'object'
-        ? (p['external'] as Record<string, unknown>)
-        : null;
-    const externalHandle =
-      externalRaw && typeof externalRaw['handle'] === 'string' && externalRaw['handle']
-        ? (externalRaw['handle'] as string)
-        : null;
-
-    // Product id (top-level) is always present for real products.
+    // Internal product id — always present for real API products.
     const productId = p['id'] ? String(p['id']) : null;
+
+    /**
+     * resolveCandidate — given a raw string candidate from the API, returns
+     * the usable URL or null.
+     *
+     * - Absolute URL (http:// or https://)  → return as-is (never prepend base).
+     * - Relative path starting with /product/ or /  → joinUrl(base, candidate).
+     * - Other non-empty relative value  → treat as a slug/handle and build
+     *   /product/<externalId ?? productId>/<candidate>.
+     * - Empty string or null  → null.
+     */
+    function resolveCandidate(candidate: string | null): string | null {
+      if (!candidate) return null;
+      if (isAbsoluteUrl(candidate)) return candidate;
+      // Relative candidate — join safely.
+      if (candidate.startsWith('/')) {
+        return joinUrl(PRINTIFY_STORE_URL, candidate);
+      }
+      // Bare slug/handle value.
+      const idSegment = externalId ?? productId;
+      if (idSegment) {
+        return joinUrl(PRINTIFY_STORE_URL, `/product/${idSegment}/${candidate}`);
+      }
+      // Cannot construct a path without an id — discard.
+      return null;
+    }
 
     // ── tags ──
     const tags = Array.isArray(p['tags'])
@@ -233,8 +303,6 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
       : [];
 
     // ── category: derive from product_type field, fall back to first tag (Title-Cased), then 'Other' ──
-    // product_type is the most representative field; if absent, use the first tag
-    // and convert it to Title Case (e.g. "apparel" → "Apparel").
     const productType =
       typeof p['product_type'] === 'string' && p['product_type']
         ? (p['product_type'] as string)
@@ -251,24 +319,27 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
     const rawCategory = productType ?? (tags.length > 0 ? tags[0] : null);
     const category = rawCategory ? toTitleCase(rawCategory) : 'Other';
 
-    // Resolve printifyUrl following precedence a → b → c described above.
-    let printifyUrl: string;
-    if (listingUrl) {
-      // (a) Absolute URL from a third-party sales channel listing.
-      printifyUrl = listingUrl;
-    } else if (productId) {
-      // (b) Construct Pop-Up store URL.
-      // Use external.handle when available; fall back to slugify(title).
-      // INFERRED: slugify fallback not confirmed from docs — safe approximation.
-      const title = String(p['title'] ?? '');
-      const handle = externalHandle ?? (title ? slugify(title) : null);
-      printifyUrl = handle
-        ? `${PRINTIFY_STORE_URL}/product/${productId}/${handle}`
-        : `${PRINTIFY_STORE_URL}/product/${productId}`;
-    } else {
-      // (c) Unpublished product — no product page exists yet.
-      printifyUrl = PRINTIFY_STORE_URL;
-    }
+    // Evaluate candidates in priority order.
+    // Candidate 1: external.handle (OBSERVED to be absolute for Pop-Up products)
+    // Candidate 2: external.url (INFERRED; may be present)
+    // Candidate 3: sales_channel_listings[0].url (third-party channels only)
+    const printifyUrl: string =
+      resolveCandidate(externalHandle) ??
+      resolveCandidate(externalUrl) ??
+      listingUrl ??
+      (() => {
+        // Candidates 4 + 5: construct from id + slugified title.
+        const idSegment = externalId ?? productId;
+        if (idSegment) {
+          const title = String(p['title'] ?? '');
+          const slug = title ? slugify(title) : null;
+          return slug
+            ? joinUrl(PRINTIFY_STORE_URL, `/product/${idSegment}/${slug}`)
+            : joinUrl(PRINTIFY_STORE_URL, `/product/${idSegment}`);
+        }
+        // Candidate 6: bare store URL for unpublished products.
+        return PRINTIFY_STORE_URL;
+      })();
 
     return {
       id: String(p['id'] ?? `product-${index}`),
