@@ -41,6 +41,11 @@ function InstagramConfigForm({
   const prevRef = useRef<ActionState | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [localEnabled, setLocalEnabled] = useState(enabled);
+  const [feedIdValue, setFeedIdValue] = useState(feedId);
+
+  useEffect(() => {
+    setFeedIdValue(feedId);
+  }, [feedId]);
 
   useEffect(() => {
     if (!state || state === prevRef.current) return;
@@ -113,7 +118,8 @@ function InstagramConfigForm({
             type="text"
             maxLength={120}
             autoComplete="off"
-            defaultValue={feedId}
+            value={feedIdValue}
+            onChange={(e) => setFeedIdValue(e.target.value)}
             placeholder="e.g. aBcDeFgH1234"
             aria-describedby={
               fieldErrors.feed_id?.length ? 'instagram-feed_id-error' : 'instagram-feed_id-hint'
