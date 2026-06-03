@@ -64,14 +64,14 @@ export function HomeHero({ hero }: HomeHeroProps) {
 
       {/* ── Directional scrim — dark on left (text column) fading right ──────── */}
       <div
-        className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/35 to-transparent"
+        className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-transparent"
         aria-hidden="true"
       />
 
-      {/* Background gradient — shown always (fallback when no media; scrim-blend otherwise) */}
+      {/* Background gradient — dark fallback when no media; transparent when media is present */}
       {!reduced ? (
         <motion.div
-          className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/40 to-transparent"
+          className={mediaUrl ? "absolute inset-0" : "absolute inset-0 bg-gradient-to-br from-background via-background to-neutral-900"}
           initial={{ scale: 1.05 }}
           animate={{ scale: 1 }}
           transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
