@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "assets.untappd.com", pathname: "/**" },
       { protocol: "https", hostname: "images-api.printify.com", pathname: "/**" },
       { protocol: "https", hostname: "cdn.printify.com", pathname: "/**" },
+      { protocol: "https", hostname: "api.mapbox.com", pathname: "/**" },
     ],
   },
 };
