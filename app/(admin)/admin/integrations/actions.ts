@@ -669,11 +669,15 @@ export async function saveInstagramConfigAction(
     return { ok: false, error: "Integration 'instagram' not found." };
   }
 
+  const feedId = result.data.feed_id.trim();
+  const mode: 'live' | 'mock' = raw.enabled && feedId !== '' ? 'live' : 'mock';
+
   let after: Integration;
   try {
     after = await updateInstagramConfig(
       { feed_id: result.data.feed_id },
       raw.enabled,
+      mode,
       profile.id,
     );
   } catch (err) {
@@ -689,6 +693,8 @@ export async function saveInstagramConfigAction(
     { action: 'instagram_config_saved' },
   );
 
+  revalidateTag('instagram');
+  revalidatePath('/');
   revalidatePath('/admin/integrations');
   return { ok: true };
 }

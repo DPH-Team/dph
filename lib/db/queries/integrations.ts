@@ -327,13 +327,16 @@ export async function updateResendConfig(
 // ─── Instagram config (jsonb — not encrypted) ─────────────────────────────────
 
 /**
- * Persist Instagram feed_id into the `config` jsonb column and update `enabled`.
- * Behold feed_id is a non-secret public identifier — no encryption needed.
+ * Persist Instagram feed_id into the `config` jsonb column and update `enabled`
+ * and `mode`. Behold feed_id is a non-secret public identifier — no encryption
+ * needed. The `mode` column must be set here (not derived later) so that
+ * resolveInstagramMode() can gate the live fetch on `row.mode === 'live'`.
  * Uses the user-session Drizzle client so RLS applies (admin-only update).
  */
 export async function updateInstagramConfig(
   config: { feed_id: string },
   enabled: boolean,
+  mode: 'live' | 'mock',
   actorId: string,
 ): Promise<Integration> {
   const rows = await db
@@ -341,6 +344,7 @@ export async function updateInstagramConfig(
     .set({
       config: config as unknown as Record<string, unknown>,
       enabled,
+      mode,
       updatedBy: actorId,
       updatedAt: new Date(),
     })
