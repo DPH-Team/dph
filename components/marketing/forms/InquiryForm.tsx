@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useRef } from "react"
+import { useActionState, useRef, useState } from "react"
 import { Loader2, CheckCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { submitInquiry } from "@/app/(public)/_actions/inquiries"
@@ -23,6 +23,8 @@ export type InquiryFormProps = {
 export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
   const [state, formAction, isPending] = useActionState(submitInquiry, null)
   const turnstileRef = useRef<TurnstileHandle | null>(null)
+  const [type, setType] = useState(defaultType)
+  const requiresBooking = type === "reservation" || type === "private-event"
 
   const fieldError = (field: string) => {
     if (!state || state.ok) return undefined
@@ -66,6 +68,7 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
               id="inquiry-type"
               name="type"
               defaultValue={defaultType}
+              onChange={(e) => setType(e.target.value)}
               required
               aria-required="true"
               aria-invalid={fieldError("type") ? "true" : undefined}
@@ -148,17 +151,20 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
           />
         </FormField>
 
-        {/* Phone — always visible, required conditionally enforced server-side */}
+        {/* Phone — always required */}
         <FormField
           label="Phone"
           htmlFor="inquiry-phone"
           error={fieldError("phone")}
-          description="Required for reservations and private events"
+          description="We'll only use this to follow up on your inquiry."
+          required
         >
           <input
             id="inquiry-phone"
             name="phone"
             type="tel"
+            required
+            aria-required="true"
             aria-invalid={fieldError("phone") ? "true" : undefined}
             aria-describedby={[
               "inquiry-phone-desc",
@@ -186,18 +192,19 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             className="text-sm font-medium text-foreground flex items-center gap-1"
           >
             Party size
-            <span className="text-primary" aria-hidden="true">*</span>
-            <span className="text-xs text-muted-foreground font-normal">(reservations)</span>
+            {requiresBooking && <span className="text-primary" aria-hidden="true">*</span>}
+            <span className="text-xs text-muted-foreground font-normal">(reservations &amp; private events)</span>
           </label>
           <input
             id="inquiry-party-size"
             name="partySize"
             type="number"
             min={1}
-            max={50}
+            max={200}
+            aria-required={requiresBooking ? "true" : undefined}
             aria-invalid={fieldError("partySize") ? "true" : undefined}
             aria-describedby={fieldError("partySize") ? "inquiry-party-size-error" : undefined}
-            placeholder="1–50 guests"
+            placeholder="1–200 guests"
             className={cn(
               "w-full h-10 px-3 rounded-[var(--radius-md)] border border-border bg-input",
               "text-sm text-foreground placeholder:text-muted-foreground",
@@ -218,6 +225,54 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
           )}
         </div>
 
+        {/* Seating preference (reservations & private events) */}
+        <div className={cn("flex flex-col gap-1.5")}>
+          <label
+            htmlFor="inquiry-seating"
+            className="text-sm font-medium text-foreground flex items-center gap-1"
+          >
+            Seating preference
+            {requiresBooking && <span className="text-primary" aria-hidden="true">*</span>}
+            <span className="text-xs text-muted-foreground font-normal">(reservations &amp; private events)</span>
+          </label>
+          <div className="relative">
+            <select
+              id="inquiry-seating"
+              name="seatingPreference"
+              defaultValue=""
+              aria-required={requiresBooking ? "true" : undefined}
+              aria-invalid={fieldError("seatingPreference") ? "true" : undefined}
+              aria-describedby={fieldError("seatingPreference") ? "inquiry-seating-error" : undefined}
+              className={cn(
+                "w-full h-10 px-3 pr-8 rounded-[var(--radius-md)] border border-border bg-input",
+                "text-sm text-foreground appearance-none",
+                "hover:border-[oklch(0.400_0.006_80)] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35",
+                "outline-none transition-colors",
+                fieldError("seatingPreference") && "border-destructive",
+              )}
+            >
+              <option value="">No preference</option>
+              <option value="high_top">High-top</option>
+              <option value="low_top">Low-top</option>
+            </select>
+            <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" aria-hidden="true">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </div>
+          </div>
+          {fieldError("seatingPreference") && (
+            <p
+              id="inquiry-seating-error"
+              role="alert"
+              aria-live="polite"
+              className="text-xs text-destructive"
+            >
+              {fieldError("seatingPreference")}
+            </p>
+          )}
+        </div>
+
         {/* When fieldset: preferred date + time */}
         <fieldset className="flex flex-col gap-4 border-0 p-0 m-0">
           <legend className="text-sm font-medium text-foreground mb-1">
@@ -229,11 +284,13 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             label="Preferred date"
             htmlFor="inquiry-date"
             error={fieldError("preferredDate")}
+            required={requiresBooking}
           >
             <input
               id="inquiry-date"
               name="preferredDate"
               type="date"
+              aria-required={requiresBooking ? "true" : undefined}
               aria-invalid={fieldError("preferredDate") ? "true" : undefined}
               aria-describedby={fieldError("preferredDate") ? "inquiry-date-error" : undefined}
               className={cn(
@@ -251,11 +308,13 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             label="Preferred time"
             htmlFor="inquiry-time"
             error={fieldError("preferredTime")}
+            required={requiresBooking}
           >
             <input
               id="inquiry-time"
               name="preferredTime"
               type="time"
+              aria-required={requiresBooking ? "true" : undefined}
               aria-invalid={fieldError("preferredTime") ? "true" : undefined}
               aria-describedby={fieldError("preferredTime") ? "inquiry-time-error" : undefined}
               className={cn(
@@ -297,44 +356,6 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             )}
           />
         </FormField>
-
-        {/* Consent */}
-        <div className="flex flex-col gap-1">
-          <div className="flex items-start gap-3">
-            <input
-              id="inquiry-consent"
-              name="consent"
-              type="checkbox"
-              value="true"
-              required
-              aria-required="true"
-              aria-invalid={fieldError("consent") ? "true" : undefined}
-              aria-describedby={fieldError("consent") ? "inquiry-consent-error" : undefined}
-              className={cn(
-                "mt-0.5 size-4 rounded border border-border bg-input shrink-0 cursor-pointer",
-                "focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background",
-                "accent-primary",
-              )}
-            />
-            <label
-              htmlFor="inquiry-consent"
-              className="text-sm text-muted-foreground leading-snug cursor-pointer"
-            >
-              I&apos;m okay being contacted about this inquiry
-              <span className="text-primary ml-1" aria-hidden="true">*</span>
-            </label>
-          </div>
-          {fieldError("consent") && (
-            <p
-              id="inquiry-consent-error"
-              role="alert"
-              aria-live="polite"
-              className="text-xs text-destructive"
-            >
-              {fieldError("consent")}
-            </p>
-          )}
-        </div>
 
         {/* Bot protection */}
         <Turnstile handleRef={turnstileRef} />

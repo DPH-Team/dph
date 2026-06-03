@@ -50,11 +50,18 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
             {formatEventDate(event.startsAt)}
           </span>
         </div>
-        {event.featured && (
-          <span className="shrink-0 text-xs font-semibold text-packers-gold px-2 py-0.5 rounded-full border border-packers-gold/30">
-            Featured
-          </span>
-        )}
+        <div className="shrink-0 flex items-center gap-1.5">
+          {event.featured && (
+            <span className="text-xs font-semibold text-packers-gold px-2 py-0.5 rounded-full border border-packers-gold/30">
+              Featured
+            </span>
+          )}
+          {past && (
+            <span className="text-xs font-medium text-cream bg-cream/15 border border-cream/30 px-2 py-0.5 rounded-full">
+              Past event
+            </span>
+          )}
+        </div>
       </Link>
     )
   }
@@ -96,7 +103,7 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
 
             {past && (
               <div className="absolute top-3 right-3">
-                <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-black/60 text-cream/70">
+                <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-cream/15 text-cream border border-cream/30">
                   Past event
                 </span>
               </div>
@@ -175,7 +182,7 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
               </span>
             )}
             {past && (
-              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-black/60 text-cream/70">
+              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-cream/15 text-cream border border-cream/30">
                 Past event
               </span>
             )}

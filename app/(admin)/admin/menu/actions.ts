@@ -22,6 +22,7 @@ import {
   MenuSectionHasItemsError,
 } from '@/lib/db/queries/menu';
 import { auditCreate, auditUpdate, auditDelete } from '@/lib/audit';
+import { deleteObject } from '@/lib/supabase/storage';
 import type { ActionState } from '@/lib/types/action-state';
 
 // ─── Revalidation helpers ─────────────────────────────────────────────────────
@@ -53,6 +54,7 @@ export async function createMenuSectionAction(
     description: formData.get('description') || null,
     sortOrder: Number(formData.get('sortOrder') ?? 0),
     available: formData.get('available') === 'true',
+    showPrices: formData.get('showPrices') === 'true',
   };
 
   const result = createMenuSectionSchema.safeParse(raw);
@@ -77,6 +79,7 @@ export async function createMenuSectionAction(
       description: data.description ?? null,
       sortOrder: data.sortOrder,
       available: data.available,
+      showPrices: data.showPrices,
       actorId: profile.id,
     });
   } catch (err) {
@@ -125,6 +128,7 @@ export async function updateMenuSectionAction(
     description: formData.get('description') || null,
     sortOrder: Number(formData.get('sortOrder') ?? 0),
     available: formData.get('available') === 'true',
+    showPrices: formData.get('showPrices') === 'true',
   };
 
   const result = updateMenuSectionSchema.safeParse(raw);
@@ -147,6 +151,7 @@ export async function updateMenuSectionAction(
       description: data.description ?? null,
       sortOrder: data.sortOrder,
       available: data.available,
+      showPrices: data.showPrices,
       actorId: profile.id,
     });
   } catch (err) {
@@ -247,6 +252,7 @@ export async function createMenuItemAction(
     allergens,
     imagePath: formData.get('imagePath') || null,
     available: formData.get('available') === 'true',
+    showPrice: formData.get('showPrice') === 'true',
     sortOrder: Number(formData.get('sortOrder') ?? 0),
   };
 
@@ -271,6 +277,7 @@ export async function createMenuItemAction(
       allergens: data.allergens,
       imagePath: data.imagePath ?? null,
       available: data.available,
+      showPrice: data.showPrice,
       sortOrder: data.sortOrder,
       actorId: profile.id,
     });
@@ -325,6 +332,7 @@ export async function updateMenuItemAction(
     allergens,
     imagePath: formData.get('imagePath') || null,
     available: formData.get('available') === 'true',
+    showPrice: formData.get('showPrice') === 'true',
     sortOrder: Number(formData.get('sortOrder') ?? 0),
   };
 
@@ -349,12 +357,25 @@ export async function updateMenuItemAction(
       allergens: data.allergens,
       imagePath: data.imagePath ?? null,
       available: data.available,
+      showPrice: data.showPrice,
       sortOrder: data.sortOrder,
       actorId: profile.id,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     return { ok: false, error: `Failed to update item: ${msg}` };
+  }
+
+  // Best-effort: remove the old storage object when imagePath was replaced
+  if (data.imagePath && data.imagePath !== before.imagePath && before.imagePath) {
+    try {
+      await deleteObject({ bucket: 'media', path: before.imagePath });
+    } catch (err) {
+      console.error(
+        '[menu] Failed to delete old storage object after imagePath update:',
+        { id, oldPath: before.imagePath, error: err },
+      );
+    }
   }
 
   await auditUpdate(

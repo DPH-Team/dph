@@ -249,12 +249,13 @@ export async function listAllItemsWithSection(
       allergens: menuItems.allergens,
       imagePath: menuItems.imagePath,
       available: menuItems.available,
+      showPrice: menuItems.showPrice,
       sortOrder: menuItems.sortOrder,
       createdAt: menuItems.createdAt,
       updatedAt: menuItems.updatedAt,
       createdBy: menuItems.createdBy,
       updatedBy: menuItems.updatedBy,
-      // section columns (nested)
+      // section columns (nested) — includes showPrices via full model select
       sectionRow: menuSections,
     })
     .from(menuItems)
@@ -280,6 +281,7 @@ export async function listAllItemsWithSection(
     allergens: r.allergens,
     imagePath: r.imagePath,
     available: r.available,
+    showPrice: r.showPrice,
     sortOrder: r.sortOrder,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,

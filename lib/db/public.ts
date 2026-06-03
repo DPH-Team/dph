@@ -134,6 +134,7 @@ const _getPublicMenuCached = unstable_cache(
         allergens: row.allergens as MenuItem['allergens'],
         imageUrl: resolveImageUrl(row.imagePath),
         available: row.available,
+        showPrice: row.showPrice,
         sortOrder: row.sortOrder,
       });
     }
@@ -143,6 +144,7 @@ const _getPublicMenuCached = unstable_cache(
       name: section.name,
       description: section.description ?? null,
       sortOrder: section.sortOrder,
+      showPrices: section.showPrices,
       items,
     }));
   },

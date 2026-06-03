@@ -59,6 +59,7 @@ export const createMenuSectionSchema = z.object({
     .min(0, 'Sort order must be 0 or greater')
     .default(0),
   available: z.boolean().default(true),
+  showPrices: z.boolean().default(true),
 });
 
 export const updateMenuSectionSchema = createMenuSectionSchema;
@@ -98,6 +99,7 @@ export const createMenuItemSchema = z.object({
     .optional()
     .transform((v) => (v === '' || v == null ? null : v)),
   available: z.boolean().default(true),
+  showPrice: z.boolean().default(true),
   sortOrder: z
     .coerce.number()
     .int()

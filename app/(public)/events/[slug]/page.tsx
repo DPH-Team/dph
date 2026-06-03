@@ -163,7 +163,7 @@ export default async function EventDetailPage({
                 </span>
               )}
               {past && (
-                <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-card text-muted-foreground border border-border">
+                <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-cream/15 text-cream border border-cream/30">
                   Past event
                 </span>
               )}

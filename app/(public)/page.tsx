@@ -23,7 +23,7 @@ import { Stagger, StaggerItem } from "@/components/motion/Stagger"
 const _baseMeta = pageMetadata({
   title: "Our Haus is Your Haus",
   description:
-    "Wisconsin self-pour taproom with 32 craft taps, scratch kitchen, and live events. Our Haus is Your Haus.",
+    "Wisconsin self-pour taproom with 48 craft taps, scratch kitchen, and live events. Our Haus is Your Haus.",
   path: "/",
 })
 

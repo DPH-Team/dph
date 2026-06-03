@@ -22,10 +22,10 @@ const baseSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   phone: z.string().optional(),
   partySize: z.string().optional(),
+  seatingPreference: z.string().optional(),
   preferredDate: z.string().optional(),
   preferredTime: z.string().optional(),
   message: z.string().min(10, "Message must be at least 10 characters").max(2000, "Message must be at most 2000 characters"),
-  consent: z.string().optional(),
 })
 
 export async function submitInquiry(
@@ -45,31 +45,36 @@ export async function submitInquiry(
   const data = base.data
   const fieldErrors: Partial<Record<string, string[]>> = {}
 
+  // Phone is required for every inquiry type
+  if (!data.phone || data.phone.trim() === "") {
+    fieldErrors.phone = ["Phone number is required"]
+  }
+
   if (data.type === "reservation" || data.type === "private-event") {
-    if (!data.phone || data.phone.trim() === "") {
-      fieldErrors.phone = ["Phone number is required for this inquiry type"]
-    }
     if (!data.preferredDate || data.preferredDate.trim() === "") {
       fieldErrors.preferredDate = ["Preferred date is required"]
     }
-  }
-
-  if (data.type === "reservation") {
+    if (!data.preferredTime || data.preferredTime.trim() === "") {
+      fieldErrors.preferredTime = ["Preferred time is required"]
+    }
     if (!data.partySize || data.partySize.trim() === "") {
       fieldErrors.partySize = ["Party size is required for reservations"]
     } else {
       const size = parseInt(data.partySize, 10)
-      if (isNaN(size) || size < 1 || size > 50) {
-        fieldErrors.partySize = ["Party size must be between 1 and 50"]
+      if (isNaN(size) || size < 1 || size > 200) {
+        fieldErrors.partySize = ["Party size must be between 1 and 200"]
       }
     }
-    if (!data.preferredTime || data.preferredTime.trim() === "") {
-      fieldErrors.preferredTime = ["Preferred time is required for reservations"]
+    if (!data.seatingPreference || data.seatingPreference.trim() === "") {
+      fieldErrors.seatingPreference = ["Please choose a seating preference"]
     }
   }
 
-  if (!data.consent || data.consent !== "true") {
-    fieldErrors.consent = ["You must consent to be contacted"]
+  // Validate seating preference value when provided (any type)
+  if (data.seatingPreference && data.seatingPreference.trim() !== "") {
+    if (!["high_top", "low_top"].includes(data.seatingPreference)) {
+      fieldErrors.seatingPreference = ["Invalid seating preference"]
+    }
   }
 
   if (Object.keys(fieldErrors).length > 0) {
@@ -107,6 +112,9 @@ export async function submitInquiry(
       email: data.email,
       phone: data.phone?.trim() || null,
       partySize: data.partySize ? Number(data.partySize) : null,
+      seatingPreference: data.seatingPreference && ['high_top', 'low_top'].includes(data.seatingPreference)
+        ? (data.seatingPreference as 'high_top' | 'low_top')
+        : null,
       preferredDate: data.preferredDate?.trim() || null,
       preferredTime: data.preferredTime?.trim() || null,
       message: data.message,

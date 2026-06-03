@@ -4,6 +4,7 @@ import type { ActionState } from '@/components/admin/ResourceForm';
 import { ResourceForm } from '@/components/admin/ResourceForm';
 import { AllergenCheckboxGroup } from '@/components/admin/AllergenCheckboxGroup';
 import { PriceCentsInput } from '@/components/admin/PriceCentsInput';
+import { CoverImageInput } from '@/components/admin/CoverImageInput';
 import {
   createMenuItemSchema,
   updateMenuItemSchema,
@@ -45,6 +46,7 @@ export function ItemForm(props: ItemFormProps) {
     allergens: (item?.allergens as string[]) ?? [],
     sortOrder: item?.sortOrder ?? 0,
     available: item?.available ?? true,
+    showPrice: item?.showPrice ?? true,
     imagePath: item?.imagePath ?? '',
   };
 
@@ -58,7 +60,6 @@ export function ItemForm(props: ItemFormProps) {
     >
       {/* Hidden fields */}
       <input type="hidden" name="sectionId" value={props.sectionId} />
-      <input type="hidden" name="imagePath" value="" />
 
       <ResourceForm.Section title="Details">
         <ResourceForm.Field name="name" label="Name" required>
@@ -97,6 +98,21 @@ export function ItemForm(props: ItemFormProps) {
         </ResourceForm.Field>
       </ResourceForm.Section>
 
+      <ResourceForm.Section title="Image">
+        <ResourceForm.Field
+          name="imagePath"
+          label="Item image"
+          description="Optional. Displayed alongside the item on the public menu."
+        >
+          <CoverImageInput
+            name="imagePath"
+            kind="menu"
+            defaultPath={item?.imagePath ?? null}
+            aspect="landscape"
+          />
+        </ResourceForm.Field>
+      </ResourceForm.Section>
+
       <ResourceForm.Section title="Display">
         <ResourceForm.Field
           name="sortOrder"
@@ -117,6 +133,14 @@ export function ItemForm(props: ItemFormProps) {
             name="available"
             label="Available"
             description="When off, this item is hidden from the public menu."
+          />
+        </ResourceForm.Field>
+
+        <ResourceForm.Field name="showPrice" label="Show price">
+          <ResourceForm.Switch
+            name="showPrice"
+            label="Show price"
+            description="When off, the price is hidden for this item on the public menu."
           />
         </ResourceForm.Field>
       </ResourceForm.Section>

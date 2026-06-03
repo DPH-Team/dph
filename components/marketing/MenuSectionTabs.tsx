@@ -41,7 +41,12 @@ export function MenuSectionTabs({ sections }: MenuSectionTabsProps) {
               .filter((item) => item.available)
               .sort((a, b) => a.sortOrder - b.sortOrder)
               .map((item) => (
-                <MenuItem key={item.id} item={item} variant="list" />
+                <MenuItem
+                  key={item.id}
+                  item={item}
+                  variant="list"
+                  showPrice={section.showPrices && item.showPrice}
+                />
               ))}
           </div>
         </TabsContent>

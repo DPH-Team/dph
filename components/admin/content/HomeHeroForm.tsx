@@ -229,7 +229,7 @@ export function HomeHeroForm({ initialValue, action }: HomeHeroFormProps) {
             id="lead"
             {...register('lead')}
             aria-invalid={Boolean(e.lead)}
-            placeholder="32 craft taps, a scratch kitchen…"
+            placeholder="48 craft taps, a scratch kitchen…"
             maxLength={400}
             rows={3}
           />

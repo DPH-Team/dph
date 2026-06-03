@@ -43,6 +43,12 @@ export const inquiryTypeEnum = pgEnum('inquiry_type', [
   'general',
 ]);
 
+export const seatingPreferenceEnum = pgEnum('seating_preference', [
+  'high_top',
+  'low_top',
+  'either',
+]);
+
 export const inquiryStatusEnum = pgEnum('inquiry_status', [
   'pending',
   'confirmed',
@@ -152,6 +158,7 @@ export const menuSections = pgTable(
     description: text('description'),
     sortOrder: integer('sort_order').notNull().default(0),
     available: boolean('available').notNull().default(true),
+    showPrices: boolean('show_prices').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -194,6 +201,7 @@ export const menuItems = pgTable(
     allergens: text('allergens').array().notNull().default(sql`'{}'`),
     imagePath: text('image_path'),
     available: boolean('available').notNull().default(true),
+    showPrice: boolean('show_price').notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
@@ -432,6 +440,7 @@ export const inquiries = pgTable(
     email: text('email').notNull(),
     phone: text('phone'),
     partySize: integer('party_size'),
+    seatingPreference: seatingPreferenceEnum('seating_preference'),
     preferredDate: date('preferred_date', { mode: 'string' }),
     preferredTime: time('preferred_time'),
     message: text('message').notNull(),
@@ -464,7 +473,7 @@ export const inquiries = pgTable(
     ),
     check(
       'inquiries_party_size_check',
-      sql`${t.partySize} is null or (${t.partySize} >= 1 and ${t.partySize} <= 50)`,
+      sql`${t.partySize} is null or (${t.partySize} >= 1 and ${t.partySize} <= 200)`,
     ),
     check(
       'inquiries_internal_notes_length_check',
