@@ -22,6 +22,12 @@ const TYPE_LABELS: Record<InquiryType, string> = {
   general: 'General',
 };
 
+const SEATING_LABELS: Record<string, string> = {
+  high_top: 'High-top',
+  low_top: 'Low-top',
+  either: 'Either',
+};
+
 function formatAbsolute(date: Date): string {
   return date.toLocaleString('en-US', {
     weekday: 'long',
@@ -150,6 +156,11 @@ export default async function InquiryDetailPage({ params }: PageProps) {
               )}
               {inquiry.partySize != null && (
                 <DetailRow label="Party size">{inquiry.partySize}</DetailRow>
+              )}
+              {inquiry.seatingPreference != null && (
+                <DetailRow label="Seating">
+                  {SEATING_LABELS[inquiry.seatingPreference] ?? inquiry.seatingPreference}
+                </DetailRow>
               )}
               {inquiry.preferredDate && (
                 <DetailRow label="Preferred date">

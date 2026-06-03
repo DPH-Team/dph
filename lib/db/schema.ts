@@ -43,6 +43,12 @@ export const inquiryTypeEnum = pgEnum('inquiry_type', [
   'general',
 ]);
 
+export const seatingPreferenceEnum = pgEnum('seating_preference', [
+  'high_top',
+  'low_top',
+  'either',
+]);
+
 export const inquiryStatusEnum = pgEnum('inquiry_status', [
   'pending',
   'confirmed',
@@ -434,6 +440,7 @@ export const inquiries = pgTable(
     email: text('email').notNull(),
     phone: text('phone'),
     partySize: integer('party_size'),
+    seatingPreference: seatingPreferenceEnum('seating_preference'),
     preferredDate: date('preferred_date', { mode: 'string' }),
     preferredTime: time('preferred_time'),
     message: text('message').notNull(),
@@ -466,7 +473,7 @@ export const inquiries = pgTable(
     ),
     check(
       'inquiries_party_size_check',
-      sql`${t.partySize} is null or (${t.partySize} >= 1 and ${t.partySize} <= 50)`,
+      sql`${t.partySize} is null or (${t.partySize} >= 1 and ${t.partySize} <= 200)`,
     ),
     check(
       'inquiries_internal_notes_length_check',

@@ -11,8 +11,11 @@ export const INQUIRY_TYPES = [
 
 export const INQUIRY_STATUSES = ['pending', 'confirmed', 'declined'] as const;
 
+export const SEATING_PREFERENCES = ['high_top', 'low_top', 'either'] as const;
+
 export type InquiryType = (typeof INQUIRY_TYPES)[number];
 export type InquiryStatus = (typeof INQUIRY_STATUSES)[number];
+export type SeatingPreference = (typeof SEATING_PREFERENCES)[number];
 
 // ─── Wire-value mapping helper ────────────────────────────────────────────────
 
