@@ -132,8 +132,27 @@ export async function testUntappdConnection(creds: {
 // ─── Printify ─────────────────────────────────────────────────────────────────
 
 /**
- * Verify Printify credentials by listing shops and confirming the given shop_id
- * is present. Printify shop IDs are numeric; we compare as strings.
+ * Verify Printify credentials by listing shops (GET /v1/shops.json) and
+ * confirming the given shop_id is present.
+ *
+ * VERIFIED response shape: the endpoint returns a plain JSON array of shop
+ * objects — NOT a { data: [...] } envelope. Each item has at minimum:
+ *   { id: number, title: string, sales_channel: string }
+ *
+ * We handle both shapes defensively (array OR { data: array }) in case the API
+ * ever wraps its response.
+ *
+ * Required headers (both verified against Printify API):
+ *   Authorization: Bearer <api_key>
+ *   User-Agent: <non-empty string>   ← required; omitting it causes rejections
+ *
+ * Status handling:
+ *   2xx + shop found  → success
+ *   401               → bad API key (key does not exist or was revoked)
+ *   403               → key exists but lacks permission (wrong scope/plan)
+ *   429               → rate limited — back off and retry later
+ *   other non-2xx     → upstream error
+ *   shop not in list  → key valid but shop_id not associated with this account
  */
 export async function testPrintifyConnection(creds: {
   api_key: string;
@@ -147,37 +166,71 @@ export async function testPrintifyConnection(creds: {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${creds.api_key}`,
+        // User-Agent is required by the Printify API; omitting it leads to rejections.
         'User-Agent': 'District-Pour-Haus/1.0',
         Accept: 'application/json',
       },
-      signal: withTimeout(5_000),
+      signal: withTimeout(8_000),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return { ok: false, error: `Network error: ${msg}` };
   }
 
+  // Surface clear per-status errors before attempting JSON parse.
   if (res.status === 401) {
-    return { ok: false, error: 'Invalid API key' };
+    return {
+      ok: false,
+      error: 'Invalid API key — the key does not exist or has been revoked',
+    };
+  }
+
+  if (res.status === 403) {
+    return {
+      ok: false,
+      error: 'Permission denied — check that the API key has the correct scopes',
+    };
+  }
+
+  if (res.status === 429) {
+    return {
+      ok: false,
+      error: 'Rate limited by Printify — wait a moment and try again',
+    };
   }
 
   if (!res.ok) {
     return { ok: false, error: `Printify returned ${res.status}` };
   }
 
-  let shops: unknown;
+  let body: unknown;
   try {
-    shops = await res.json();
+    body = await res.json();
   } catch {
-    return { ok: false, error: 'Failed to parse Printify response' };
+    return { ok: false, error: 'Failed to parse Printify response as JSON' };
   }
 
-  if (!Array.isArray(shops)) {
-    return { ok: false, error: 'Unexpected Printify response shape' };
+  // Normalise: accept a plain array OR a { data: [...] } paginated envelope.
+  // The verified shape is a plain array, but we handle both defensively.
+  let shopList: unknown[];
+  if (Array.isArray(body)) {
+    shopList = body;
+  } else if (
+    body !== null &&
+    typeof body === 'object' &&
+    Array.isArray((body as Record<string, unknown>)['data'])
+  ) {
+    shopList = (body as Record<string, unknown>)['data'] as unknown[];
+  } else {
+    return {
+      ok: false,
+      error: 'Unexpected Printify response shape — expected an array of shops',
+    };
   }
 
-  // Printify shop IDs are numeric in the API; compare as string for flexibility.
-  const found = shops.some(
+  // Printify shop IDs are numeric in the API; compare as strings for flexibility
+  // (the admin may have pasted a string shop_id from the dashboard URL).
+  const found = shopList.some(
     (s: unknown) =>
       s !== null &&
       typeof s === 'object' &&
@@ -188,7 +241,7 @@ export async function testPrintifyConnection(creds: {
   if (!found) {
     return {
       ok: false,
-      error: `API key valid but shop_id ${creds.shop_id} not found in your shops`,
+      error: `API key is valid but shop ID ${creds.shop_id} was not found on this account`,
     };
   }
 

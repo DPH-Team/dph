@@ -7,6 +7,7 @@ import {
   integrationTogglesSchema,
   plausibleConfigSchema,
   resendConfigSaveSchema,
+  instagramConfigSaveSchema,
 } from '@/lib/validators/integrations';
 import type { IntegrationName } from '@/lib/validators/integrations';
 import {
@@ -15,6 +16,7 @@ import {
   updateIntegrationToggles,
   updatePlausibleConfig,
   updateResendConfig,
+  updateInstagramConfig,
   decryptCredentials,
   recordTestResult,
 } from '@/lib/db/queries/integrations';
@@ -217,11 +219,18 @@ export async function testConnectionAction(
 ): Promise<TestActionState> {
   await requireAdmin();
 
-  // Plausible has no credentials to test.
+  // Plausible and Instagram have no encrypted credentials to test.
   if (name === 'plausible') {
     return {
       ok: false,
       error: 'Plausible does not support connection testing — it has no server-side credentials.',
+    };
+  }
+
+  if (name === 'instagram') {
+    return {
+      ok: false,
+      error: 'Instagram does not support connection testing — it uses a public Behold feed ID with no server-side credentials.',
     };
   }
 
@@ -615,6 +624,65 @@ export async function updatePlausibleEnabledAction(
     sanitizeRow(before),
     sanitizeRow(after),
     { action: 'plausible_enabled_toggled' },
+  );
+
+  revalidatePath('/admin/integrations');
+  return { ok: true };
+}
+
+// ─── Instagram: save config ───────────────────────────────────────────────────
+
+/**
+ * Persist Instagram (Behold) feed_id + enabled into the `config` jsonb column.
+ * The feed_id is a non-secret public identifier — it is NOT stored in the
+ * encrypted credentials column. The enabled toggle is saved in the same call.
+ *
+ * Validates with instagramConfigSaveSchema (requires non-empty feed_id).
+ * Writes to audit_log — mandatory per project rules.
+ */
+export async function saveInstagramConfigAction(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
+  const profile = await requireAdmin();
+
+  const raw = {
+    feed_id: formData.get('feed_id') ?? '',
+    enabled: formData.get('enabled') === 'true',
+  };
+
+  const result = instagramConfigSaveSchema.safeParse({ feed_id: raw.feed_id });
+  if (!result.success) {
+    return {
+      ok: false,
+      error: 'Validation failed.',
+      fieldErrors: result.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  const before = await getIntegration('instagram');
+  if (!before) {
+    return { ok: false, error: "Integration 'instagram' not found." };
+  }
+
+  let after: Integration;
+  try {
+    after = await updateInstagramConfig(
+      { feed_id: result.data.feed_id },
+      raw.enabled,
+      profile.id,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    return { ok: false, error: `Failed to save Instagram config: ${msg}` };
+  }
+
+  await auditUpdate(
+    'integration',
+    'instagram',
+    sanitizeRow(before),
+    sanitizeRow(after),
+    { action: 'instagram_config_saved' },
   );
 
   revalidatePath('/admin/integrations');

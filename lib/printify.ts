@@ -176,12 +176,24 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
       ? (p['tags'] as unknown[]).filter((t) => typeof t === 'string').map(String)
       : [];
 
-    // ── category: derive from product_type field, fall back to first tag, then 'Other' ──
+    // ── category: derive from product_type field, fall back to first tag (Title-Cased), then 'Other' ──
+    // product_type is the most representative field; if absent, use the first tag
+    // and convert it to Title Case (e.g. "apparel" → "Apparel").
     const productType =
       typeof p['product_type'] === 'string' && p['product_type']
         ? (p['product_type'] as string)
         : null;
-    const category = productType ?? (tags.length > 0 ? tags[0] : 'Other');
+
+    function toTitleCase(s: string): string {
+      return s
+        .toLowerCase()
+        .split(/[\s_-]+/)
+        .map((word) => (word.length > 0 ? word[0].toUpperCase() + word.slice(1) : word))
+        .join(' ');
+    }
+
+    const rawCategory = productType ?? (tags.length > 0 ? tags[0] : null);
+    const category = rawCategory ? toTitleCase(rawCategory) : 'Other';
 
     return {
       id: String(p['id'] ?? `product-${index}`),
@@ -195,11 +207,20 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
   });
 }
 
-// ─── Cached live fetch (products) ─────────────────────────────────────────────
+// ─── Cached live fetch (products — all pages) ────────────────────────────────
 
 /**
- * getCachedProductsRaw — private Next Data Cache wrapper around the live
- * Printify products fetch.
+ * MAX_PAGES — safety cap on pagination to prevent runaway fetches.
+ * Printify's pagination returns current_page / last_page in the envelope.
+ * A shop with >500 products (10 pages × 50/page default) is extremely unlikely;
+ * cap at 20 pages to protect against an accidentally enormous catalogue.
+ */
+const MAX_PAGES = 20;
+
+/**
+ * getCachedProductsRaw — Next Data Cache wrapper around the live Printify
+ * products fetch. Pages through ALL pages of the paginated products endpoint
+ * until last_page is reached or MAX_PAGES is hit.
  *
  * Only SUCCESSFUL responses are cached (throws on failure so failed fetches
  * are never stored). The public fetchProducts() wrapper catches the throw and
@@ -210,24 +231,50 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
  */
 const getCachedProductsRaw = unstable_cache(
   async (api_key: string, shop_id: string): Promise<MerchProduct[]> => {
-    const url = `https://api.printify.com/v1/shops/${encodeURIComponent(shop_id)}/products.json`;
+    const baseUrl = `https://api.printify.com/v1/shops/${encodeURIComponent(shop_id)}/products.json`;
 
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: {
-        Authorization: `Bearer ${api_key}`,
-        'User-Agent': 'District-Pour-Haus/1.0',
-        Accept: 'application/json',
-      },
-      signal: AbortSignal.timeout(5_000),
-    });
+    async function fetchPage(page: number): Promise<unknown> {
+      const url = `${baseUrl}?page=${page}`;
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${api_key}`,
+          // User-Agent is required by the Printify API.
+          'User-Agent': 'District-Pour-Haus/1.0',
+          Accept: 'application/json',
+        },
+        signal: AbortSignal.timeout(8_000),
+      });
 
-    if (!res.ok) {
-      throw new Error(`[printify] products endpoint returned ${res.status}`);
+      if (!res.ok) {
+        throw new Error(`[printify] products page ${page} returned ${res.status}`);
+      }
+
+      return res.json() as Promise<unknown>;
     }
 
-    const json: unknown = await res.json();
-    return normalizeProducts(json);
+    // Fetch page 1 to learn last_page.
+    const firstPageJson = await fetchPage(1);
+    const firstEnvelope =
+      firstPageJson && typeof firstPageJson === 'object'
+        ? (firstPageJson as Record<string, unknown>)
+        : {};
+
+    const lastPage =
+      typeof firstEnvelope['last_page'] === 'number' ? firstEnvelope['last_page'] : 1;
+
+    // Collect products from page 1.
+    const allProducts: MerchProduct[] = normalizeProducts(firstPageJson);
+
+    // Fetch remaining pages sequentially (rate-limit friendly).
+    const totalPages = Math.min(lastPage, MAX_PAGES);
+    for (let page = 2; page <= totalPages; page++) {
+      const pageJson = await fetchPage(page);
+      const pageProducts = normalizeProducts(pageJson);
+      allProducts.push(...pageProducts);
+    }
+
+    return allProducts;
   },
   ['printify-products-raw'],
   { tags: ['merch'], revalidate: 300 },

@@ -4,6 +4,7 @@ import { listIntegrations } from '@/lib/db/queries/integrations';
 import { IntegrationCard, type IntegrationView } from './IntegrationCard';
 import { PlausibleCard } from './PlausibleCard';
 import { ResendCard } from './ResendCard';
+import { InstagramCard } from './InstagramCard';
 import type { Integration } from '@/lib/db/schema';
 import type { IntegrationName } from '@/lib/validators/integrations';
 
@@ -59,6 +60,15 @@ export default async function IntegrationsPage() {
       ? (resendRow.config as Record<string, unknown>)
       : {};
 
+  // Instagram config (Behold feed_id) from the `config` jsonb column.
+  const instagramRow = byName.get('instagram');
+  const instagramConfig =
+    instagramRow?.config &&
+    typeof instagramRow.config === 'object' &&
+    !Array.isArray(instagramRow.config)
+      ? (instagramRow.config as Record<string, unknown>)
+      : {};
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -70,7 +80,7 @@ export default async function IntegrationsPage() {
           </h1>
         </div>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Configure Untappd, Printify, Plausible Analytics, and Resend email.
+          Configure Untappd, Printify, Plausible Analytics, Resend email, and Instagram.
         </p>
       </header>
 
@@ -127,6 +137,14 @@ export default async function IntegrationsPage() {
           lastTestStatus={resendRow.lastTestStatus}
           lastTestedAt={resendRow.lastTestedAt ? new Date(resendRow.lastTestedAt) : null}
           lastTestError={resendRow.lastTestError}
+        />
+      )}
+
+      {/* Instagram card */}
+      {instagramRow && (
+        <InstagramCard
+          enabled={instagramRow.enabled}
+          feedId={typeof instagramConfig.feed_id === 'string' ? instagramConfig.feed_id : ''}
         />
       )}
     </div>

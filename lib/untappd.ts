@@ -35,7 +35,8 @@ import { unstable_cache } from 'next/cache';
 import { getIntegration, decryptCredentials } from '@/lib/db/queries/integrations';
 import { taps as mockTaps } from '@/lib/fixtures/taps';
 import { events as mockEvents } from '@/lib/fixtures/events';
-import type { Tap } from '@/lib/fixtures/types';
+import { checkins as mockCheckins } from '@/lib/fixtures/checkins';
+import type { Tap, Checkin } from '@/lib/fixtures/types';
 
 // ─── Exported intermediate type for cron upsert ───────────────────────────────
 
@@ -453,6 +454,151 @@ export async function fetchTaps(): Promise<{ data: Tap[]; stale: boolean }> {
     // Cold-start (nothing in cache) or cache invalidated during an outage:
     // fall back to mock fixture so the page is never blank.
     return { data: mockTaps, stale: true };
+  }
+}
+
+// ─── Check-in normalisation ───────────────────────────────────────────────────
+
+/**
+ * normalizeCheckins — maps the Untappd for Business check-ins JSON to Checkin[].
+ *
+ * Endpoint: GET /api/v1/locations/{location_id}/checkins  (HTTP Basic auth)
+ *
+ * Documented response envelope:
+ *   {
+ *     checkins: [{
+ *       id:         number,
+ *       created_at: string,   // ISO-8601
+ *       beer: {
+ *         name:             string,
+ *         brewery:          string,
+ *         rating:           number | null,
+ *         label_image_thumb: string | null,
+ *       },
+ *       user: {
+ *         first_name: string,
+ *         avatar:     string | null,
+ *       },
+ *     }],
+ *     max_id: number,
+ *   }
+ *
+ * Defensive throughout — every field defaults gracefully when absent.
+ * Limits to the 15 most recent (API returns newest-first; we take the head).
+ */
+function normalizeCheckins(raw: unknown): Checkin[] {
+  if (!raw || typeof raw !== 'object') return [];
+
+  const envelope = raw as Record<string, unknown>;
+  if (!Array.isArray(envelope['checkins'])) return [];
+
+  const items = (envelope['checkins'] as unknown[]).slice(0, 15);
+  const results: Checkin[] = [];
+
+  for (const item of items) {
+    if (!item || typeof item !== 'object') continue;
+
+    const c = item as Record<string, unknown>;
+
+    // id is required — skip if absent.
+    if (c['id'] == null) continue;
+
+    // beer and user sub-objects — default to empty object if absent.
+    const beer =
+      c['beer'] && typeof c['beer'] === 'object'
+        ? (c['beer'] as Record<string, unknown>)
+        : {};
+    const user =
+      c['user'] && typeof c['user'] === 'object'
+        ? (c['user'] as Record<string, unknown>)
+        : {};
+
+    const str = (v: unknown): string | null =>
+      typeof v === 'string' && v.length > 0 ? v : null;
+
+    // rating: number 0..5 or null (absent / not rated).
+    const ratingRaw = beer['rating'];
+    const rating =
+      typeof ratingRaw === 'number' && !isNaN(ratingRaw) ? ratingRaw : null;
+
+    results.push({
+      id: String(c['id']),
+      userFirstName: str(user['first_name']) ?? 'Someone',
+      userAvatarUrl: str(user['avatar']),
+      beerName: str(beer['name']) ?? 'Untitled Beer',
+      brewery: str(beer['brewery']) ?? '',
+      beerLabelUrl: str(beer['label_image_thumb']),
+      rating,
+      createdAt: str(c['created_at']) ?? new Date().toISOString(),
+    });
+  }
+
+  return results;
+}
+
+// ─── Cached live fetch (checkins) ─────────────────────────────────────────────
+
+/**
+ * getCachedCheckinsRaw — Next Data Cache wrapper around the live check-ins fetch.
+ *
+ * Throws on failure (non-2xx or network error) so the failed response is never
+ * stored. fetchCheckins() catches and falls back to mock.
+ *
+ * Tagged ['checkins'] so revalidateTag('checkins') busts this entry.
+ */
+const getCachedCheckinsRaw = unstable_cache(
+  async (email: string, location_id: string, read_write_token: string): Promise<Checkin[]> => {
+    const basicToken = Buffer.from(`${email}:${read_write_token}`).toString('base64');
+    const url = `https://business.untappd.com/api/v1/locations/${encodeURIComponent(location_id)}/checkins`;
+
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Basic ${basicToken}`,
+        Accept: 'application/json',
+      },
+      signal: AbortSignal.timeout(5_000),
+    });
+
+    if (!res.ok) {
+      throw new Error(`[untappd] checkins endpoint returned HTTP ${res.status}`);
+    }
+
+    const json: unknown = await res.json();
+    return normalizeCheckins(json);
+  },
+  ['untappd-checkins-raw'],
+  { tags: ['checkins'], revalidate: 300 },
+);
+
+// ─── Public export: fetchCheckins ─────────────────────────────────────────────
+
+/**
+ * fetchCheckins — returns the 15 most recent check-ins for the location.
+ *
+ * Returns:
+ *   { data: Checkin[]; stale: boolean }
+ *   stale=false → data is fresh (mock or live cache hit)
+ *   stale=true  → live fetch failed; data is last-known-good cache or mock fixture
+ *
+ * The homepage ticker polls /api/checkins every 5 min which calls this.
+ * Mock/live precedence is identical to fetchTaps.
+ */
+export async function fetchCheckins(): Promise<{ data: Checkin[]; stale: boolean }> {
+  const modeResult = await resolveUntappdMode();
+
+  if (modeResult.mode === 'mock') {
+    return { data: mockCheckins, stale: false };
+  }
+
+  const { email, location_id, read_write_token } = modeResult.creds;
+
+  try {
+    const data = await getCachedCheckinsRaw(email, location_id, read_write_token);
+    return { data, stale: false };
+  } catch (err) {
+    console.error('[untappd] fetchCheckins live fetch failed — returning stale/mock fallback:', err);
+    return { data: mockCheckins, stale: true };
   }
 }
 
