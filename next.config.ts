@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "pfy-prod-products-mockup-media.s3.us-east-2.amazonaws.com", pathname: "/**" },
       { protocol: "https", hostname: "**.s3.us-east-2.amazonaws.com", pathname: "/**" },
       { protocol: "https", hostname: "api.mapbox.com", pathname: "/**" },
+      { protocol: "https", hostname: "**.supabase.co", pathname: "/storage/v1/object/public/**" },
     ],
   },
 };

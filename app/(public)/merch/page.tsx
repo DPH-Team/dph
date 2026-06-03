@@ -1,6 +1,6 @@
 import type { Metadata } from "next"
 import { pageMetadata } from "@/lib/seo"
-import { fetchProducts } from "@/lib/printify"
+import { getPublicMerchProducts } from "@/lib/db/public"
 import { PRINTIFY_STORE_URL } from "@/lib/fixtures/merch"
 import { PageHero } from "@/components/marketing/PageHero"
 import { MerchBrowser } from "@/components/marketing/MerchBrowser"
@@ -16,7 +16,7 @@ export const metadata: Metadata = pageMetadata({
 })
 
 export default async function MerchPage() {
-  const { data: products } = await fetchProducts()
+  const { data: products } = await getPublicMerchProducts()
 
   return (
     <>
