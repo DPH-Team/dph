@@ -123,6 +123,7 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
         imageUrl: '',
         printifyUrl: PRINTIFY_STORE_URL,
         tags: [],
+        category: 'Other',
       };
     }
 
@@ -175,6 +176,13 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
       ? (p['tags'] as unknown[]).filter((t) => typeof t === 'string').map(String)
       : [];
 
+    // ── category: derive from product_type field, fall back to first tag, then 'Other' ──
+    const productType =
+      typeof p['product_type'] === 'string' && p['product_type']
+        ? (p['product_type'] as string)
+        : null;
+    const category = productType ?? (tags.length > 0 ? tags[0] : 'Other');
+
     return {
       id: String(p['id'] ?? `product-${index}`),
       title: String(p['title'] ?? 'Untitled Product'),
@@ -182,6 +190,7 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
       imageUrl,
       printifyUrl: listingUrl ?? PRINTIFY_STORE_URL,
       tags,
+      category,
     };
   });
 }

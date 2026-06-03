@@ -58,6 +58,10 @@ export const HomeHeroSchema = z.object({
     href: hrefSchema,
   }),
   imageUrl: z.string().url('imageUrl must be a valid URL').nullable(),
+  mediaType: z.enum(["image", "video"]).nullable().default(null),
+  // Storage-relative path (e.g. "hero/uuid.mp4") OR full https URL.
+  // .url() is intentionally omitted — storage paths are not absolute URLs.
+  mediaUrl: z.string().max(2000).nullable().default(null),
 });
 
 export type HomeHeroValue = z.infer<typeof HomeHeroSchema>;

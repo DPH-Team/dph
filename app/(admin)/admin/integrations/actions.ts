@@ -73,7 +73,11 @@ export async function saveCredentialsAction(
     return { ok: false, error: 'Plausible does not use credentials. Use savePlausibleConfigAction instead.' };
   }
 
-  const schema = getCredentialsSchema(name as Exclude<IntegrationName, 'plausible'>);
+  if (name === 'instagram') {
+    return { ok: false, error: 'Instagram does not use credentials. Use saveInstagramConfigAction instead.' };
+  }
+
+  const schema = getCredentialsSchema(name as Exclude<IntegrationName, 'plausible' | 'instagram'>);
   const fields = Object.keys(schema.shape) as string[];
 
   // Check if all credential fields are blank — if so, skip the save.

@@ -10,6 +10,7 @@ export const merchProducts: MerchProduct[] = [
     imageUrl: "/merch/placeholder-tee-black.jpg",
     printifyUrl: PRINTIFY_STORE_URL,
     tags: ["apparel", "tee", "bestseller"],
+    category: "Apparel",
   },
   {
     id: "mp-2",
@@ -18,6 +19,7 @@ export const merchProducts: MerchProduct[] = [
     imageUrl: "/merch/placeholder-tee-cream.jpg",
     printifyUrl: PRINTIFY_STORE_URL,
     tags: ["apparel", "tee"],
+    category: "Apparel",
   },
   {
     id: "mp-3",
@@ -26,6 +28,7 @@ export const merchProducts: MerchProduct[] = [
     imageUrl: "/merch/placeholder-glass.jpg",
     printifyUrl: PRINTIFY_STORE_URL,
     tags: ["drinkware", "glassware"],
+    category: "Drinkware",
   },
   {
     id: "mp-4",
@@ -34,6 +37,7 @@ export const merchProducts: MerchProduct[] = [
     imageUrl: "/merch/placeholder-hoodie.jpg",
     printifyUrl: PRINTIFY_STORE_URL,
     tags: ["apparel", "hoodie"],
+    category: "Apparel",
   },
   {
     id: "mp-5",
@@ -42,6 +46,7 @@ export const merchProducts: MerchProduct[] = [
     imageUrl: "/merch/placeholder-stickers.jpg",
     printifyUrl: PRINTIFY_STORE_URL,
     tags: ["accessories", "stickers"],
+    category: "Accessories",
   },
   {
     id: "mp-6",
@@ -50,6 +55,7 @@ export const merchProducts: MerchProduct[] = [
     imageUrl: "/merch/placeholder-beanie.jpg",
     printifyUrl: PRINTIFY_STORE_URL,
     tags: ["accessories", "seasonal", "game-day"],
+    category: "Accessories",
   },
 ]
 
