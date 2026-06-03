@@ -10,13 +10,19 @@ export type EventShareRowProps = {
 
 export function EventShareRow({ shareUrl, title }: EventShareRowProps) {
   const [copied, setCopied] = useState(false)
-  const [canShare, setCanShare] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    const check = () =>
-      setCanShare(typeof navigator !== "undefined" && !!navigator.share)
-    check()
+    function detectMobile() {
+      const mobileUA =
+        /(Android|iPhone|iPad|iPod|Mobile|BlackBerry|IEMobile|Opera Mini)/i.test(
+          navigator.userAgent
+        )
+      const coarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false
+      setIsMobile(!!navigator.share && (mobileUA || coarsePointer))
+    }
+    detectMobile()
   }, [])
 
   useEffect(() => {
@@ -64,59 +70,55 @@ export function EventShareRow({ shareUrl, title }: EventShareRowProps) {
       <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         Share
       </h3>
-      <div className="flex flex-col gap-2">
-        {/* Row 1 — social links */}
-        <div className="flex items-center gap-3">
-          <Share2 size={14} className="text-muted-foreground" aria-hidden="true" />
-          <a
-            href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(shareUrl)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={linkClass}
-            aria-label="Share on X (Twitter)"
-          >
-            X / Twitter
-          </a>
-          <a
-            href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={linkClass}
-            aria-label="Share on Facebook"
-          >
-            Facebook
-          </a>
-        </div>
+      <div className="flex items-center gap-3">
+        <Share2 size={14} className="text-muted-foreground" aria-hidden="true" />
 
-        {/* Row 2 — copy + native share */}
-        <div className="flex items-center gap-3">
-          <div role="status" aria-live="polite" aria-atomic="true">
-            <button
-              type="button"
-              onClick={handleCopy}
-              className={`${linkClass} flex items-center gap-1.5`}
-              aria-label={copied ? "Link copied to clipboard" : "Copy link to clipboard"}
+        {isMobile ? (
+          <button
+            type="button"
+            onClick={handleNativeShare}
+            className={`${linkClass} flex items-center gap-1.5`}
+            aria-label="Open native share dialog"
+          >
+            <span>Share…</span>
+          </button>
+        ) : (
+          <>
+            <a
+              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(title)}&url=${encodeURIComponent(shareUrl)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={linkClass}
+              aria-label="Share on X (Twitter)"
             >
-              {copied ? (
-                <Check size={13} aria-hidden="true" />
-              ) : (
-                <Link2 size={13} aria-hidden="true" />
-              )}
-              <span>{copied ? "Copied!" : "Copy link"}</span>
-            </button>
-          </div>
+              X / Twitter
+            </a>
+            <a
+              href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={linkClass}
+              aria-label="Share on Facebook"
+            >
+              Facebook
+            </a>
+          </>
+        )}
 
-          {canShare && (
-            <button
-              type="button"
-              onClick={handleNativeShare}
-              className={`${linkClass} flex items-center gap-1.5`}
-              aria-label="Open native share dialog"
-            >
-              <Share2 size={13} aria-hidden="true" />
-              <span>Share…</span>
-            </button>
-          )}
+        <div role="status" aria-live="polite" aria-atomic="true">
+          <button
+            type="button"
+            onClick={handleCopy}
+            className={`${linkClass} flex items-center gap-1.5`}
+            aria-label={copied ? "Link copied to clipboard" : "Copy link to clipboard"}
+          >
+            {copied ? (
+              <Check size={13} aria-hidden="true" />
+            ) : (
+              <Link2 size={13} aria-hidden="true" />
+            )}
+            <span>{copied ? "Copied!" : "Copy link"}</span>
+          </button>
         </div>
       </div>
     </div>
