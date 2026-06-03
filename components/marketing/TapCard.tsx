@@ -9,18 +9,26 @@ export type TapCardProps = {
 
 /**
  * Inner content shared by both the ghost placeholder and the live card.
- * The `descriptionVariant` prop drives the only difference between the two:
- *   - "clamped"  → ghost: line-clamp-2, always visible (sets reserved height)
- *   - "animated" → live card: height transitions from 3.85rem (2-line rest) to
- *                  h-auto (true content height) via interpolate-size, making
- *                  the card box grow downward smoothly on hover/focus-within.
+ *
+ * descriptionVariant controls the description container behaviour:
+ *   "ghost"  — fixed height (h-[3.85rem] + overflow-hidden) so the grid cell
+ *              always reserves exactly 2 lines of description space, regardless
+ *              of whether the description is 1 or 2+ lines.
+ *   "live"   — max-height transitions from 3.85rem (rest) to 40rem (hover/focus),
+ *              animating in all browsers via max-height alone. min-h-[3.85rem]
+ *              ensures a 1-line description still occupies the full 2-line
+ *              reserved height, keeping the live card identical to the ghost.
+ *
+ * Height derivation (3.85rem):
+ *   text-sm (0.875rem) × leading-relaxed (1.625) × 2 lines = 2.844rem
+ *   pb-4 bottom padding (1rem)                              = 3.844rem → 3.85rem
  */
 function CardContent({
   tap,
   descriptionVariant,
 }: {
   tap: Tap
-  descriptionVariant: "clamped" | "animated"
+  descriptionVariant: "ghost" | "live"
 }) {
   return (
     <>
@@ -34,6 +42,7 @@ function CardContent({
       )}
 
       <div className="flex flex-col gap-3 p-4">
+        {/* Top row: tap number + beer name/brewery */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <span
@@ -51,37 +60,53 @@ function CardContent({
           </div>
         </div>
 
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-background border border-border text-muted-foreground">
+        {/*
+         * Meta row: style pill + ABV + IBU on a SINGLE non-wrapping line.
+         *
+         * flex-nowrap + shrink-0 on ABV/IBU prevent those values from ever
+         * moving to a second line. The style pill gets max-w-[9rem] + truncate
+         * so long style names (e.g. "IPA - Imperial / Double New England / Hazy")
+         * are cut with an ellipsis instead of pushing the row wider and causing
+         * ABV/IBU to wrap — which would make some cards taller than others.
+         */}
+        <div className="flex items-center gap-3 flex-nowrap min-w-0">
+          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-background border border-border text-muted-foreground max-w-[9rem] truncate shrink">
             {tap.style}
           </span>
-          <span className="tabular-nums text-xs text-muted-foreground">
+          <span className="tabular-nums text-xs text-muted-foreground shrink-0">
             {tap.abv.toFixed(1)}% ABV
           </span>
           {tap.ibu !== null && (
-            <span className="tabular-nums text-xs text-muted-foreground">
+            <span className="tabular-nums text-xs text-muted-foreground shrink-0">
               {tap.ibu} IBU
             </span>
           )}
         </div>
       </div>
 
-      {descriptionVariant === "clamped" ? (
+      {descriptionVariant === "ghost" ? (
         /*
-         * Ghost description: line-clamp-2 so the ghost occupies exactly the
-         * collapsed card height. pointer-coarse removes the clamp on touch
-         * devices so the ghost height matches the always-open live card.
+         * Ghost description: fixed height (h-[3.85rem] + overflow-hidden) so
+         * the grid cell always reserves exactly 2 lines of space. A 1-line
+         * description does NOT shrink the cell — overflow-hidden clips any
+         * excess if the content is somehow taller.
          *
-         * Height at rest matches the live card's h-[3.85rem]:
-         *   text-sm (0.875rem) × leading-relaxed (1.625) × 2 lines ≈ 2.844rem
-         *   + pb-4 (1rem) padding on this wrapper div
-         *   = 3.844rem ≈ 3.85rem
+         * pointer-coarse: touch devices always show full text on the live card,
+         * so the ghost must also expand (h-auto) to keep ghost and live in sync
+         * and avoid the grid cell being under-reserved on touch.
          */
-        <div className="px-4 pb-4">
+        <div
+          className={cn(
+            "px-4 pb-4 overflow-hidden",
+            "h-[3.85rem]",
+            "pointer-coarse:h-auto",
+          )}
+        >
           <p
             className={cn(
-              "text-sm text-muted-foreground leading-relaxed line-clamp-2",
-              "pointer-coarse:line-clamp-none"
+              "text-sm text-muted-foreground leading-relaxed",
+              "line-clamp-2",
+              "pointer-coarse:line-clamp-none",
             )}
           >
             {tap.description}
@@ -89,40 +114,55 @@ function CardContent({
         </div>
       ) : (
         /*
-         * Live card description: animates between a fixed 2-line rest height
-         * and h-auto (true content height) using `interpolate-size: allow-keywords`,
-         * which enables CSS to transition to/from `height: auto` in supporting
-         * browsers (Chrome 129+). In browsers without support (Safari, Firefox)
-         * the height snaps open/closed instantly on hover — the scale/shadow lift
-         * still animates, so the interaction remains polished everywhere.
+         * Live card description container.
          *
-         * Rest height (h-[3.85rem]) calculation:
-         *   text-sm (0.875rem) × leading-relaxed (1.625) × 2 lines ≈ 2.844rem
-         *   + pb-4 (1rem) padding on the <p> inside this container
-         *   = 3.844rem → 3.85rem
+         * Rest state (no hover/focus):
+         *   max-h-[3.85rem]  — clamps the container to exactly 2 lines + pb-4.
+         *   min-h-[3.85rem]  — ensures a 1-line description still occupies the
+         *                      full 2-line reserved height, so the live card is
+         *                      always the same height as the ghost cell.
+         *   overflow-hidden  — the hard guarantee: no content can escape the
+         *                      container regardless of browser or CSS support.
+         *   line-clamp-2     — visual ellipsis on the text itself.
          *
-         * pointer-coarse: h-auto always so touch users see full text without hover.
-         * motion-reduce: transition-none snaps open instantly (acceptable).
+         * Hover/focus state:
+         *   max-h-[40rem]    — generous ceiling well above any real description;
+         *                      the container grows from 3.85rem to content height.
+         *   line-clamp-none  — removes the ellipsis once expanded.
+         *
+         * Cross-browser animation strategy:
+         *   transition-[max-height] works in every browser (Chrome, Firefox,
+         *   Safari) — no interpolate-size dependency. The max-height grows from
+         *   3.85rem → 40rem, which triggers a smooth expansion everywhere.
+         *   interpolate-size:allow-keywords is NOT used here; the clamp relies
+         *   solely on overflow-hidden + max-height.
+         *
+         * pointer-coarse:  always expanded (touch — no hover event available).
+         * motion-reduce:   transition-none → instant snap (still reveals text).
          */
         <div
           className={cn(
-            "px-4 overflow-hidden",
-            "[interpolate-size:allow-keywords]",
-            "transition-[height] duration-[250ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
-            "h-[3.85rem]",
-            "group-hover:h-auto",
-            "group-focus-within:h-auto",
-            "pointer-coarse:h-auto",
-            "motion-reduce:transition-none"
+            "px-4 pb-4 overflow-hidden",
+            "max-h-[3.85rem]",
+            "min-h-[3.85rem]",
+            // Expanded state
+            "group-hover:max-h-[40rem]",
+            "group-focus-within:max-h-[40rem]",
+            // Touch: always expanded, no height cap
+            "pointer-coarse:max-h-[40rem]",
+            "pointer-coarse:min-h-0",
+            // Animation
+            "transition-[max-height] duration-[250ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
+            "motion-reduce:transition-none",
           )}
         >
           <p
             className={cn(
-              "text-sm text-muted-foreground leading-relaxed pb-4",
-              "line-clamp-2",
+              "text-sm text-muted-foreground leading-relaxed",
+              "line-clamp-2 overflow-hidden",
               "group-hover:line-clamp-none",
               "group-focus-within:line-clamp-none",
-              "pointer-coarse:line-clamp-none"
+              "pointer-coarse:line-clamp-none",
             )}
           >
             {tap.description}
@@ -134,40 +174,37 @@ function CardContent({
 }
 
 export function TapCard({ tap, className }: TapCardProps) {
-  /** Base article classes shared by both the ghost and the live card. */
   const articleBase = cn(
     "flex flex-col rounded-xl bg-card border",
     tap.isFeatured ? "border-packers-gold/60" : "border-border",
-    className
+    className,
   )
 
   return (
     /*
      * Grid-cell wrapper: overflow-visible lets the absolute live card spill
      * below the reserved cell without clipping. z-lift on hover/focus-within
-     * ensures the growing card paints over the row beneath it.
+     * ensures the expanding card paints over the row beneath it.
      */
     <div className="relative overflow-visible hover:z-20 focus-within:z-20">
 
       {/*
-       * Ghost placeholder — in normal document flow so the grid cell always
-       * reserves exactly the collapsed card height (description clamped to
-       * 2 lines). invisible keeps its layout footprint (unlike display:none /
-       * hidden which collapse the space). aria-hidden prevents screen readers
-       * from announcing duplicate content — the live card is the semantic source.
+       * Ghost placeholder — in normal document flow so the grid cell reserves
+       * the collapsed card height. invisible preserves layout footprint (unlike
+       * display:none which collapses the space). aria-hidden keeps screen
+       * readers off the duplicate content.
        */}
       <article aria-hidden="true" className={cn(articleBase, "invisible")}>
-        <CardContent tap={tap} descriptionVariant="clamped" />
+        <CardContent tap={tap} descriptionVariant="ghost" />
       </article>
 
       {/*
        * Live card — absolutely positioned so its height can grow downward
        * beyond the reserved cell without causing grid reflow. At rest it is
        * visually identical to the ghost (same border, bg, rounded-xl, and
-       * description clipped to ~2-line height). On hover/focus-within the
-       * description container's height transitions from 3.85rem to h-auto,
-       * causing the card's bottom edge — border, background, and rounded
-       * corners all as one piece — to glide downward revealing full text.
+       * description clamped to the same 3.85rem rest height). On hover/focus the
+       * description container's max-height transitions to 40rem, causing the
+       * card's bottom edge to glide downward revealing the full text.
        */}
       <article
         tabIndex={0}
@@ -175,22 +212,18 @@ export function TapCard({ tap, className }: TapCardProps) {
         className={cn(
           "group absolute inset-x-0 top-0",
           articleBase,
-          // Scale + shadow lift animate with the same easing as the description reveal
           "transition-[border-color,transform,box-shadow] duration-[250ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
           "hover:scale-[1.025] focus-within:scale-[1.025]",
-          // Depth shadow + brand-coloured glow layered in one box-shadow value
           tap.isFeatured
             ? "hover:shadow-[0_12px_32px_-8px_oklch(0_0_0_/_0.55),_0_0_28px_4px_oklch(0.806_0.165_81_/_0.38)] focus-within:shadow-[0_12px_32px_-8px_oklch(0_0_0_/_0.55),_0_0_28px_4px_oklch(0.806_0.165_81_/_0.38)]"
             : "hover:shadow-[0_12px_32px_-8px_oklch(0_0_0_/_0.55),_0_0_28px_4px_oklch(0.648_0.130_47_/_0.40)] focus-within:shadow-[0_12px_32px_-8px_oklch(0_0_0_/_0.55),_0_0_28px_4px_oklch(0.648_0.130_47_/_0.40)]",
-          // Reduced-motion: suppress transforms; description still reveals instantly
           "motion-reduce:hover:scale-100 motion-reduce:focus-within:scale-100",
-          // Featured vs normal hover border colour
           tap.isFeatured
             ? "hover:border-packers-gold focus-within:border-packers-gold"
-            : "hover:border-border/60 focus-within:border-border/60"
+            : "hover:border-border/60 focus-within:border-border/60",
         )}
       >
-        <CardContent tap={tap} descriptionVariant="animated" />
+        <CardContent tap={tap} descriptionVariant="live" />
       </article>
     </div>
   )
