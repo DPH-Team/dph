@@ -62,9 +62,9 @@ export function HomeHero({ hero }: HomeHeroProps) {
         />
       ) : null}
 
-      {/* ── Dark scrim — always present to keep text legible over any media ─── */}
+      {/* ── Directional scrim — dark on left (text column) fading right ──────── */}
       <div
-        className="absolute inset-0 bg-black/55"
+        className="absolute inset-0 bg-gradient-to-r from-black/75 via-black/35 to-transparent"
         aria-hidden="true"
       />
 
@@ -123,12 +123,12 @@ export function HomeHero({ hero }: HomeHeroProps) {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
-              className="font-display font-medium text-[clamp(2.75rem,2rem+4vw,6rem)] leading-[1.05] tracking-[-0.03em] text-foreground"
+              className="font-display font-medium text-[clamp(2.75rem,2rem+4vw,6rem)] leading-[1.05] tracking-[-0.03em] text-foreground [text-shadow:0_2px_16px_rgba(0,0,0,0.45)]"
             >
               {hero.headline}
             </motion.h1>
           ) : (
-            <h1 className="font-display font-medium text-[clamp(2.75rem,2rem+4vw,6rem)] leading-[1.05] tracking-[-0.03em] text-foreground">
+            <h1 className="font-display font-medium text-[clamp(2.75rem,2rem+4vw,6rem)] leading-[1.05] tracking-[-0.03em] text-foreground [text-shadow:0_2px_16px_rgba(0,0,0,0.45)]">
               {hero.headline}
             </h1>
           )}
@@ -139,12 +139,12 @@ export function HomeHero({ hero }: HomeHeroProps) {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.52, ease: [0.22, 1, 0.36, 1], delay: 0.32 }}
-              className="text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-2xl"
+              className="text-lg sm:text-xl text-cream/90 leading-relaxed max-w-2xl [text-shadow:0_1px_10px_rgba(0,0,0,0.5)]"
             >
               {hero.lead}
             </motion.p>
           ) : (
-            <p className="text-lg sm:text-xl text-muted-foreground leading-relaxed max-w-2xl">
+            <p className="text-lg sm:text-xl text-cream/90 leading-relaxed max-w-2xl [text-shadow:0_1px_10px_rgba(0,0,0,0.5)]">
               {hero.lead}
             </p>
           )}

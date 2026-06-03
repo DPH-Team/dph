@@ -34,6 +34,18 @@ function truncateComment(s: string, max = 80): string {
   return s.length > max ? s.slice(0, max).trimEnd() + "…" : s
 }
 
+function formatCheckinTime(iso: string): string {
+  const date = new Date(iso)
+  if (isNaN(date.getTime())) return ""
+  const diffMs = Date.now() - date.getTime()
+  const diffMin = Math.floor(diffMs / 60_000)
+  if (diffMin < 1) return "just now"
+  if (diffMin < 60) return `${diffMin}m ago`
+  const diffHours = Math.floor(diffMin / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
 type CheckinItemProps = {
   checkin: Checkin
   ariaHidden?: boolean
@@ -64,8 +76,15 @@ function CheckinItem({ checkin, ariaHidden }: CheckinItemProps) {
         )}
       </span>
 
-      {/* Text column: name/beer row + optional comment row */}
+      {/* Text column: timestamp row + name/beer row + optional comment row */}
       <span className="inline-flex flex-col gap-0.5">
+        {/* Timestamp row */}
+        {formatCheckinTime(checkin.createdAt) !== "" && (
+          <span className="text-[11px] text-muted-foreground/70 uppercase tracking-wide tabular-nums whitespace-nowrap">
+            <time dateTime={checkin.createdAt}>{formatCheckinTime(checkin.createdAt)}</time>
+          </span>
+        )}
+
         {/* Primary row */}
         <span className="inline-flex items-baseline gap-1 text-sm">
           <span className="font-medium text-foreground">{checkin.userFirstName}</span>
