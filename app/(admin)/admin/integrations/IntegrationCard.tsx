@@ -143,7 +143,7 @@ const UNTAPPD_FIELDS: FieldConfig[] = [
     label: 'Read & Write Token',
     placeholder: 'Read & Write API token (business.untappd.com/account)',
     type: 'password',
-    maxLength: 200,
+    maxLength: 4096,
   },
 ];
 
@@ -153,7 +153,7 @@ const PRINTIFY_FIELDS: FieldConfig[] = [
     label: 'API Key',
     placeholder: 'Printify personal access token',
     type: 'password',
-    maxLength: 200,
+    maxLength: 4096,
   },
   {
     name: 'shop_id',

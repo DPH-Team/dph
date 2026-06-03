@@ -36,7 +36,7 @@ export const untappdCredentialsSchema = z.object({
     .string()
     .trim()
     .min(1, 'Read/write token is required')
-    .max(200, 'Token must be 200 characters or fewer'),
+    .max(4096, 'Token must be 4096 characters or fewer'),
 });
 
 export type UntappdCredentials = z.infer<typeof untappdCredentialsSchema>;
@@ -48,7 +48,7 @@ export const printifyCredentialsSchema = z.object({
     .string()
     .trim()
     .min(1, 'API key is required')
-    .max(200, 'API key must be 200 characters or fewer'),
+    .max(4096, 'API key must be 4096 characters or fewer'),
   shop_id: z
     .string()
     .trim()
