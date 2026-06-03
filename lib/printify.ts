@@ -16,7 +16,6 @@
 
 import 'server-only';
 
-import { unstable_cache } from 'next/cache';
 import { getIntegration, decryptCredentials } from '@/lib/db/queries/integrations';
 import { PRINTIFY_STORE_URL } from '@/lib/fixtures/merch';
 import { slugify } from '@/lib/slugify';
@@ -423,7 +422,7 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
   });
 }
 
-// ─── Cached live fetch (products — all pages) ────────────────────────────────
+// ─── Live fetch (products — all pages, always fresh) ────────────────────────
 
 /**
  * MAX_PAGES — safety cap on pagination to prevent runaway fetches.
@@ -434,67 +433,192 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
 const MAX_PAGES = 20;
 
 /**
- * getCachedProductsRaw — Next Data Cache wrapper around the live Printify
- * products fetch. Pages through ALL pages of the paginated products endpoint
- * until last_page is reached or MAX_PAGES is hit.
+ * fetchAllProductsRaw — plain async function that pages through ALL pages of
+ * the Printify products endpoint and returns normalised MerchProduct[].
  *
- * Only SUCCESSFUL responses are cached (throws on failure so failed fetches
- * are never stored). Throws propagate to fetchLiveProducts() which lets the
- * sync engine catch them and skip the cycle without touching the DB.
+ * This is intentionally NOT wrapped in unstable_cache. The daily cron and the
+ * admin "Sync now" button are the only callers; each run needs a fresh Printify
+ * response so the publish-state filter (visible / is_locked / printifyUrl) acts
+ * on current data rather than a 5-minute stale snapshot. Caching the raw fetch
+ * here caused the filter to be silently bypassed when the Next Data Cache served
+ * a pre-filter result within its revalidate window.
  *
- * Tagged ['merch'] so revalidateTag('merch', 'max') from the admin panel busts
- * this entry.
+ * The public /merch page reads from merch_products via getPublicMerchProducts —
+ * that path is cached separately and busted by revalidateTag('merch') inside the
+ * sync engine, which is unaffected by this change.
+ *
+ * Throws on any non-2xx response so the sync engine can distinguish "upstream
+ * down" (skip the cycle, DB untouched) from a successful empty result.
+ *
+ * Diagnostic logging:
+ *   After all pages are collected, emits a single console.info line:
+ *     [printify] catalogue=N kept=K excluded={notVisible:A, locked:B, noProductUrl:C}
+ *   Then, if kept > 0, logs a compact sample of the first 3 kept products'
+ *   diagnostic fields so field shapes can be verified against real data.
+ *   No API keys or tokens are ever logged.
  */
-const getCachedProductsRaw = unstable_cache(
-  async (api_key: string, shop_id: string): Promise<MerchProduct[]> => {
-    const baseUrl = `https://api.printify.com/v1/shops/${encodeURIComponent(shop_id)}/products.json`;
+async function fetchAllProductsRaw(api_key: string, shop_id: string): Promise<MerchProduct[]> {
+  const baseUrl = `https://api.printify.com/v1/shops/${encodeURIComponent(shop_id)}/products.json`;
 
-    async function fetchPage(page: number): Promise<unknown> {
-      const url = `${baseUrl}?page=${page}`;
-      const res = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${api_key}`,
-          // User-Agent is required by the Printify API.
-          'User-Agent': 'District-Pour-Haus/1.0',
-          Accept: 'application/json',
-        },
-        signal: AbortSignal.timeout(8_000),
-      });
+  async function fetchPage(page: number): Promise<unknown> {
+    const url = `${baseUrl}?page=${page}`;
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${api_key}`,
+        // User-Agent is required by the Printify API.
+        'User-Agent': 'District-Pour-Haus/1.0',
+        Accept: 'application/json',
+      },
+      signal: AbortSignal.timeout(8_000),
+    });
 
-      if (!res.ok) {
-        throw new Error(`[printify] products page ${page} returned ${res.status}`);
-      }
-
-      return res.json() as Promise<unknown>;
+    if (!res.ok) {
+      throw new Error(`[printify] products page ${page} returned ${res.status}`);
     }
 
-    // Fetch page 1 to learn last_page.
-    const firstPageJson = await fetchPage(1);
-    const firstEnvelope =
-      firstPageJson && typeof firstPageJson === 'object'
-        ? (firstPageJson as Record<string, unknown>)
+    return res.json() as Promise<unknown>;
+  }
+
+  // Fetch page 1 to learn last_page.
+  const firstPageJson = await fetchPage(1);
+  const firstEnvelope =
+    firstPageJson && typeof firstPageJson === 'object'
+      ? (firstPageJson as Record<string, unknown>)
+      : {};
+
+  const lastPage =
+    typeof firstEnvelope['last_page'] === 'number' ? firstEnvelope['last_page'] : 1;
+
+  // ── Collect raw items from all pages so we can compute filter diagnostics ──
+  //
+  // We accumulate raw page envelopes alongside normalised products so the
+  // diagnostic counts can be derived from the original API fields (visible,
+  // is_locked) rather than re-inferring them from the normalised shape.
+
+  // Raw items from the entire catalogue (pre-filter, pre-normalise).
+  const allRawItems: unknown[] = [];
+
+  // Helper: extract the raw items array from a page envelope.
+  function rawItemsFromEnvelope(envelope: unknown): unknown[] {
+    if (!envelope || typeof envelope !== 'object') return [];
+    const env = envelope as Record<string, unknown>;
+    return Array.isArray(env['data']) ? (env['data'] as unknown[]) : [];
+  }
+
+  // Gather raw items from page 1.
+  allRawItems.push(...rawItemsFromEnvelope(firstPageJson));
+
+  // Fetch remaining pages sequentially (rate-limit friendly).
+  const totalPages = Math.min(lastPage, MAX_PAGES);
+  for (let page = 2; page <= totalPages; page++) {
+    const pageJson = await fetchPage(page);
+    allRawItems.push(...rawItemsFromEnvelope(pageJson));
+  }
+
+  // ── Normalise + filter the full raw list ────────────────────────────────────
+  //
+  // normalizeProducts expects the paginated envelope shape { data: [...] }. We
+  // construct a synthetic single-page envelope from the aggregated raw items so
+  // we can call normalizeProducts once over the complete catalogue. This gives
+  // us a single pre-filter total and a clean post-filter kept list.
+  const syntheticEnvelope = { data: allRawItems };
+  const keptProducts = normalizeProducts(syntheticEnvelope);
+
+  // ── Diagnostic logging ───────────────────────────────────────────────────────
+  //
+  // Compute per-exclusion-reason counts by iterating over all raw items.
+  // Each excluded item can only trigger one reason (evaluated in priority order
+  // matching the filter conditions in normalizeProducts):
+  //   1. notVisible  — p.visible !== true
+  //   2. locked      — p.is_locked === true  (after visible passes)
+  //   3. noProductUrl — printifyUrl resolved to the bare store URL (after both)
+  //
+  // The third case (noProductUrl) requires the normalised URL, so we map the raw
+  // index to the pre-filter candidate list. Because normalizeProducts iterates
+  // items in order and the synthetic envelope preserves order, keptProducts
+  // indices correspond directly to allRawItems indices for surviving products.
+  // We compute the full candidate+flag list here independently (one linear pass)
+  // rather than re-running normalizeProducts a second time.
+
+  let notVisible = 0;
+  let locked = 0;
+  let noProductUrl = 0;
+
+  // Build a set of kept product ids for O(1) lookup.
+  const keptIds = new Set(keptProducts.map((p) => p.id));
+
+  // Walk the raw items to count exclusions.
+  for (let i = 0; i < allRawItems.length; i++) {
+    const raw = allRawItems[i];
+    if (!raw || typeof raw !== 'object') continue;
+    const p = raw as Record<string, unknown>;
+    const rawId = p['id'] ? String(p['id']) : `product-${i}`;
+
+    // If this product survived the filter, it is in keptIds — skip counting.
+    if (keptIds.has(rawId)) continue;
+
+    // Determine exclusion reason (priority order mirrors the filter in normalizeProducts).
+    if (p['visible'] !== true) {
+      notVisible++;
+    } else if (p['is_locked'] === true) {
+      locked++;
+    } else {
+      // visible=true, not locked — must have resolved to the bare store URL.
+      noProductUrl++;
+    }
+  }
+
+  const catalogue = allRawItems.length;
+  const kept = keptProducts.length;
+
+  console.info(
+    `[printify] catalogue=${catalogue} kept=${kept} excluded={notVisible:${notVisible}, locked:${locked}, noProductUrl:${noProductUrl}}`,
+  );
+
+  // If a suspiciously large number of products passed the filter, log a compact
+  // sample of the first 3 kept products' diagnostic fields so the field shapes
+  // can be verified against real API data. Capped at 3 to avoid log spam.
+  // Never logs api keys, tokens, or any credential values.
+  if (kept > 0) {
+    const sample = keptProducts.slice(0, 3).map((product) => {
+      // Look up the corresponding raw item to extract the visibility fields.
+      // We find by id (string match) since that is stable across the mapping.
+      const rawItem = allRawItems.find((r) => {
+        if (!r || typeof r !== 'object') return false;
+        return String((r as Record<string, unknown>)['id']) === product.id;
+      });
+      const rp = rawItem && typeof rawItem === 'object'
+        ? (rawItem as Record<string, unknown>)
         : {};
 
-    const lastPage =
-      typeof firstEnvelope['last_page'] === 'number' ? firstEnvelope['last_page'] : 1;
+      // Check whether external.handle exists (the primary URL resolution path).
+      const externalRaw =
+        rp['external'] !== null &&
+        rp['external'] !== undefined &&
+        typeof rp['external'] === 'object'
+          ? (rp['external'] as Record<string, unknown>)
+          : null;
+      const hasExternal = !!(
+        externalRaw &&
+        typeof externalRaw['handle'] === 'string' &&
+        externalRaw['handle']
+      );
 
-    // Collect products from page 1.
-    const allProducts: MerchProduct[] = normalizeProducts(firstPageJson);
+      return {
+        id: product.id,
+        visible: rp['visible'],
+        is_locked: rp['is_locked'],
+        hasExternal,
+        printifyUrl: product.printifyUrl,
+      };
+    });
 
-    // Fetch remaining pages sequentially (rate-limit friendly).
-    const totalPages = Math.min(lastPage, MAX_PAGES);
-    for (let page = 2; page <= totalPages; page++) {
-      const pageJson = await fetchPage(page);
-      const pageProducts = normalizeProducts(pageJson);
-      allProducts.push(...pageProducts);
-    }
+    console.info('[printify] kept sample (first 3):', JSON.stringify(sample));
+  }
 
-    return allProducts;
-  },
-  ['printify-products-raw'],
-  { tags: ['merch'], revalidate: 300 },
-);
+  return keptProducts;
+}
 
 // ─── Public export ────────────────────────────────────────────────────────────
 
@@ -526,6 +650,6 @@ export async function fetchLiveProducts(): Promise<
   const { api_key, shop_id } = modeResult.creds;
 
   // Let errors propagate — the sync engine catches them.
-  const data = await getCachedProductsRaw(api_key, shop_id);
+  const data = await fetchAllProductsRaw(api_key, shop_id);
   return { mode: 'live', data };
 }
