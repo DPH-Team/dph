@@ -284,11 +284,13 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             label="Preferred date"
             htmlFor="inquiry-date"
             error={fieldError("preferredDate")}
+            required={requiresBooking}
           >
             <input
               id="inquiry-date"
               name="preferredDate"
               type="date"
+              aria-required={requiresBooking ? "true" : undefined}
               aria-invalid={fieldError("preferredDate") ? "true" : undefined}
               aria-describedby={fieldError("preferredDate") ? "inquiry-date-error" : undefined}
               className={cn(
@@ -306,11 +308,13 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             label="Preferred time"
             htmlFor="inquiry-time"
             error={fieldError("preferredTime")}
+            required={requiresBooking}
           >
             <input
               id="inquiry-time"
               name="preferredTime"
               type="time"
+              aria-required={requiresBooking ? "true" : undefined}
               aria-invalid={fieldError("preferredTime") ? "true" : undefined}
               aria-describedby={fieldError("preferredTime") ? "inquiry-time-error" : undefined}
               className={cn(

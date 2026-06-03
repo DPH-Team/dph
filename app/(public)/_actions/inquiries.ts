@@ -54,6 +54,9 @@ export async function submitInquiry(
     if (!data.preferredDate || data.preferredDate.trim() === "") {
       fieldErrors.preferredDate = ["Preferred date is required"]
     }
+    if (!data.preferredTime || data.preferredTime.trim() === "") {
+      fieldErrors.preferredTime = ["Preferred time is required"]
+    }
     if (!data.partySize || data.partySize.trim() === "") {
       fieldErrors.partySize = ["Party size is required for reservations"]
     } else {
@@ -64,12 +67,6 @@ export async function submitInquiry(
     }
     if (!data.seatingPreference || data.seatingPreference.trim() === "") {
       fieldErrors.seatingPreference = ["Please choose a seating preference"]
-    }
-  }
-
-  if (data.type === "reservation") {
-    if (!data.preferredTime || data.preferredTime.trim() === "") {
-      fieldErrors.preferredTime = ["Preferred time is required for reservations"]
     }
   }
 
