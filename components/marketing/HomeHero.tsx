@@ -64,7 +64,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
 
       {/* ── Directional scrim — dark on left (text column) fading right ──────── */}
       <div
-        className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 to-transparent"
+        className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/30 to-transparent"
         aria-hidden="true"
       />
 
@@ -100,7 +100,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
               transition={{ duration: 0.52, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
               className="flex items-center gap-3"
             >
-              <p className="text-sm font-medium tracking-widest uppercase text-packers-gold">
+              <p className="text-sm font-medium tracking-widest uppercase text-packers-gold [text-shadow:0_2px_12px_rgba(0,0,0,0.9)]">
                 {hero.eyebrow}
               </p>
               <div
@@ -110,7 +110,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
             </motion.div>
           ) : (
             <div className="flex items-center gap-3">
-              <p className="text-sm font-medium tracking-widest uppercase text-packers-gold">
+              <p className="text-sm font-medium tracking-widest uppercase text-packers-gold [text-shadow:0_2px_12px_rgba(0,0,0,0.9)]">
                 {hero.eyebrow}
               </p>
               <div className="h-px w-16 bg-packers-gold opacity-50" aria-hidden="true" />
@@ -123,12 +123,12 @@ export function HomeHero({ hero }: HomeHeroProps) {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
-              className="font-display font-medium text-[clamp(2.75rem,2rem+4vw,6rem)] leading-[1.05] tracking-[-0.03em] text-foreground [text-shadow:0_2px_16px_rgba(0,0,0,0.45)]"
+              className="font-display font-medium text-[clamp(2.75rem,2rem+4vw,6rem)] leading-[1.05] tracking-[-0.03em] text-foreground [text-shadow:0_2px_20px_rgba(0,0,0,0.7)]"
             >
               {hero.headline}
             </motion.h1>
           ) : (
-            <h1 className="font-display font-medium text-[clamp(2.75rem,2rem+4vw,6rem)] leading-[1.05] tracking-[-0.03em] text-foreground [text-shadow:0_2px_16px_rgba(0,0,0,0.45)]">
+            <h1 className="font-display font-medium text-[clamp(2.75rem,2rem+4vw,6rem)] leading-[1.05] tracking-[-0.03em] text-foreground [text-shadow:0_2px_20px_rgba(0,0,0,0.7)]">
               {hero.headline}
             </h1>
           )}
@@ -139,12 +139,12 @@ export function HomeHero({ hero }: HomeHeroProps) {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.52, ease: [0.22, 1, 0.36, 1], delay: 0.32 }}
-              className="text-lg sm:text-xl text-cream/90 leading-relaxed max-w-2xl [text-shadow:0_1px_10px_rgba(0,0,0,0.5)]"
+              className="text-lg sm:text-xl text-cream leading-relaxed max-w-2xl [text-shadow:0_2px_12px_rgba(0,0,0,0.9)]"
             >
               {hero.lead}
             </motion.p>
           ) : (
-            <p className="text-lg sm:text-xl text-cream/90 leading-relaxed max-w-2xl [text-shadow:0_1px_10px_rgba(0,0,0,0.5)]">
+            <p className="text-lg sm:text-xl text-cream leading-relaxed max-w-2xl [text-shadow:0_2px_12px_rgba(0,0,0,0.9)]">
               {hero.lead}
             </p>
           )}
@@ -160,7 +160,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
               <Button size="lg" nativeButton={false} render={<Link href={hero.primaryCta.href} />}>
                 {hero.primaryCta.label}
               </Button>
-              <Button variant="outline" size="lg" nativeButton={false} render={<Link href={hero.secondaryCta.href} />}>
+              <Button variant="outline" size="lg" className="bg-background" nativeButton={false} render={<Link href={hero.secondaryCta.href} />}>
                 {hero.secondaryCta.label}
               </Button>
             </motion.div>
@@ -169,7 +169,7 @@ export function HomeHero({ hero }: HomeHeroProps) {
               <Button size="lg" nativeButton={false} render={<Link href={hero.primaryCta.href} />}>
                 {hero.primaryCta.label}
               </Button>
-              <Button variant="outline" size="lg" nativeButton={false} render={<Link href={hero.secondaryCta.href} />}>
+              <Button variant="outline" size="lg" className="bg-background" nativeButton={false} render={<Link href={hero.secondaryCta.href} />}>
                 {hero.secondaryCta.label}
               </Button>
             </div>
