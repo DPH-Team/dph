@@ -56,9 +56,9 @@ function PastEventsAccordion({ events }: { events: Event[] }) {
         )}
       </button>
       {open && (
-        <div className="mt-4 flex flex-col gap-2">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {events.map((event) => (
-            <EventCard key={event.id} event={event} variant="compact" />
+            <EventCard key={event.id} event={event} />
           ))}
         </div>
       )}
