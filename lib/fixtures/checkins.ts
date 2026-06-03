@@ -14,6 +14,7 @@ export const checkins: Checkin[] = [
     brewery: 'New Glarus Brewing',
     beerLabelUrl: 'https://untappd.akamaized.net/site/beer_logos/beer-1_thumb.jpeg',
     rating: 4.5,
+    comment: 'Crushable.',
     createdAt: '2026-06-03T21:47:00Z',
   },
   {
@@ -24,6 +25,7 @@ export const checkins: Checkin[] = [
     brewery: 'Bell\'s Brewery',
     beerLabelUrl: 'https://untappd.akamaized.net/site/beer_logos/beer-2_thumb.jpeg',
     rating: 4.25,
+    comment: 'Best pour in the Fox Valley.',
     createdAt: '2026-06-03T21:31:00Z',
   },
   {
@@ -34,6 +36,7 @@ export const checkins: Checkin[] = [
     brewery: 'Surly Brewing',
     beerLabelUrl: 'https://untappd.akamaized.net/site/beer_logos/beer-3_thumb.jpeg',
     rating: 3.75,
+    comment: null,
     createdAt: '2026-06-03T21:18:00Z',
   },
   {
@@ -44,6 +47,7 @@ export const checkins: Checkin[] = [
     brewery: 'BrewDog',
     beerLabelUrl: 'https://untappd.akamaized.net/site/beer_logos/beer-4_thumb.jpeg',
     rating: null,
+    comment: 'Didn\'t know what to expect but this is a solid hazy. Would pull again on the RFID.',
     createdAt: '2026-06-03T21:02:00Z',
   },
   {
@@ -54,6 +58,7 @@ export const checkins: Checkin[] = [
     brewery: 'New Glarus Brewing',
     beerLabelUrl: null,
     rating: 4.0,
+    comment: 'Love this place. Self-pour is a game changer — grabbed a taste of four different beers without any awkward bartender interactions. Our Haus is genuinely your Haus.',
     createdAt: '2026-06-03T20:44:00Z',
   },
   {
@@ -64,6 +69,7 @@ export const checkins: Checkin[] = [
     brewery: 'Goose Island Beer Co.',
     beerLabelUrl: 'https://untappd.akamaized.net/site/beer_logos/beer-6_thumb.jpeg',
     rating: 4.75,
+    comment: 'Rich and boozy. Perfect for a cold Wisconsin night.',
     createdAt: '2026-06-03T20:28:00Z',
   },
   {
@@ -74,6 +80,7 @@ export const checkins: Checkin[] = [
     brewery: 'Bell\'s Brewery',
     beerLabelUrl: 'https://untappd.akamaized.net/site/beer_logos/beer-7_thumb.jpeg',
     rating: 3.5,
+    comment: 'Classic summer ale.',
     createdAt: '2026-06-03T20:11:00Z',
   },
   {
@@ -84,6 +91,7 @@ export const checkins: Checkin[] = [
     brewery: 'Lakefront Brewery',
     beerLabelUrl: 'https://untappd.akamaized.net/site/beer_logos/beer-8_thumb.jpeg',
     rating: 4.0,
+    comment: null,
     createdAt: '2026-06-03T19:55:00Z',
   },
 ];

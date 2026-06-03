@@ -529,6 +529,7 @@ function normalizeCheckins(raw: unknown): Checkin[] {
       brewery: str(beer['brewery']) ?? '',
       beerLabelUrl: str(beer['label_image_thumb']),
       rating,
+      comment: str(c['comment']),
       createdAt: str(c['created_at']) ?? new Date().toISOString(),
     });
   }

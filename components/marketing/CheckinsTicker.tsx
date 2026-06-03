@@ -30,6 +30,10 @@ function BeerGlyph() {
   )
 }
 
+function truncateComment(s: string, max = 80): string {
+  return s.length > max ? s.slice(0, max).trimEnd() + "…" : s
+}
+
 type CheckinItemProps = {
   checkin: Checkin
   ariaHidden?: boolean
@@ -38,14 +42,15 @@ type CheckinItemProps = {
 function CheckinItem({ checkin, ariaHidden }: CheckinItemProps) {
   const imgSrc = checkin.beerLabelUrl ?? checkin.userAvatarUrl
   const altText = `${checkin.beerName} by ${checkin.brewery}`
+  const hasComment = typeof checkin.comment === "string" && checkin.comment.length > 0
 
   return (
     <span
-      className="inline-flex items-center gap-2.5 px-5 shrink-0"
+      className="inline-flex items-start gap-2.5 px-5 shrink-0 whitespace-nowrap"
       aria-hidden={ariaHidden ? "true" : undefined}
     >
-      {/* Thumbnail */}
-      <span className="relative size-8 rounded-full overflow-hidden bg-card border border-border shrink-0">
+      {/* Thumbnail — aligned to top of the text block */}
+      <span className="relative size-8 rounded-full overflow-hidden bg-card border border-border shrink-0 mt-0.5">
         {imgSrc ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -59,25 +64,35 @@ function CheckinItem({ checkin, ariaHidden }: CheckinItemProps) {
         )}
       </span>
 
-      {/* Text */}
-      <span className="inline-flex items-baseline gap-1 whitespace-nowrap text-sm">
-        <span className="font-medium text-foreground">{checkin.userFirstName}</span>
-        <span className="text-muted-foreground">·</span>
-        <span className="text-foreground">{checkin.beerName}</span>
-        <span className="text-muted-foreground">—</span>
-        <span className="text-muted-foreground">{checkin.brewery}</span>
-        {checkin.rating !== null && (
-          <>
-            <span className="text-muted-foreground ml-1">·</span>
-            <span className="text-packers-gold font-medium tabular-nums">
-              {checkin.rating.toFixed(1)}★
-            </span>
-          </>
+      {/* Text column: name/beer row + optional comment row */}
+      <span className="inline-flex flex-col gap-0.5">
+        {/* Primary row */}
+        <span className="inline-flex items-baseline gap-1 text-sm">
+          <span className="font-medium text-foreground">{checkin.userFirstName}</span>
+          <span className="text-muted-foreground">·</span>
+          <span className="text-foreground">{checkin.beerName}</span>
+          <span className="text-muted-foreground">—</span>
+          <span className="text-muted-foreground">{checkin.brewery}</span>
+          {checkin.rating !== null && (
+            <>
+              <span className="text-muted-foreground ml-1">·</span>
+              <span className="text-packers-gold font-medium tabular-nums">
+                {checkin.rating.toFixed(1)}★
+              </span>
+            </>
+          )}
+        </span>
+
+        {/* Comment row — only rendered when a non-empty comment exists */}
+        {hasComment && (
+          <span className="text-xs text-muted-foreground italic leading-tight">
+            &ldquo;{truncateComment(checkin.comment!)}&rdquo;
+          </span>
         )}
       </span>
 
       {/* Separator dot */}
-      <span className="w-1 h-1 rounded-full bg-border shrink-0" aria-hidden="true" />
+      <span className="w-1 h-1 rounded-full bg-border shrink-0 mt-2" aria-hidden="true" />
     </span>
   )
 }
@@ -138,6 +153,8 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
     )
   }
 
+  const duration = Math.max(60, checkins.length * 10)
+
   return (
     <section
       className="bg-card [padding-block:clamp(1.5rem,4vw,2.5rem)] overflow-hidden"
@@ -147,11 +164,13 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
        * Marquee: two copies of the list side-by-side.
        * The first copy is visible content; the second is aria-hidden
        * for screen readers (purely decorative repetition for seamless loop).
-       * Pause on hover via group/group-hover.
+       * Pause on hover via .ticker-track:hover in the style block below.
+       * The duration CSS variable is set inline so the hover rule
+       * (which only touches animation-play-state) is never overridden.
        */}
       <div
-        className="group flex w-max"
-        style={{ animation: "ticker-scroll 40s linear infinite" }}
+        className="ticker-track flex w-max"
+        style={{ "--ticker-duration": `${duration}s` } as React.CSSProperties}
       >
         {/* Primary — visible to screen readers */}
         <div className="flex">
@@ -169,12 +188,15 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
       </div>
 
       <style>{`
+        .ticker-track {
+          animation: ticker-scroll var(--ticker-duration, 80s) linear infinite;
+        }
+        .ticker-track:hover {
+          animation-play-state: paused;
+        }
         @keyframes ticker-scroll {
           0%   { transform: translateX(0); }
           100% { transform: translateX(-50%); }
-        }
-        .group:hover {
-          animation-play-state: paused;
         }
       `}</style>
     </section>

@@ -195,6 +195,8 @@ export type Checkin = {
   beerLabelUrl: string | null
   /** 0..5, null when unrated */
   rating: number | null
+  /** User-written check-in note; null when the user left no comment */
+  comment: string | null
   /** ISO-8601 timestamp */
   createdAt: string
 }
