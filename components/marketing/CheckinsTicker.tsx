@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useReducedMotion } from "framer-motion"
 import type { Checkin } from "@/lib/fixtures/types"
 import { Container } from "@/components/marketing/layout/Container"
@@ -121,6 +121,18 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
   const [checkins, setCheckins] = useState<Checkin[]>(initial)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  const sortedCheckins = useMemo(
+    () =>
+      [...checkins].sort((a, b) => {
+        const ta = new Date(a.createdAt).getTime()
+        const tb = new Date(b.createdAt).getTime()
+        const validA = isNaN(ta) ? -Infinity : ta
+        const validB = isNaN(tb) ? -Infinity : tb
+        return validB - validA
+      }),
+    [checkins],
+  )
+
   useEffect(() => {
     async function poll() {
       try {
@@ -163,7 +175,7 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
           aria-label="Recent check-ins"
         >
           <div className="flex w-max py-1">
-            {checkins.map((c) => (
+            {sortedCheckins.map((c) => (
               <CheckinItem key={c.id} checkin={c} />
             ))}
           </div>
@@ -172,7 +184,7 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
     )
   }
 
-  const duration = Math.max(60, checkins.length * 10)
+  const duration = Math.max(60, sortedCheckins.length * 10)
 
   return (
     <section
@@ -193,14 +205,14 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
       >
         {/* Primary — visible to screen readers */}
         <div className="flex">
-          {checkins.map((c) => (
+          {sortedCheckins.map((c) => (
             <CheckinItem key={c.id} checkin={c} />
           ))}
         </div>
 
         {/* Duplicate — aria-hidden; makes the loop seamless */}
         <div className="flex" aria-hidden="true">
-          {checkins.map((c) => (
+          {sortedCheckins.map((c) => (
             <CheckinItem key={`dup-${c.id}`} checkin={c} ariaHidden />
           ))}
         </div>
