@@ -1,8 +1,9 @@
 "use client"
 
+import { useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { useReducedMotion, motion } from "framer-motion"
+import { useReducedMotion, motion, useScroll, useTransform } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Container } from "@/components/marketing/layout/Container"
 import type { HomeHero as HomeHeroType } from "@/lib/fixtures/types"
@@ -27,6 +28,20 @@ function isVideoUrl(url: string, mediaType: HomeHeroType["mediaType"]): boolean 
 
 export function HomeHero({ hero }: HomeHeroProps) {
   const reduced = useReducedMotion()
+  const sectionRef = useRef<HTMLElement>(null)
+
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start start", "end start"],
+  })
+
+  /**
+   * Translate the media layer at 20% of the scroll distance so it moves
+   * slower than the page, creating a depth/parallax effect. The wrapper is
+   * sized at 125% height with a -12.5% top offset (overscan top + bottom) so
+   * the 20% translate never exposes the section background behind the media.
+   */
+  const mediaY = useTransform(scrollYProgress, [0, 1], ["0%", "20%"])
 
   const mediaUrl = resolveMediaUrl(hero)
   const hasVideo = mediaUrl ? isVideoUrl(mediaUrl, hero.mediaType) : false
@@ -34,32 +49,41 @@ export function HomeHero({ hero }: HomeHeroProps) {
 
   return (
     <section
+      ref={sectionRef}
       className="relative min-h-[90svh] flex items-center bg-background overflow-hidden"
       aria-label="Welcome to District Pour Haus"
     >
       {/* ── Media background layer (video or image) ─────────────────────────── */}
-      {hasVideo && mediaUrl ? (
-        <video
-          className="absolute inset-0 w-full h-full object-cover"
-          src={mediaUrl}
-          autoPlay={!reduced}
-          muted
-          loop={!reduced}
-          playsInline
-          preload={reduced ? "metadata" : "auto"}
+      {(hasVideo || hasImage) && mediaUrl ? (
+        <motion.div
+          className="absolute inset-x-0 -top-[12.5%] h-[125%]"
+          style={{ y: reduced ? 0 : mediaY }}
           aria-hidden="true"
-          tabIndex={-1}
-        />
-      ) : hasImage && mediaUrl ? (
-        <Image
-          src={mediaUrl}
-          alt=""
-          fill
-          className="object-cover"
-          priority
-          aria-hidden="true"
-          sizes="100vw"
-        />
+        >
+          {hasVideo ? (
+            <video
+              className="w-full h-full object-cover"
+              src={mediaUrl}
+              autoPlay={!reduced}
+              muted
+              loop={!reduced}
+              playsInline
+              preload={reduced ? "metadata" : "auto"}
+              aria-hidden="true"
+              tabIndex={-1}
+            />
+          ) : (
+            <Image
+              src={mediaUrl}
+              alt=""
+              fill
+              className="object-cover"
+              priority
+              aria-hidden="true"
+              sizes="100vw"
+            />
+          )}
+        </motion.div>
       ) : null}
 
       {/* ── Directional scrim — dark on left (text column) fading right ──────── */}
