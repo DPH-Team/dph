@@ -21,10 +21,43 @@ function supabaseStoragePattern(): RemotePattern | null {
   }
 }
 
+// Next.js 16 SSRF protection: the image optimizer refuses to fetch upstream
+// images that resolve to private/loopback IPs (returns 400 in local dev when
+// Supabase Storage is served from 127.0.0.1:54321).  Disabling optimization
+// for local dev sidesteps the block without touching prod behaviour.
+function isLocalSupabaseHost(): boolean {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!raw) return false;
+  try {
+    const { hostname } = new URL(raw);
+    // Loopback / any-address literals
+    if (["localhost", "127.0.0.1", "::1", "0.0.0.0"].includes(hostname)) {
+      return true;
+    }
+    // RFC-1918 private ranges expressed as dot-decimal IPv4
+    const parts = hostname.split(".").map(Number);
+    if (parts.length === 4 && parts.every((n) => Number.isFinite(n))) {
+      const [a, b, c] = parts;
+      if (a === 10) return true;                              // 10.0.0.0/8
+      if (a === 192 && b === 168) return true;               // 192.168.0.0/16
+      if (a === 172 && b >= 16 && b <= 31) return true;     // 172.16.0.0/12
+      // c is read as part of the destructuring; reference it to satisfy lint
+      void c;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 const derivedSupabasePattern = supabaseStoragePattern();
 
 const nextConfig: NextConfig = {
   images: {
+    // Disable optimization only when Supabase Storage is on a local/private
+    // host (Next 16 SSRF guard blocks private-IP upstream fetches in dev).
+    // Public *.supabase.co hosts in staging/prod are unaffected.
+    unoptimized: isLocalSupabaseHost(),
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
       { protocol: "https", hostname: "utfb-images.untappd.com", pathname: "/**" },
