@@ -164,7 +164,8 @@ Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with
 
 **Deliverables**
 - `lib/untappd.ts` — server-only fetcher used by BOTH the tap list and the events sync. Auth via the Untappd-for-Business read & write token (events endpoints require it). Normalizes menu + event JSON to internal types, graceful fallback to mock fixture when creds missing or upstream errors.
-- `lib/printify.ts` — server-only fetcher, lists products from configured shop, normalizes to card data, links each to Printify Pop-Up Store URL
+- `lib/printify.ts` — server-only fetcher, lists products from configured shop, normalizes to card data, links each to its Printify Pop-Up Store **product** URL (`/product/<id>/<handle>`)
+- **Merch cache mirror.** Supabase `merch_products` table keyed by `printify_product_id`, columns for title, price_cents, category, tags, printify_url, image_path (mirrored into the `media` bucket), source_image_url (change-detection key), sort_order, visible, synced_at, deleted_at. RLS: public read of live rows; only service-role / Drizzle-owner writes. A scheduled `sync-merch` job (Vercel Cron, ~5 min) fetches Printify products, downloads each product image into Supabase Storage on first sight (skipping unchanged images via `source_image_url` equality), upserts the table, and soft-deletes removed products (and their storage objects). `/merch` reads from `merch_products` and serves images from our Supabase public URLs — no client-side Printify hits. Admin "Sync now" runs the same `runMerchSync()`.
 - **Events cache mirror.** Supabase `events_cache` table keyed by `untappd_event_id`, columns for title, description, starts_at, ends_at, cover_image_url, external_url, synced_at. RLS: public read; only service-role writes. A scheduled job (Vercel Cron or `pg_cron`) hits Untappd every ~5 minutes and upserts the table. Removed-upstream events are soft-deleted via a `deleted_at` column so the public page filters them out without losing audit history.
 - Public events page: `/events` reads from `events_cache` (filtering `deleted_at is null` and past events as derived from `ends_at`/`starts_at`). Cover images served from Untappd-hosted URLs, RSVP / detail links back to Untappd. No client-side Untappd hits; the cache is the only read path.
 - "Live menu temporarily unavailable" banner UI when Untappd fetch fails (taps still show last-good cached data). Events page falls back gracefully to the last-known cache contents if the sync job has been failing for > 1 hour, with a small "Last updated …" line at the bottom of the page.
@@ -173,11 +174,12 @@ Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with
 - Loading + empty states for taps, events, and merch pages
 
 **Agents:** `dph-integrations`, `dph-backend`, `dph-frontend`
-**Skills:** `dph-migration` (for `events_cache`)
+**Skills:** `dph-migration` (for `events_cache` and `merch_products`)
 
 **Exit criteria**
 - With mock creds, `/taps`, `/events`, and `/merch` render fixture data
-- With real creds in integrations panel, `/taps` renders live Untappd menu, `/events` renders live Untappd events with cover images sourced from `events_cache`, `/merch` renders live Printify products
+- With real creds in integrations panel, `/taps` renders live Untappd menu, `/events` renders live Untappd events with cover images sourced from `events_cache`, `/merch` renders live Printify products with images served from the `merch_products` mirror (Supabase Storage), not Printify's CDN
+- A product added/changed in Printify appears on `/merch` within ~5 minutes via the `sync-merch` job; its image is mirrored into Supabase Storage once and reused on subsequent syncs (no re-download when unchanged)
 - An event saved in the Untappd dashboard appears on `/events` within ~5 minutes via the scheduled sync — no admin action required
 - Removing an event in Untappd flags the matching row `deleted_at` on the next sync; it disappears from `/events`
 - Outage simulation: pausing the cron (or removing creds) does NOT blank the page — `/events` continues to serve the last-known cache; admin card surfaces the stale `synced_at` so staleness is visible
