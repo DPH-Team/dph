@@ -12,6 +12,7 @@ import {
   getPublicUpcomingEvents,
 } from "@/lib/db/public"
 import { getLocation } from "@/app/__fixtures__/location"
+import { INSTAGRAM_PROFILE_URL } from "@/app/__fixtures__/instagram"
 import { JsonLd } from "@/components/seo/JsonLd"
 import { EventCard } from "@/components/marketing/EventCard"
 import { Section } from "@/components/marketing/layout/Section"
@@ -365,6 +366,15 @@ export default async function EventDetailPage({
                       aria-label="Share on Facebook"
                     >
                       Facebook
+                    </a>
+                    <a
+                      href={INSTAGRAM_PROFILE_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                      aria-label="Visit our Instagram"
+                    >
+                      Instagram
                     </a>
                   </div>
                 </div>
