@@ -52,7 +52,7 @@ export function TapsClient({ taps }: TapsClientProps) {
             onClick={() => {
               setFiltered(taps)
             }}
-            className="text-primary hover:text-[--color-copper-hover] border border-border"
+            className="text-primary hover:text-copper-hover border border-border"
           >
             Clear filters
           </Button>

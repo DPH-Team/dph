@@ -39,7 +39,7 @@ export function NewsletterCTA({ variant = "section", className }: NewsletterCTAP
         aria-live="polite"
         className={cn(
           "text-sm font-medium",
-          variant === "footer" ? "text-muted-foreground" : "text-[--color-cream]"
+          variant === "footer" ? "text-muted-foreground" : "text-cream"
         )}
       >
         {state.message ?? "You're on the list — see you soon."}

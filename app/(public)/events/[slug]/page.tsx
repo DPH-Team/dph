@@ -151,13 +151,13 @@ export default async function EventDetailPage({
         />
         <div
           aria-hidden="true"
-          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[--color-copper]/60 to-transparent"
+          className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-copper/60 to-transparent"
         />
         <Container className="relative [padding-block:clamp(2rem,5vw,3.5rem)]">
           <div className="flex flex-col gap-4 max-w-3xl">
             <div className="flex flex-wrap items-center gap-2">
               {event.featured && (
-                <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-[--color-packers-gold] text-[--color-brand-base]">
+                <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-packers-gold text-brand-base">
                   Featured
                 </span>
               )}
@@ -292,7 +292,7 @@ export default async function EventDetailPage({
                     href={event.ticketUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 h-11 px-6 rounded-[var(--radius-md)] bg-primary text-[--color-brand-base] font-medium text-sm hover:bg-[--color-copper-hover] transition-colors w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex items-center justify-center gap-2 h-11 px-6 rounded-[var(--radius-md)] bg-primary text-brand-base font-medium text-sm hover:bg-copper-hover transition-colors w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     Get tickets
                     <ExternalLink size={14} aria-hidden="true" />
@@ -302,7 +302,7 @@ export default async function EventDetailPage({
                 {!past && !event.ticketUrl && (
                   <Link
                     href="/reservations"
-                    className="flex items-center justify-center gap-2 h-11 px-6 rounded-[var(--radius-md)] bg-primary text-[--color-brand-base] font-medium text-sm hover:bg-[--color-copper-hover] transition-colors w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="flex items-center justify-center gap-2 h-11 px-6 rounded-[var(--radius-md)] bg-primary text-brand-base font-medium text-sm hover:bg-copper-hover transition-colors w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     Make a reservation
                   </Link>
@@ -313,7 +313,7 @@ export default async function EventDetailPage({
                     This event has already taken place.{" "}
                     <Link
                       href="/events"
-                      className="text-primary hover:text-[--color-copper-hover] underline underline-offset-4 transition-colors"
+                      className="text-primary hover:text-copper-hover underline underline-offset-4 transition-colors"
                     >
                       See upcoming events
                     </Link>
@@ -330,7 +330,7 @@ export default async function EventDetailPage({
                     href={calLinks.google}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-primary hover:text-[--color-copper-hover] transition-colors w-fit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                    className="flex items-center gap-2 text-sm text-primary hover:text-copper-hover transition-colors w-fit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                   >
                     <Clock size={13} aria-hidden="true" />
                     Google Calendar

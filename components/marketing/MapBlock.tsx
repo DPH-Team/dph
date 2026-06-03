@@ -72,7 +72,7 @@ export function MapBlock({
         >
           <div className="flex flex-col items-center">
             <div className="size-10 rounded-full bg-primary flex items-center justify-center shadow-lg shadow-primary/30">
-              <MapPin size={20} className="text-[--color-brand-base]" />
+              <MapPin size={20} className="text-brand-base" />
             </div>
             <div className="w-0.5 h-4 bg-primary mt-[-2px]" />
             <div className="size-2 rounded-full bg-primary opacity-50" />
@@ -90,7 +90,7 @@ export function MapBlock({
               href={mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-[--color-copper-hover] transition-colors underline underline-offset-4 w-fit"
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-copper-hover transition-colors underline underline-offset-4 w-fit"
               aria-label={`Open ${address} in Google Maps`}
             >
               Open in Google Maps ↗
@@ -135,7 +135,7 @@ export function MapBlock({
           href={mapsUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm text-primary hover:text-[--color-copper-hover] transition-colors underline underline-offset-4 w-fit"
+          className="text-sm text-primary hover:text-copper-hover transition-colors underline underline-offset-4 w-fit"
         >
           Open in maps ↗
         </Link>

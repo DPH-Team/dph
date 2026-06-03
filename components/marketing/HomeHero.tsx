@@ -50,20 +50,20 @@ export function HomeHero({ hero }: HomeHeroProps) {
               transition={{ duration: 0.52, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
               className="flex items-center gap-3"
             >
-              <p className="text-sm font-medium tracking-widest uppercase text-[--color-packers-gold]">
+              <p className="text-sm font-medium tracking-widest uppercase text-packers-gold">
                 {hero.eyebrow}
               </p>
               <div
-                className="h-px w-16 bg-[--color-packers-gold] opacity-50"
+                className="h-px w-16 bg-packers-gold opacity-50"
                 aria-hidden="true"
               />
             </motion.div>
           ) : (
             <div className="flex items-center gap-3">
-              <p className="text-sm font-medium tracking-widest uppercase text-[--color-packers-gold]">
+              <p className="text-sm font-medium tracking-widest uppercase text-packers-gold">
                 {hero.eyebrow}
               </p>
-              <div className="h-px w-16 bg-[--color-packers-gold] opacity-50" aria-hidden="true" />
+              <div className="h-px w-16 bg-packers-gold opacity-50" aria-hidden="true" />
             </div>
           )}
 

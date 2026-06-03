@@ -124,6 +124,7 @@ export function Turnstile({ onToken, onExpire, onError, handleRef }: TurnstilePr
     <div
       ref={containerRef}
       id={containerId}
+      role="group"
       aria-label="Bot protection challenge"
       className="mt-1"
     />

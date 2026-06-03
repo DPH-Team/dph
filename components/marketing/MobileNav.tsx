@@ -103,7 +103,7 @@ export function MobileNav({ open, onOpenChange, hours, overrides, location }: Mo
           <div className="flex flex-col gap-1.5">
             <a
               href={`tel:+1${phoneDigits}`}
-              className="text-sm text-primary hover:text-[--color-copper-hover] transition-colors font-medium"
+              className="text-sm text-primary hover:text-copper-hover transition-colors font-medium"
             >
               {location.phone}
             </a>

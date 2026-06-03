@@ -74,7 +74,7 @@ export default async function ContactPage() {
                     />
                     <Link
                       href={`tel:${location.phone.replace(/\D/g, "")}`}
-                      className="text-sm text-primary hover:text-[--color-copper-hover] transition-colors font-medium"
+                      className="text-sm text-primary hover:text-copper-hover transition-colors font-medium"
                       aria-label={`Call us at ${location.phone}`}
                     >
                       {location.phone}
@@ -89,7 +89,7 @@ export default async function ContactPage() {
                     />
                     <Link
                       href={`mailto:${location.email}`}
-                      className="text-sm text-primary hover:text-[--color-copper-hover] transition-colors"
+                      className="text-sm text-primary hover:text-copper-hover transition-colors"
                     >
                       {location.email}
                     </Link>

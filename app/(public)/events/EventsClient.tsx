@@ -105,7 +105,7 @@ function CalendarView({ events }: { events: Event[] }) {
         >
           ← Prev
         </button>
-        <h3 className="font-medium text-foreground">{monthLabel}</h3>
+        <h2 className="font-medium text-foreground">{monthLabel}</h2>
         <button
           onClick={handleNext}
           className={cn(
@@ -185,9 +185,9 @@ function CalendarView({ events }: { events: Event[] }) {
       {/* Events with dots legend */}
       {eventsByDay.size > 0 && (
         <div className="mt-4 flex flex-col gap-2">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             This month
-          </h4>
+          </h3>
           <div className="flex flex-col gap-2">
             {Array.from(eventsByDay.entries())
               .sort(([a], [b]) => a - b)
@@ -312,9 +312,9 @@ export function EventsClient({ upcoming, past }: EventsClientProps) {
                   "h-8 px-3 rounded-full text-sm font-medium transition-colors border",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   isActive && isGameDay
-                    ? "bg-[--color-packers-green] border-[--color-packers-green] text-[--color-cream]"
+                    ? "bg-packers-green border-packers-green text-cream"
                     : isActive
-                      ? "bg-primary border-primary text-[--color-brand-base]"
+                      ? "bg-primary border-primary text-brand-base"
                       : "bg-transparent border-border text-muted-foreground hover:border-[oklch(0.400_0.006_80)] hover:text-foreground",
                 )}
               >
@@ -342,7 +342,7 @@ export function EventsClient({ upcoming, past }: EventsClientProps) {
                 "h-7 px-4 rounded-full text-sm font-medium transition-colors capitalize",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 view === mode
-                  ? "bg-primary text-[--color-brand-base]"
+                  ? "bg-primary text-brand-base"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >

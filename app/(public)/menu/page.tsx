@@ -28,7 +28,7 @@ export default async function MenuPage() {
         <div className="mt-2">
           <Link
             href="/taps"
-            className="text-sm font-medium text-primary hover:text-[--color-copper-hover] transition-colors underline underline-offset-4"
+            className="text-sm font-medium text-primary hover:text-copper-hover transition-colors underline underline-offset-4"
           >
             See what&apos;s pouring on tap →
           </Link>

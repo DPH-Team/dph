@@ -21,7 +21,7 @@ export default async function PublicLayout({
     <>
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-md focus:bg-[--color-copper] focus:text-[--color-brand-base] focus:font-medium focus:text-sm focus:ring-2 focus:ring-[--color-copper] focus:ring-offset-2 focus:ring-offset-background focus:outline-none"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[100] focus:px-4 focus:py-2 focus:rounded-md focus:bg-copper focus:text-brand-base focus:font-medium focus:text-sm focus:ring-2 focus:ring-copper focus:ring-offset-2 focus:ring-offset-background focus:outline-none"
       >
         Skip to content
       </a>

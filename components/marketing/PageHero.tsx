@@ -31,7 +31,7 @@ export function PageHero({
       />
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[--color-copper]/60 to-transparent"
+        className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-copper/60 to-transparent"
       />
       <Container className="relative [padding-block:clamp(2rem,5vw,3.5rem)]">
         <div
@@ -42,11 +42,11 @@ export function PageHero({
         >
           {eyebrow && (
             <div className="flex items-center gap-3">
-              <p className="text-sm font-medium tracking-widest uppercase text-[--color-packers-gold]">
+              <p className="text-sm font-medium tracking-widest uppercase text-packers-gold">
                 {eyebrow}
               </p>
               <div
-                className="flex-1 h-px bg-[--color-packers-gold] opacity-40"
+                className="flex-1 h-px bg-packers-gold opacity-40"
                 aria-hidden="true"
               />
             </div>

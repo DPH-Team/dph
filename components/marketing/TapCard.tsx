@@ -43,9 +43,9 @@ function CardContent({
               {tap.tapNumber}
             </span>
             <div className="flex flex-col gap-0.5 min-w-0">
-              <h3 className="font-display font-medium text-base leading-tight text-foreground truncate">
+              <h2 className="font-display font-medium text-base leading-tight text-foreground truncate">
                 {tap.name}
-              </h3>
+              </h2>
               <p className="text-xs text-muted-foreground truncate">{tap.brewery}</p>
             </div>
           </div>

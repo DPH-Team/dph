@@ -44,7 +44,7 @@ export function GalleryGrid({ images, className }: GalleryGridProps) {
               className={cn(
                 "relative w-full overflow-hidden rounded-lg bg-card border border-border",
                 "group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                "hover:border-[--color-copper]/40 transition-colors"
+                "hover:border-copper/40 transition-colors"
               )}
               aria-label={image.alt}
             >
@@ -60,7 +60,7 @@ export function GalleryGrid({ images, className }: GalleryGridProps) {
               />
               {image.caption && (
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <p className="text-xs text-[--color-cream] line-clamp-2">
+                  <p className="text-xs text-cream line-clamp-2">
                     {image.caption}
                   </p>
                 </div>

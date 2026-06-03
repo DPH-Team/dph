@@ -104,7 +104,7 @@ export function HoursCard({
 
       <Link
         href="/contact"
-        className="text-sm text-primary hover:text-[--color-copper-hover] transition-colors underline underline-offset-4 w-fit"
+        className="text-sm text-primary hover:text-copper-hover transition-colors underline underline-offset-4 w-fit"
       >
         View on map →
       </Link>
