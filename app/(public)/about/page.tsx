@@ -131,18 +131,18 @@ export default async function AboutPage() {
                   className={cn(
                     "flex flex-col gap-3 p-6 rounded-xl border border-border h-full",
                     value.isGameDay
-                      ? "bg-[--color-packers-green]"
+                      ? "bg-packers-green"
                       : "bg-card"
                   )}
                 >
                   {value.isGameDay && (
-                    <div className="w-8 h-0.5 bg-[--color-packers-gold]" aria-hidden="true" />
+                    <div className="w-8 h-0.5 bg-packers-gold" aria-hidden="true" />
                   )}
                   <h3
                     className={cn(
                       "font-display font-medium text-lg leading-tight",
                       value.isGameDay
-                        ? "text-[--color-packers-gold]"
+                        ? "text-packers-gold"
                         : "text-foreground"
                     )}
                   >
@@ -152,7 +152,7 @@ export default async function AboutPage() {
                     className={cn(
                       "text-sm leading-relaxed",
                       value.isGameDay
-                        ? "text-[--color-cream]"
+                        ? "text-cream"
                         : "text-muted-foreground"
                     )}
                   >

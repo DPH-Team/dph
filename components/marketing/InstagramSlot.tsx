@@ -46,7 +46,7 @@ export function InstagramSlot({ posts, className }: InstagramSlotProps) {
             className={cn(
               "aspect-square rounded-lg bg-card border border-border",
               "flex items-center justify-center",
-              "hover:border-[--color-copper]/50 hover:bg-card/80 transition-colors",
+              "hover:border-copper/50 hover:bg-card/80 transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             )}
             aria-label={`View post ${i + 1} on Instagram`}
@@ -54,7 +54,7 @@ export function InstagramSlot({ posts, className }: InstagramSlotProps) {
             {posts && posts[i] ? (
               <span className="sr-only">{posts[i]!.alt}</span>
             ) : (
-              <IgIcon className="size-8 text-[--color-packers-gold] opacity-60" />
+              <IgIcon className="size-8 text-packers-gold opacity-60" />
             )}
           </Link>
         ))}
@@ -65,7 +65,7 @@ export function InstagramSlot({ posts, className }: InstagramSlotProps) {
           href={INSTAGRAM_PROFILE_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-[--color-copper-hover] transition-colors underline underline-offset-4"
+          className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-copper-hover transition-colors underline underline-offset-4"
         >
           <IgIcon className="size-4" />
           Open on Instagram ↗

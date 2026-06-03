@@ -18,8 +18,8 @@ const sizeClasses: Record<WordmarkSize, string> = {
 }
 
 const toneClasses: Record<WordmarkTone, string> = {
-  gold: "text-[--color-packers-gold]",
-  cream: "text-[--color-cream]",
+  gold: "text-packers-gold",
+  cream: "text-cream",
 }
 
 export function Wordmark({

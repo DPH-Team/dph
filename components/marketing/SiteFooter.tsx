@@ -30,7 +30,7 @@ export function SiteFooter({ location }: SiteFooterProps) {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 [padding-block:clamp(3rem,7vw,5rem)]">
             <div className="flex flex-col gap-3 lg:col-span-1">
               <Wordmark size="md" tone="gold" asLink={false} />
-              <p className="text-sm text-[--color-cream]/90 font-medium">
+              <p className="text-sm text-cream/90 font-medium">
                 Our Haus is Your Haus
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed">
@@ -39,21 +39,21 @@ export function SiteFooter({ location }: SiteFooterProps) {
             </div>
 
             <div className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold text-foreground tracking-wide uppercase">
+              <p className="text-sm font-semibold text-foreground tracking-wide uppercase">
                 Visit
-              </h3>
+              </p>
               <address className="not-italic flex flex-col gap-1.5 text-sm text-muted-foreground">
                 <span>{location.address}</span>
                 <span>{location.city}, {location.state} {location.zip}</span>
                 <a
                   href={`tel:+1${phoneDigits}`}
-                  className="text-primary hover:text-[--color-copper-hover] transition-colors w-fit"
+                  className="text-primary hover:text-copper-hover transition-colors w-fit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                 >
                   {location.phone}
                 </a>
                 <a
                   href={`mailto:${location.email}`}
-                  className="text-primary hover:text-[--color-copper-hover] transition-colors w-fit"
+                  className="text-primary hover:text-copper-hover transition-colors w-fit focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                 >
                   {location.email}
                 </a>
@@ -61,16 +61,16 @@ export function SiteFooter({ location }: SiteFooterProps) {
             </div>
 
             <div className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold text-foreground tracking-wide uppercase">
+              <p className="text-sm font-semibold text-foreground tracking-wide uppercase">
                 Explore
-              </h3>
+              </p>
               <nav aria-label="Footer navigation">
                 <ul className="flex flex-col gap-1.5" role="list">
                   {EXPLORE_LINKS.map(({ href, label }) => (
                     <li key={href}>
                       <Link
                         href={href}
-                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                        className="text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                       >
                         {label}
                       </Link>
@@ -81,9 +81,9 @@ export function SiteFooter({ location }: SiteFooterProps) {
             </div>
 
             <div className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold text-foreground tracking-wide uppercase">
+              <p className="text-sm font-semibold text-foreground tracking-wide uppercase">
                 Stay in the Loop
-              </h3>
+              </p>
               <p className="text-sm text-muted-foreground">
                 Monthly pour notes, event previews, and the occasional brat recipe.
               </p>
@@ -94,23 +94,23 @@ export function SiteFooter({ location }: SiteFooterProps) {
       </div>
 
       <div
-        className="bg-[--color-packers-green] h-14 sm:h-16 flex items-center"
+        className="bg-packers-green h-14 sm:h-16 flex items-center"
         aria-label="Brand footer"
       >
         <Container className="flex items-center justify-between gap-4">
-          <p className="text-xs text-[--color-cream]/70">
+          <p className="text-xs text-cream/70">
             <span>© {currentYear} District Pour Haus</span>
             <span aria-hidden="true"> · </span>
             <Link
               href="/privacy"
-              className="hover:text-[--color-packers-gold] transition-colors"
+              className="hover:text-packers-gold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
             >
               Privacy
             </Link>
             <span aria-hidden="true"> · </span>
             <Link
               href="/terms"
-              className="hover:text-[--color-packers-gold] transition-colors"
+              className="hover:text-packers-gold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
             >
               Terms
             </Link>
@@ -118,7 +118,7 @@ export function SiteFooter({ location }: SiteFooterProps) {
 
           <div className="flex items-center gap-3">
             <Wordmark size="sm" tone="gold" asLink={false} className="hidden md:block" />
-            <span className="hidden md:block text-xs text-[--color-cream]/60">Est. Wisconsin</span>
+            <span className="hidden md:block text-xs text-cream/70">Est. Wisconsin</span>
           </div>
 
           <div className="flex items-center gap-2">
@@ -127,7 +127,7 @@ export function SiteFooter({ location }: SiteFooterProps) {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="District Pour Haus on Instagram"
-              className="text-[--color-packers-gold] hover:opacity-80 transition-opacity"
+              className="text-packers-gold hover:opacity-80 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
             >
               <Link2 size={16} aria-hidden="true" />
             </a>

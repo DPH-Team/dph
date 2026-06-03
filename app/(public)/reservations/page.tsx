@@ -64,7 +64,7 @@ export default async function ReservationsPage() {
               <div className="flex flex-col gap-2">
                 <Link
                   href={`tel:${location.phone.replace(/\D/g, "")}`}
-                  className="flex items-center gap-2 text-sm text-primary hover:text-[--color-copper-hover] transition-colors font-medium"
+                  className="flex items-center gap-2 text-sm text-primary hover:text-copper-hover transition-colors font-medium"
                   aria-label={`Call us at ${location.phone}`}
                 >
                   <Phone size={14} aria-hidden="true" />

@@ -92,13 +92,13 @@ export function OpenStatusPill({
     <span
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
-        "bg-[--color-packers-green] text-[--color-cream]",
+        "bg-packers-green text-cream",
         className
       )}
       aria-label={`Open now, closes at ${status.closesAt ?? "midnight"}`}
     >
       <span
-        className="size-1.5 rounded-full bg-[--color-cream] shrink-0"
+        className="size-1.5 rounded-full bg-cream shrink-0"
         aria-hidden="true"
       />
       {status.closesAt ? `Open · Closes ${status.closesAt}` : "Open Now"}

@@ -29,7 +29,7 @@ export function PositionCard({ posting, onApply, className }: PositionCardProps)
           </div>
         </div>
         {posting.isOpen && (
-          <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-[--color-packers-green]/20 text-[--color-cream] border border-[--color-packers-green]/30">
+          <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-packers-green/20 text-cream border border-packers-green/30">
             Hiring
           </span>
         )}
@@ -75,7 +75,7 @@ export function PositionCard({ posting, onApply, className }: PositionCardProps)
         <div className="pt-1">
           <button
             onClick={() => onApply(posting.id)}
-            className="text-sm font-medium text-primary hover:text-[--color-copper-hover] transition-colors underline underline-offset-4"
+            className="text-sm font-medium text-primary hover:text-copper-hover transition-colors underline underline-offset-4"
           >
             Apply for this role →
           </button>

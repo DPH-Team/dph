@@ -2,6 +2,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Calendar, Tag } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { BLUR_CHARCOAL } from "@/lib/blur"
 import type { Event } from "@/lib/fixtures/types"
 
 export type EventCardProps = {
@@ -50,7 +51,7 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
           </span>
         </div>
         {event.featured && (
-          <span className="shrink-0 text-xs font-semibold text-[--color-packers-gold] px-2 py-0.5 rounded-full border border-[--color-packers-gold]/30">
+          <span className="shrink-0 text-xs font-semibold text-packers-gold px-2 py-0.5 rounded-full border border-packers-gold/30">
             Featured
           </span>
         )}
@@ -72,6 +73,9 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
               src={event.imageUrl}
               alt={event.title}
               fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              placeholder="blur"
+              blurDataURL={BLUR_CHARCOAL}
               className="object-cover transition-transform duration-500 group-hover:scale-105"
             />
           ) : (
@@ -80,14 +84,14 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
           <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
           <div className="absolute top-3 left-3 flex gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-[--color-packers-gold] text-[--color-brand-base]">
+            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-packers-gold text-brand-base">
               Featured
             </span>
           </div>
 
           {past && (
             <div className="absolute top-3 right-3">
-              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-black/60 text-[--color-cream]/70">
+              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-black/60 text-cream/70">
                 Past event
               </span>
             </div>
@@ -95,9 +99,9 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
         </div>
 
         <div className="p-5 flex flex-col gap-3">
-          <h3 className="font-display font-medium text-xl leading-tight text-foreground">
+          <h2 className="font-display font-medium text-xl leading-tight text-foreground">
             {event.title}
-          </h3>
+          </h2>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Calendar size={14} aria-hidden="true" />
             <time dateTime={event.startsAt}>{formatEventDate(event.startsAt)}</time>
@@ -106,7 +110,7 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
           <div className="flex items-center justify-between mt-1">
             <Link
               href={`/events/${event.slug}`}
-              className="text-sm font-medium text-primary hover:text-[--color-copper-hover] transition-colors underline underline-offset-4"
+              className="text-sm font-medium text-primary hover:text-copper-hover transition-colors underline underline-offset-4"
             >
               View details →
             </Link>
@@ -139,6 +143,9 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
             src={event.imageUrl}
             alt={event.title}
             fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            placeholder="blur"
+            blurDataURL={BLUR_CHARCOAL}
             className="object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
@@ -147,12 +154,12 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
 
         <div className="absolute top-3 left-3 flex gap-2 flex-wrap">
           {event.featured && (
-            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-[--color-packers-gold] text-[--color-brand-base]">
+            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-packers-gold text-brand-base">
               Featured
             </span>
           )}
           {past && (
-            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-black/60 text-[--color-cream]/70">
+            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-black/60 text-cream/70">
               Past event
             </span>
           )}
@@ -160,9 +167,9 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
       </div>
 
       <div className="p-4 flex flex-col gap-2">
-        <h3 className="font-display font-medium text-lg leading-tight text-foreground group-hover:text-primary transition-colors">
+        <h2 className="font-display font-medium text-lg leading-tight text-foreground group-hover:text-primary transition-colors">
           {event.title}
-        </h3>
+        </h2>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Calendar size={12} aria-hidden="true" />
           <time dateTime={event.startsAt}>{formatEventDate(event.startsAt)}</time>
@@ -180,7 +187,7 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
         )}
         <Link
           href={`/events/${event.slug}`}
-          className="text-sm font-medium text-primary hover:text-[--color-copper-hover] transition-colors mt-1 w-fit"
+          className="text-sm font-medium text-primary hover:text-copper-hover transition-colors mt-1 w-fit"
           aria-label={`View details for ${event.title}`}
         >
           Details →

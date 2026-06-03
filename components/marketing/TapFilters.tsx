@@ -70,7 +70,7 @@ function AbvSlider({ min, max, value, onChange, id }: AbvSliderProps) {
   return (
     <div className="flex flex-col gap-2">
       <div
-        className="relative h-5 flex items-center"
+        className="relative h-6 flex items-center"
         role="group"
         aria-labelledby={`${id}-label`}
       >
@@ -96,20 +96,20 @@ function AbvSlider({ min, max, value, onChange, id }: AbvSliderProps) {
           className={cn(
             "absolute inset-x-0 w-full h-full appearance-none bg-transparent cursor-pointer",
             "[&::-webkit-slider-thumb]:appearance-none",
-            "[&::-webkit-slider-thumb]:size-4",
+            "[&::-webkit-slider-thumb]:size-6",
             "[&::-webkit-slider-thumb]:rounded-full",
             "[&::-webkit-slider-thumb]:bg-primary",
             "[&::-webkit-slider-thumb]:border-2",
-            "[&::-webkit-slider-thumb]:border-[--color-brand-base]",
+            "[&::-webkit-slider-thumb]:border-brand-base",
             "[&::-webkit-slider-thumb]:shadow-sm",
             "[&::-webkit-slider-thumb]:cursor-grab",
             "[&::-webkit-slider-thumb]:transition-colors",
-            "[&::-webkit-slider-thumb]:hover:bg-[--color-copper-hover]",
-            "[&::-moz-range-thumb]:size-4",
+            "[&::-webkit-slider-thumb]:hover:bg-copper-hover",
+            "[&::-moz-range-thumb]:size-6",
             "[&::-moz-range-thumb]:rounded-full",
             "[&::-moz-range-thumb]:bg-primary",
             "[&::-moz-range-thumb]:border-2",
-            "[&::-moz-range-thumb]:border-[--color-brand-base]",
+            "[&::-moz-range-thumb]:border-brand-base",
             "[&::-moz-range-thumb]:cursor-grab",
             "focus-visible:outline-none focus-visible:[&::-webkit-slider-thumb]:ring-2 focus-visible:[&::-webkit-slider-thumb]:ring-ring",
             "pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:pointer-events-auto",
@@ -128,20 +128,20 @@ function AbvSlider({ min, max, value, onChange, id }: AbvSliderProps) {
           className={cn(
             "absolute inset-x-0 w-full h-full appearance-none bg-transparent cursor-pointer",
             "[&::-webkit-slider-thumb]:appearance-none",
-            "[&::-webkit-slider-thumb]:size-4",
+            "[&::-webkit-slider-thumb]:size-6",
             "[&::-webkit-slider-thumb]:rounded-full",
             "[&::-webkit-slider-thumb]:bg-primary",
             "[&::-webkit-slider-thumb]:border-2",
-            "[&::-webkit-slider-thumb]:border-[--color-brand-base]",
+            "[&::-webkit-slider-thumb]:border-brand-base",
             "[&::-webkit-slider-thumb]:shadow-sm",
             "[&::-webkit-slider-thumb]:cursor-grab",
             "[&::-webkit-slider-thumb]:transition-colors",
-            "[&::-webkit-slider-thumb]:hover:bg-[--color-copper-hover]",
-            "[&::-moz-range-thumb]:size-4",
+            "[&::-webkit-slider-thumb]:hover:bg-copper-hover",
+            "[&::-moz-range-thumb]:size-6",
             "[&::-moz-range-thumb]:rounded-full",
             "[&::-moz-range-thumb]:bg-primary",
             "[&::-moz-range-thumb]:border-2",
-            "[&::-moz-range-thumb]:border-[--color-brand-base]",
+            "[&::-moz-range-thumb]:border-brand-base",
             "[&::-moz-range-thumb]:cursor-grab",
             "focus-visible:outline-none focus-visible:[&::-webkit-slider-thumb]:ring-2 focus-visible:[&::-webkit-slider-thumb]:ring-ring",
             "pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-moz-range-thumb]:pointer-events-auto",
@@ -320,7 +320,7 @@ export function TapFilters({ taps, onChange, className }: TapFiltersProps) {
                         )}
                         aria-hidden="true"
                       >
-                        {selected && <Check size={10} className="text-[--color-brand-base]" />}
+                        {selected && <Check size={10} className="text-brand-base" />}
                       </span>
                       {style}
                     </button>

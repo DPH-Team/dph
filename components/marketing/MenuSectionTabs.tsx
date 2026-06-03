@@ -32,6 +32,7 @@ export function MenuSectionTabs({ sections }: MenuSectionTabsProps) {
 
       {sections.map((section) => (
         <TabsContent key={section.id} value={section.id}>
+          <h2 className="sr-only">{section.name}</h2>
           {section.description && (
             <p className="text-sm text-muted-foreground mb-6">{section.description}</p>
           )}

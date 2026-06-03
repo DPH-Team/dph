@@ -6,6 +6,7 @@ import { X, ChevronLeft, ChevronRight } from "lucide-react"
 import { Dialog, DialogPortal, DialogOverlay } from "@/components/ui/dialog"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { cn } from "@/lib/utils"
+import { BLUR_CHARCOAL } from "@/lib/blur"
 import type { GalleryImage } from "@/lib/fixtures/types"
 
 export type LightboxProps = {
@@ -78,6 +79,9 @@ export function Lightbox({
                 alt={image.alt}
                 width={image.width}
                 height={image.height}
+                sizes="100vw"
+                placeholder="blur"
+                blurDataURL={BLUR_CHARCOAL}
                 className="w-full h-full object-contain max-h-[75svh]"
                 priority
               />

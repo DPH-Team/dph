@@ -50,17 +50,16 @@ export default async function MerchPage() {
       <Section padding="sm" className="bg-background">
         <Container>
           <ScrollReveal>
-            <div
-              className="rounded-2xl bg-[--color-packers-green] p-8 sm:p-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6"
-              role="banner"
-              aria-label="Sign-styled merch promo"
+            <section
+              className="rounded-2xl bg-packers-green p-8 sm:p-12 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6"
+              aria-label="Featured merch promo"
             >
               <div className="flex flex-col gap-3">
                 <Wordmark size="lg" tone="gold" asLink={false} />
-                <p className="text-[--color-cream] text-base sm:text-lg font-medium">
+                <p className="text-cream text-base sm:text-lg font-medium">
                   Sign-styled drops · limited runs.
                 </p>
-                <p className="text-[--color-cream]/70 text-sm max-w-sm">
+                <p className="text-cream/70 text-sm max-w-sm">
                   Every piece is designed to look like it came off the exterior sign. Because it did.
                 </p>
               </div>
@@ -68,12 +67,12 @@ export default async function MerchPage() {
                 href={PRINTIFY_STORE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold hover:bg-[--color-copper-hover] active:bg-[--color-copper-active] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--color-ring] focus-visible:ring-offset-2 focus-visible:ring-offset-[--color-packers-green] shrink-0"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary text-primary-foreground px-5 py-2.5 text-sm font-semibold hover:bg-copper-hover active:bg-copper-active transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-packers-green shrink-0"
               >
                 Shop Now
                 <ExternalLink size={14} aria-hidden="true" />
               </a>
-            </div>
+            </section>
           </ScrollReveal>
         </Container>
       </Section>
@@ -104,7 +103,7 @@ export default async function MerchPage() {
                     href={PRINTIFY_STORE_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-primary hover:text-[--color-copper-hover] transition-colors underline underline-offset-4"
+                    className="text-primary hover:text-copper-hover transition-colors underline underline-offset-4"
                   >
                     visit the pop-up store
                   </a>{" "}
@@ -128,7 +127,7 @@ export default async function MerchPage() {
               Contact{" "}
               <a
                 href="mailto:info@districtpourhaus.com"
-                className="text-primary hover:text-[--color-copper-hover] transition-colors underline underline-offset-4"
+                className="text-primary hover:text-copper-hover transition-colors underline underline-offset-4"
               >
                 info@districtpourhaus.com
               </a>

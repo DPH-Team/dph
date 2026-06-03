@@ -7,7 +7,7 @@ export default function NotFound() {
     <main className="min-h-svh flex flex-col">
       {/* Packers-green illustration ground */}
       <section
-        className="flex-1 bg-[--color-packers-green] flex flex-col items-center justify-center text-center px-4 py-24"
+        className="flex-1 bg-packers-green flex flex-col items-center justify-center text-center px-4 py-24"
         aria-labelledby="not-found-title"
       >
         <div className="flex flex-col items-center gap-8 max-w-md">
@@ -16,7 +16,7 @@ export default function NotFound() {
 
           {/* 404 numeral */}
           <p
-            className="font-display font-medium text-[clamp(6rem,15vw,12rem)] leading-none text-[--color-packers-gold] opacity-20 tabular-nums select-none"
+            className="font-display font-medium text-[clamp(6rem,15vw,12rem)] leading-none text-packers-gold opacity-20 tabular-nums select-none"
             aria-hidden="true"
           >
             404
@@ -25,11 +25,11 @@ export default function NotFound() {
           <div className="flex flex-col gap-3 -mt-6">
             <h1
               id="not-found-title"
-              className="font-display font-medium text-[clamp(1.5rem,1.2rem+2vw,2.5rem)] leading-[1.2] text-[--color-cream]"
+              className="font-display font-medium text-[clamp(1.5rem,1.2rem+2vw,2.5rem)] leading-[1.2] text-cream"
             >
               Couldn&apos;t find that page
             </h1>
-            <p className="text-[--color-cream]/70 text-base leading-relaxed">
+            <p className="text-cream/70 text-base leading-relaxed">
               Looks like this one went dry. Head back to the Haus and find what you&apos;re looking for.
             </p>
           </div>

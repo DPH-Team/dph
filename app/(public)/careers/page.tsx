@@ -91,7 +91,7 @@ export default async function CareersPage() {
                   Feel free to reach out at{" "}
                   <a
                     href="mailto:info@districtpourhaus.com"
-                    className="text-primary hover:text-[--color-copper-hover] transition-colors"
+                    className="text-primary hover:text-copper-hover transition-colors"
                   >
                     info@districtpourhaus.com
                   </a>

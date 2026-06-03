@@ -26,12 +26,12 @@ export default async function TapsPage() {
       {stale && (
         <div
           role="alert"
-          className="border-b border-[--color-packers-gold]/30 bg-[--color-packers-gold]/10"
+          className="border-b border-packers-gold/30 bg-packers-gold/10"
         >
           <div className="mx-auto max-w-[80rem] px-4 sm:px-6 lg:px-8 py-3 flex items-start gap-3">
             <AlertTriangle
               size={16}
-              className="shrink-0 mt-0.5 text-[--color-packers-gold]"
+              className="shrink-0 mt-0.5 text-packers-gold"
               aria-hidden="true"
             />
             <p className="text-sm text-foreground/80">

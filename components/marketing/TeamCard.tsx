@@ -1,6 +1,7 @@
 import Image from "next/image"
 import { User } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { BLUR_CHARCOAL } from "@/lib/blur"
 import type { TeamMember } from "@/lib/fixtures/types"
 
 export type TeamCardProps = {
@@ -17,6 +18,9 @@ export function TeamCard({ member, className }: TeamCardProps) {
             src={member.imageUrl}
             alt={`${member.name}, ${member.role}`}
             fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 20vw"
+            placeholder="blur"
+            blurDataURL={BLUR_CHARCOAL}
             className="object-cover"
           />
         ) : (

@@ -113,7 +113,7 @@ export default async function HomePage() {
           <div className="mt-8">
             <Link
               href="/events"
-              className="text-sm font-medium text-primary hover:text-[--color-copper-hover] transition-colors underline underline-offset-4"
+              className="text-sm font-medium text-primary hover:text-copper-hover transition-colors underline underline-offset-4"
             >
               View all events →
             </Link>
@@ -141,7 +141,7 @@ export default async function HomePage() {
           <div className="mt-8">
             <Link
               href="/menu"
-              className="text-sm font-medium text-primary hover:text-[--color-copper-hover] transition-colors underline underline-offset-4"
+              className="text-sm font-medium text-primary hover:text-copper-hover transition-colors underline underline-offset-4"
             >
               See full menu →
             </Link>
@@ -171,7 +171,7 @@ export default async function HomePage() {
                     {callout.href && callout.cta && (
                       <Link
                         href={callout.href}
-                        className="text-sm font-medium text-primary hover:text-[--color-copper-hover] transition-colors underline underline-offset-4 self-start"
+                        className="text-sm font-medium text-primary hover:text-copper-hover transition-colors underline underline-offset-4 self-start"
                       >
                         {callout.cta} →
                       </Link>

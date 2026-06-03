@@ -587,10 +587,10 @@ export function CareersForm({ positions, defaultPositionId }: CareersFormProps) 
             "flex items-center justify-center gap-2",
             "w-full sm:w-auto sm:px-8",
             "h-11 px-6 rounded-[var(--radius-md)]",
-            "bg-primary text-[--color-brand-base] font-medium text-sm",
-            "hover:bg-[--color-copper-hover] active:bg-[--color-copper-active]",
+            "bg-primary text-brand-base font-medium text-sm",
+            "hover:bg-copper-hover active:bg-copper-active",
             "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-            "disabled:opacity-60 disabled:cursor-not-allowed",
+            "disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed",
           )}
         >
           {(isPending || isUploadPending) && <Loader2 size={16} className="animate-spin" aria-hidden="true" />}

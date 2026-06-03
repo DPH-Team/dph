@@ -48,7 +48,7 @@ export function LegalBody({ paragraphs }: { paragraphs: string[] }) {
   return (
     <>
       {paragraphs.map((p, i) => (
-        <p key={i} className="text-base text-muted-foreground leading-relaxed [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-[--color-copper-hover]">
+        <p key={i} className="text-base text-muted-foreground leading-relaxed [&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_a]:hover:text-copper-hover">
           {p}
         </p>
       ))}

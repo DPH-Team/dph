@@ -20,6 +20,13 @@
  * All admin actions that mutate data covered here MUST call:
  *   revalidateTag('<tag>', 'max')
  * rather than the single-arg form, which is no longer accepted in Next 16.
+ *
+ * DB-outage resilience
+ * ─────────────────────
+ * The try/catch is placed OUTSIDE each `unstable_cache` call. This ensures that
+ * only successful DB reads are ever stored in the cache — fallback values are
+ * returned directly without being cached, so the moment the DB recovers the next
+ * call reads fresh data instead of a stale fallback.
  */
 
 import 'server-only';
@@ -45,8 +52,23 @@ import {
   listEventSlugs,
 } from '@/lib/db/queries/events-cache';
 import { getPublicUrl } from '@/lib/supabase/storage';
+import { hero } from '@/lib/fixtures/hero';
+import { homeCallouts } from '@/lib/fixtures/home-callouts';
+import { aboutContent } from '@/lib/fixtures/about';
+import {
+  getUpcomingEvents,
+  getPastEvents,
+  getEventBySlug,
+} from '@/lib/fixtures/events';
 import type { MenuSection, MenuItem, WeeklyHours, HoursOverride, TeamMember, GalleryImage, Posting, Event } from '@/lib/fixtures/types';
 import type { ContentBlockKey } from '@/lib/validators/content-blocks';
+import type { EffectiveHours } from '@/lib/db/queries/hours';
+import type { EventsSyncStatus } from '@/lib/db/queries/events-cache';
+import type {
+  HomeHeroValue,
+  HomeCalloutsValue,
+  AboutBodyValue,
+} from '@/lib/validators/content-blocks';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -59,6 +81,24 @@ function resolveImageUrl(imagePath: string | null | undefined): string | null {
   return getPublicUrl({ bucket: 'media', path: imagePath });
 }
 
+/**
+ * Attempt an async read; on any thrown error log it server-side and return the
+ * provided fallback value WITHOUT caching it. This ensures the ISR cache is
+ * never poisoned with fallback data — only successful DB reads are cached.
+ */
+async function withFallback<T>(
+  name: string,
+  fn: () => Promise<T>,
+  fallback: T,
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    console.error(`[public-read] ${name} failed, serving fallback:`, err);
+    return fallback;
+  }
+}
+
 // ─── Menu ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -68,7 +108,7 @@ function resolveImageUrl(imagePath: string | null | undefined): string | null {
  * shape that the public /menu page and the fixture getMenuSections() both use.
  * Items with an imagePath get an imageUrl field populated from Supabase Storage.
  */
-export const getPublicMenu = unstable_cache(
+const _getPublicMenuCached = unstable_cache(
   async (): Promise<MenuSection[]> => {
     const flatRows = await listAllItemsWithSection({ includeUnavailable: false });
 
@@ -108,14 +148,27 @@ export const getPublicMenu = unstable_cache(
   { tags: ['menu'] },
 );
 
+export async function getPublicMenu(): Promise<MenuSection[]> {
+  return withFallback('getPublicMenu', _getPublicMenuCached, []);
+}
+
 // ─── Hours — weekly schedule ──────────────────────────────────────────────────
+
+/** All-closed WeeklyHours fallback used when the DB is unreachable. */
+const CLOSED_WEEKLY_HOURS: WeeklyHours = (() => {
+  const defaults = { open: '', close: '', closed: true };
+  const days = [
+    'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+  ] as const;
+  return Object.fromEntries(days.map((d) => [d, defaults])) as WeeklyHours;
+})();
 
 /**
  * Return all 7 weekly-hours rows, shaped as the WeeklyHours fixture map.
  *
  * Missing rows (before seed) fall back to closed: true with null times.
  */
-export const getPublicWeeklyHours = unstable_cache(
+const _getPublicWeeklyHoursCached = unstable_cache(
   async (): Promise<WeeklyHours> => {
     const rows = await listWeeklyHours();
 
@@ -146,13 +199,17 @@ export const getPublicWeeklyHours = unstable_cache(
   { tags: ['hours'] },
 );
 
+export async function getPublicWeeklyHours(): Promise<WeeklyHours> {
+  return withFallback('getPublicWeeklyHours', _getPublicWeeklyHoursCached, CLOSED_WEEKLY_HOURS);
+}
+
 // ─── Hours — overrides (next 90 days) ────────────────────────────────────────
 
 /**
  * Return hours overrides for the next 90 days from today.
  * Shaped as the HoursOverride[] fixture type.
  */
-export const getPublicHoursOverrides = unstable_cache(
+const _getPublicHoursOverridesCached = unstable_cache(
   async (): Promise<HoursOverride[]> => {
     const today = todayInVenueDate();
 
@@ -177,7 +234,20 @@ export const getPublicHoursOverrides = unstable_cache(
   { tags: ['hours'] },
 );
 
+export async function getPublicHoursOverrides(): Promise<HoursOverride[]> {
+  return withFallback('getPublicHoursOverrides', _getPublicHoursOverridesCached, []);
+}
+
 // ─── Hours — today's effective hours ─────────────────────────────────────────
+
+/** Closed/unknown fallback for when the DB is unreachable. Matches EffectiveHours. */
+const CLOSED_EFFECTIVE_HOURS: EffectiveHours = {
+  closed: true,
+  openTime: null,
+  closeTime: null,
+  source: 'none',
+  note: null,
+};
 
 /**
  * Return effective hours for today in venue-local time.
@@ -186,8 +256,8 @@ export const getPublicHoursOverrides = unstable_cache(
  * "today" advances at midnight venue-local time. The tag allows immediate
  * revalidation after an admin hours change.
  */
-export const getPublicEffectiveHoursToday = unstable_cache(
-  async () => {
+const _getPublicEffectiveHoursTodayCached = unstable_cache(
+  async (): Promise<EffectiveHours> => {
     const today = todayInVenueDate();
     return getEffectiveHoursForDate(today);
   },
@@ -195,13 +265,21 @@ export const getPublicEffectiveHoursToday = unstable_cache(
   { tags: ['hours'], revalidate: 60 },
 );
 
+export async function getPublicEffectiveHoursToday(): Promise<EffectiveHours> {
+  return withFallback(
+    'getPublicEffectiveHoursToday',
+    _getPublicEffectiveHoursTodayCached,
+    CLOSED_EFFECTIVE_HOURS,
+  );
+}
+
 // ─── Team ─────────────────────────────────────────────────────────────────────
 
 /**
  * Return all team members, shaped as the TeamMember[] fixture type.
  * Members with an imagePath get an imageUrl field from Supabase Storage.
  */
-export const getPublicTeam = unstable_cache(
+const _getPublicTeamCached = unstable_cache(
   async (): Promise<TeamMember[]> => {
     const rows = await listTeamMembers();
     return rows.map((row) => ({
@@ -216,6 +294,10 @@ export const getPublicTeam = unstable_cache(
   { tags: ['team'] },
 );
 
+export async function getPublicTeam(): Promise<TeamMember[]> {
+  return withFallback('getPublicTeam', _getPublicTeamCached, []);
+}
+
 // ─── Gallery ──────────────────────────────────────────────────────────────────
 
 /**
@@ -226,7 +308,7 @@ export const getPublicTeam = unstable_cache(
  * but the public page must handle null/zero gracefully until Phase 9 when we
  * add image dimensions to the schema.
  */
-export const getPublicGallery = unstable_cache(
+const _getPublicGalleryCached = unstable_cache(
   async (): Promise<GalleryImage[]> => {
     const rows = await listGalleryImages();
     return rows.map((row) => ({
@@ -243,12 +325,16 @@ export const getPublicGallery = unstable_cache(
   { tags: ['gallery'] },
 );
 
+export async function getPublicGallery(): Promise<GalleryImage[]> {
+  return withFallback('getPublicGallery', _getPublicGalleryCached, []);
+}
+
 // ─── Careers ──────────────────────────────────────────────────────────────────
 
 /**
  * Return open career postings, shaped as the Posting[] fixture type.
  */
-export const getPublicCareerPostings = unstable_cache(
+const _getPublicCareerPostingsCached = unstable_cache(
   async (): Promise<Posting[]> => {
     const rows = await listPostings({ onlyOpen: true });
     return rows.map((row) => ({
@@ -266,7 +352,41 @@ export const getPublicCareerPostings = unstable_cache(
   { tags: ['careers'] },
 );
 
+export async function getPublicCareerPostings(): Promise<Posting[]> {
+  return withFallback('getPublicCareerPostings', _getPublicCareerPostingsCached, []);
+}
+
 // ─── Content blocks ───────────────────────────────────────────────────────────
+
+/**
+ * Fixture fallbacks for content blocks, keyed by ContentBlockKey.
+ * These match FIXTURE_FALLBACKS in lib/db/queries/content-blocks.ts and are
+ * used as DB-outage fallbacks (distinct from parse-failure fallbacks).
+ */
+const CONTENT_BLOCK_FALLBACKS: {
+  home_hero: HomeHeroValue;
+  home_callouts: HomeCalloutsValue;
+  about_body: AboutBodyValue;
+} = {
+  home_hero: hero,
+  home_callouts: homeCallouts,
+  about_body: {
+    headline: aboutContent.headline,
+    lead: aboutContent.lead,
+    paragraphs: aboutContent.paragraphs,
+    rfidSteps: aboutContent.rfidSteps,
+    values: aboutContent.values,
+  },
+};
+
+/**
+ * Value type map — narrows the return type per key, matching ContentBlockRow<K>.value.
+ */
+type ContentBlockValueMap = {
+  home_hero: HomeHeroValue;
+  home_callouts: HomeCalloutsValue;
+  about_body: AboutBodyValue;
+};
 
 /**
  * Factory: returns a cached function for the given content block key.
@@ -277,9 +397,11 @@ export const getPublicCareerPostings = unstable_cache(
  *
  * Each key gets its own cache entry and tag so revalidation is surgical.
  * Supported tags: 'content:home_hero', 'content:home_callouts', 'content:about_body'
+ *
+ * On DB error, returns the matching fixture value WITHOUT caching it.
  */
 export function getPublicContentBlock<K extends ContentBlockKey>(key: K) {
-  return unstable_cache(
+  const cachedFn = unstable_cache(
     async () => {
       const row = await getContentBlock(key);
       return row.value;
@@ -287,6 +409,14 @@ export function getPublicContentBlock<K extends ContentBlockKey>(key: K) {
     [`public-content-block-${key}`],
     { tags: [`content:${key}`] },
   );
+
+  return async (): Promise<ContentBlockValueMap[K]> => {
+    return withFallback(
+      `getPublicContentBlock(${key})`,
+      cachedFn,
+      CONTENT_BLOCK_FALLBACKS[key] as ContentBlockValueMap[K],
+    );
+  };
 }
 
 // ─── Events ───────────────────────────────────────────────────────────────────
@@ -346,7 +476,7 @@ function computeStale(lastSyncedAt: string | null): boolean {
  * Return upcoming events with staleness metadata.
  * Cached under the 'events' tag — revalidated by the cron after each sync.
  */
-export const getPublicUpcomingEvents = unstable_cache(
+const _getPublicUpcomingEventsCached = unstable_cache(
   async (): Promise<PublicResult<Event[]>> => {
     const [rows, syncStatus] = await Promise.all([
       listUpcomingEventRows(),
@@ -362,11 +492,21 @@ export const getPublicUpcomingEvents = unstable_cache(
   { tags: ['events'] },
 );
 
+export async function getPublicUpcomingEvents(): Promise<PublicResult<Event[]>> {
+  const fixtureUpcoming = await getUpcomingEvents();
+  const fallback: PublicResult<Event[]> = {
+    data: fixtureUpcoming,
+    stale: true,
+    lastSyncedAt: null,
+  };
+  return withFallback('getPublicUpcomingEvents', _getPublicUpcomingEventsCached, fallback);
+}
+
 /**
  * Return past events with staleness metadata.
  * Cached under the 'events' tag — revalidated by the cron after each sync.
  */
-export const getPublicPastEvents = unstable_cache(
+const _getPublicPastEventsCached = unstable_cache(
   async (): Promise<PublicResult<Event[]>> => {
     const [rows, syncStatus] = await Promise.all([
       listPastEventRows(),
@@ -382,11 +522,21 @@ export const getPublicPastEvents = unstable_cache(
   { tags: ['events'] },
 );
 
+export async function getPublicPastEvents(): Promise<PublicResult<Event[]>> {
+  const fixturePast = await getPastEvents();
+  const fallback: PublicResult<Event[]> = {
+    data: fixturePast,
+    stale: true,
+    lastSyncedAt: null,
+  };
+  return withFallback('getPublicPastEvents', _getPublicPastEventsCached, fallback);
+}
+
 /**
  * Return a single event by slug, or null if not found / soft-deleted.
  * Cached under the 'events' tag.
  */
-export const getPublicEventBySlug = unstable_cache(
+const _getPublicEventBySlugCached = unstable_cache(
   async (slug: string): Promise<Event | null> => {
     const row = await getEventRowBySlug(slug);
     if (!row) return null;
@@ -396,25 +546,51 @@ export const getPublicEventBySlug = unstable_cache(
   { tags: ['events'] },
 );
 
+export async function getPublicEventBySlug(slug: string): Promise<Event | null> {
+  const fixtureEvent = getEventBySlug(slug) ?? null;
+  return withFallback(
+    `getPublicEventBySlug(${slug})`,
+    () => _getPublicEventBySlugCached(slug),
+    fixtureEvent,
+  );
+}
+
 /**
  * Return sync status for the public "Last updated…" line and the admin card.
  * Cached under the 'events' tag.
  */
-export const getEventsSyncStatusCached = unstable_cache(
-  async () => getEventsSyncStatus(),
+const _getEventsSyncStatusCachedFn = unstable_cache(
+  async (): Promise<EventsSyncStatus> => getEventsSyncStatus(),
   ['public-events-sync-status'],
   { tags: ['events'] },
 );
+
+const NEVER_SYNCED_STATUS: EventsSyncStatus = {
+  lastSyncedAt: null,
+  upcomingCount: 0,
+};
+
+export async function getEventsSyncStatusCached(): Promise<EventsSyncStatus> {
+  return withFallback(
+    'getEventsSyncStatusCached',
+    _getEventsSyncStatusCachedFn,
+    NEVER_SYNCED_STATUS,
+  );
+}
 
 /**
  * Return all event slugs for generateStaticParams.
  * Cached under the 'events' tag.
  */
-export const getPublicEventSlugs = unstable_cache(
+const _getPublicEventSlugsCached = unstable_cache(
   async (): Promise<string[]> => listEventSlugs(),
   ['public-event-slugs'],
   { tags: ['events'] },
 );
+
+export async function getPublicEventSlugs(): Promise<string[]> {
+  return withFallback('getPublicEventSlugs', _getPublicEventSlugsCached, []);
+}
 
 export interface EventSlugWithDate {
   slug: string;
@@ -425,7 +601,7 @@ export interface EventSlugWithDate {
  * Return all event slugs with their updatedAt timestamps for sitemap generation.
  * Cached under the 'events' tag.
  */
-export const getPublicEventSlugsWithDates = unstable_cache(
+const _getPublicEventSlugsWithDatesCached = unstable_cache(
   async (): Promise<EventSlugWithDate[]> => {
     const rows = await db
       .select({
@@ -439,3 +615,7 @@ export const getPublicEventSlugsWithDates = unstable_cache(
   ['public-event-slugs-with-dates'],
   { tags: ['events'] },
 );
+
+export async function getPublicEventSlugsWithDates(): Promise<EventSlugWithDate[]> {
+  return withFallback('getPublicEventSlugsWithDates', _getPublicEventSlugsWithDatesCached, []);
+}
