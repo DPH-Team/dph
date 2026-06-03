@@ -682,7 +682,7 @@ export function IntegrationCard({ integration }: IntegrationCardProps) {
           <p className="text-xs text-muted-foreground">
             {name === 'untappd'
               ? 'Supplements the automatic 5-minute cron. Fetches the latest events and tap list from Untappd and updates the public site immediately.'
-              : 'Supplements the automatic 5-minute cron. Fetches products from Printify, mirrors their images into our storage, and refreshes the public shop.'}
+              : 'Fetches products from Printify, mirrors their images into our storage, and refreshes the public shop.'}
           </p>
           <SyncNowButton
             name={name as 'untappd' | 'printify'}

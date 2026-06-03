@@ -13,7 +13,7 @@
  * The admin "Sync now" button calls runMerchSync() directly via a server action,
  * so both paths share a single code path. See lib/printify-sync.ts for details.
  *
- * Invoked every 5 minutes by Vercel Cron (see vercel.json).
+ * Invoked once daily by Vercel Cron at 09:00 UTC (see vercel.json).
  * Secured with a Bearer token that Vercel injects automatically when
  * CRON_SECRET is set in the project environment variables.
  *
