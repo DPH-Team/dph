@@ -25,7 +25,6 @@ const TYPE_LABELS: Record<InquiryType, string> = {
 const SEATING_LABELS: Record<string, string> = {
   high_top: 'High-top',
   low_top: 'Low-top',
-  either: 'Either',
 };
 
 function formatAbsolute(date: Date): string {

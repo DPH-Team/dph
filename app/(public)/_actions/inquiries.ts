@@ -75,7 +75,7 @@ export async function submitInquiry(
 
   // Validate seating preference value when provided (any type)
   if (data.seatingPreference && data.seatingPreference.trim() !== "") {
-    if (!["high_top", "low_top", "either"].includes(data.seatingPreference)) {
+    if (!["high_top", "low_top"].includes(data.seatingPreference)) {
       fieldErrors.seatingPreference = ["Invalid seating preference"]
     }
   }
@@ -115,8 +115,8 @@ export async function submitInquiry(
       email: data.email,
       phone: data.phone?.trim() || null,
       partySize: data.partySize ? Number(data.partySize) : null,
-      seatingPreference: data.seatingPreference && ['high_top', 'low_top', 'either'].includes(data.seatingPreference)
-        ? (data.seatingPreference as 'high_top' | 'low_top' | 'either')
+      seatingPreference: data.seatingPreference && ['high_top', 'low_top'].includes(data.seatingPreference)
+        ? (data.seatingPreference as 'high_top' | 'low_top')
         : null,
       preferredDate: data.preferredDate?.trim() || null,
       preferredTime: data.preferredTime?.trim() || null,

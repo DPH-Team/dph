@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useRef } from "react"
+import { useActionState, useRef, useState } from "react"
 import { Loader2, CheckCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { submitInquiry } from "@/app/(public)/_actions/inquiries"
@@ -23,6 +23,8 @@ export type InquiryFormProps = {
 export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
   const [state, formAction, isPending] = useActionState(submitInquiry, null)
   const turnstileRef = useRef<TurnstileHandle | null>(null)
+  const [type, setType] = useState(defaultType)
+  const requiresBooking = type === "reservation" || type === "private-event"
 
   const fieldError = (field: string) => {
     if (!state || state.ok) return undefined
@@ -66,6 +68,7 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
               id="inquiry-type"
               name="type"
               defaultValue={defaultType}
+              onChange={(e) => setType(e.target.value)}
               required
               aria-required="true"
               aria-invalid={fieldError("type") ? "true" : undefined}
@@ -189,7 +192,7 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             className="text-sm font-medium text-foreground flex items-center gap-1"
           >
             Party size
-            <span className="text-primary" aria-hidden="true">*</span>
+            {requiresBooking && <span className="text-primary" aria-hidden="true">*</span>}
             <span className="text-xs text-muted-foreground font-normal">(reservations &amp; private events)</span>
           </label>
           <input
@@ -198,6 +201,7 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             type="number"
             min={1}
             max={200}
+            aria-required={requiresBooking ? "true" : undefined}
             aria-invalid={fieldError("partySize") ? "true" : undefined}
             aria-describedby={fieldError("partySize") ? "inquiry-party-size-error" : undefined}
             placeholder="1–200 guests"
@@ -228,6 +232,7 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             className="text-sm font-medium text-foreground flex items-center gap-1"
           >
             Seating preference
+            {requiresBooking && <span className="text-primary" aria-hidden="true">*</span>}
             <span className="text-xs text-muted-foreground font-normal">(reservations &amp; private events)</span>
           </label>
           <div className="relative">
@@ -235,6 +240,7 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
               id="inquiry-seating"
               name="seatingPreference"
               defaultValue=""
+              aria-required={requiresBooking ? "true" : undefined}
               aria-invalid={fieldError("seatingPreference") ? "true" : undefined}
               aria-describedby={fieldError("seatingPreference") ? "inquiry-seating-error" : undefined}
               className={cn(
@@ -248,7 +254,6 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
               <option value="">No preference</option>
               <option value="high_top">High-top</option>
               <option value="low_top">Low-top</option>
-              <option value="either">Either</option>
             </select>
             <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2" aria-hidden="true">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
