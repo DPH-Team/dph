@@ -39,6 +39,7 @@ export function SectionForm(props: SectionFormProps) {
     description: section?.description ?? '',
     sortOrder: section?.sortOrder ?? 0,
     available: section?.available ?? true,
+    showPrices: section?.showPrices ?? true,
   };
 
   return (
@@ -108,6 +109,18 @@ export function SectionForm(props: SectionFormProps) {
             name="available"
             label="Available"
             description="When off, the entire section and its items are hidden from the public menu."
+          />
+        </ResourceForm.Field>
+
+        <ResourceForm.Field
+          name="showPrices"
+          label="Show prices"
+          description="Turn off to hide prices for every item in this section."
+        >
+          <ResourceForm.Switch
+            name="showPrices"
+            label="Show prices"
+            description="When off, prices are hidden for all items in this section on the public menu."
           />
         </ResourceForm.Field>
       </ResourceForm.Section>

@@ -13,7 +13,7 @@ export interface CoverImageInputProps {
   /** Current image path (storage-relative). Shows preview if present. */
   defaultPath?: string | null;
   /** Which upload folder to target. */
-  kind: 'gallery' | 'team';
+  kind: 'gallery' | 'team' | 'menu';
   /** Controls preview container aspect ratio. Default: auto. */
   aspect?: 'square' | 'landscape' | 'auto';
   required?: boolean;
