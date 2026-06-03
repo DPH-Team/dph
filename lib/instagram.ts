@@ -189,7 +189,7 @@ function normalizePosts(raw: unknown): IgPost[] {
  * getCachedIgPostsRaw — Next Data Cache wrapper around the live Behold feed fetch.
  *
  * Throws on failure so failed responses are never cached.
- * Tagged ['instagram'] with 300-second revalidation.
+ * Tagged ['instagram'] with 3600-second (1-hour) revalidation.
  */
 const getCachedIgPostsRaw = unstable_cache(
   async (feedId: string): Promise<IgPost[]> => {
@@ -209,7 +209,7 @@ const getCachedIgPostsRaw = unstable_cache(
     return normalizePosts(json);
   },
   ['instagram-ig-posts-raw'],
-  { tags: ['instagram'], revalidate: 300 },
+  { tags: ['instagram'], revalidate: 3600 },
 );
 
 // ─── Public export ────────────────────────────────────────────────────────────
