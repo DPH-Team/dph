@@ -38,7 +38,7 @@ const MIME_TO_EXT: Record<string, string[]> = {
 // ─── Validation schema ────────────────────────────────────────────────────────
 
 const signUploadSchema = z.object({
-  kind: z.enum(['gallery', 'team', 'hero']),
+  kind: z.enum(['gallery', 'team', 'hero', 'menu']),
   filename: z.string().min(1).max(260),
   contentType: z.enum(ALLOWED_CONTENT_TYPES),
   // Size is validated per content-type after parsing (images: 8 MiB, videos: 50 MiB).

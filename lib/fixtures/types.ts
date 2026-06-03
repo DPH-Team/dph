@@ -29,6 +29,7 @@ export type MenuSection = {
   name: string
   description: string | null
   sortOrder: number
+  showPrices: boolean
   items: MenuItem[]
 }
 
@@ -41,6 +42,7 @@ export type MenuItem = {
   allergens: ("gluten" | "dairy" | "nuts" | "shellfish" | "egg" | "soy")[]
   imageUrl: string | null
   available: boolean
+  showPrice: boolean
   sortOrder: number
 }
 

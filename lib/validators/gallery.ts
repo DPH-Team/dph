@@ -3,15 +3,15 @@ import { z } from 'zod';
 // ─── Shared image path schema ─────────────────────────────────────────────────
 
 /**
- * Validates a storage-relative image path for both gallery and team surfaces.
- * Format: "{gallery|team}/{uuid}.{ext}"
+ * Validates a storage-relative image path for gallery, team, and menu surfaces.
+ * Format: "{gallery|team|menu}/{uuid}.{ext}"
  * The UUID segment is the Supabase crypto.randomUUID() output (hex + hyphens).
  */
 export const imagePathSchema = z
   .string()
   .regex(
-    /^(gallery|team)\/[0-9a-f-]{36}\.(jpe?g|png|webp|avif)$/i,
-    'image_path must be in the format gallery/<uuid>.<ext> or team/<uuid>.<ext>',
+    /^(gallery|team|menu)\/[0-9a-f-]{36}\.(jpe?g|png|webp|avif)$/i,
+    'image_path must be in the format gallery/<uuid>.<ext>, team/<uuid>.<ext>, or menu/<uuid>.<ext>',
   );
 
 // ─── Tags schema (shared) ─────────────────────────────────────────────────────

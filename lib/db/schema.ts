@@ -152,6 +152,7 @@ export const menuSections = pgTable(
     description: text('description'),
     sortOrder: integer('sort_order').notNull().default(0),
     available: boolean('available').notNull().default(true),
+    showPrices: boolean('show_prices').notNull().default(true),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -194,6 +195,7 @@ export const menuItems = pgTable(
     allergens: text('allergens').array().notNull().default(sql`'{}'`),
     imagePath: text('image_path'),
     available: boolean('available').notNull().default(true),
+    showPrice: boolean('show_price').notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
