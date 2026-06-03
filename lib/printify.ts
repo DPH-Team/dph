@@ -2,13 +2,13 @@
  * lib/printify.ts — Server-only Printify merch fetcher.
  *
  * Exports:
- *   fetchProducts()  Promise<{ data: MerchProduct[]; stale: boolean }>
+ *   fetchLiveProducts()  Promise<{ mode: 'mock' } | { mode: 'live'; data: MerchProduct[] }>
  *
  * Mock/live precedence (first match → mock):
  *   1. integration row absent, disabled, or mode !== 'live'  → mock
  *   2. mode === 'live' but creds null / {} (decrypt fail)    → mock + warn
  *   3. creds present                                         → live fetch
- *   4. live fetch throws / non-2xx / timeout                 → graceful fallback
+ *   4. live fetch throws / non-2xx / timeout                 → throw (let sync catch)
  *
  * Checkout does NOT happen on our site. Each product card carries a
  * printifyUrl that opens the Printify Pop-Up Store in a new tab.
@@ -18,7 +18,7 @@ import 'server-only';
 
 import { unstable_cache } from 'next/cache';
 import { getIntegration, decryptCredentials } from '@/lib/db/queries/integrations';
-import { merchProducts as mockProducts, PRINTIFY_STORE_URL } from '@/lib/fixtures/merch';
+import { PRINTIFY_STORE_URL } from '@/lib/fixtures/merch';
 import { slugify } from '@/lib/slugify';
 import type { MerchProduct } from '@/lib/fixtures/types';
 
@@ -29,7 +29,7 @@ type PrintifyMode =
   | { mode: 'live'; creds: { api_key: string; shop_id: string } };
 
 /**
- * resolvePrintifyMode — decision logic shared by fetchProducts.
+ * resolvePrintifyMode — decision logic shared by fetchLiveProducts.
  *
  * Returns mock mode whenever:
  *   - the integration row is absent, disabled, or set to 'mock'
@@ -369,8 +369,8 @@ const MAX_PAGES = 20;
  * until last_page is reached or MAX_PAGES is hit.
  *
  * Only SUCCESSFUL responses are cached (throws on failure so failed fetches
- * are never stored). The public fetchProducts() wrapper catches the throw and
- * falls back to the last-good cache or mock fixture.
+ * are never stored). Throws propagate to fetchLiveProducts() which lets the
+ * sync engine catch them and skip the cycle without touching the DB.
  *
  * Tagged ['merch'] so revalidateTag('merch', 'max') from the admin panel busts
  * this entry.
@@ -429,34 +429,33 @@ const getCachedProductsRaw = unstable_cache(
 // ─── Public export ────────────────────────────────────────────────────────────
 
 /**
- * fetchProducts — public entry point for the merch page and any RSC that
- * renders the product grid.
+ * fetchLiveProducts — entry point for the merch sync engine.
  *
  * Returns:
- *   { data: MerchProduct[]; stale: boolean }
- *   stale=false → data is fresh (mock or live cache hit)
- *   stale=true  → live fetch failed; data is the last-known-good cache or mock
- *                 fixture fallback (cold-start edge: first-ever fetch failed)
+ *   { mode: 'mock' }                     — integration not live; sync should skip
+ *   { mode: 'live'; data: MerchProduct[] } — fresh data ready to sync into DB
  *
- * The caller should surface "live shop temporarily unavailable" when stale=true.
- * Checkout always redirects to the Printify Pop-Up Store — never on our site.
+ * This function does NOT catch upstream
+ * errors — it lets them throw so the sync engine can distinguish "upstream down"
+ * (skipped, DB untouched) from "mode=mock" (also skipped). The sync pipeline
+ * wraps the call in its own try/catch.
+ *
+ * MerchProduct.imageUrl holds the raw Printify image src for live products —
+ * that is the source_image_url for change detection. MerchProduct.id is the
+ * Printify product id (→ printifyProductId).
  */
-export async function fetchProducts(): Promise<{ data: MerchProduct[]; stale: boolean }> {
+export async function fetchLiveProducts(): Promise<
+  { mode: 'mock' } | { mode: 'live'; data: MerchProduct[] }
+> {
   const modeResult = await resolvePrintifyMode();
 
   if (modeResult.mode === 'mock') {
-    return { data: mockProducts, stale: false };
+    return { mode: 'mock' };
   }
 
   const { api_key, shop_id } = modeResult.creds;
 
-  try {
-    const data = await getCachedProductsRaw(api_key, shop_id);
-    return { data, stale: false };
-  } catch (err) {
-    console.error('[printify] fetchProducts live fetch failed — returning stale/mock fallback:', err);
-    // Cold-start or cache invalidated during an outage:
-    // fall back to mock fixture so the page is never blank.
-    return { data: mockProducts, stale: true };
-  }
+  // Let errors propagate — the sync engine catches them.
+  const data = await getCachedProductsRaw(api_key, shop_id);
+  return { mode: 'live', data };
 }
