@@ -3,7 +3,8 @@ import Link from "next/link"
 import { pageMetadata } from "@/lib/seo"
 import { getPublicContentBlock, getPublicMenu, getPublicWeeklyHours, getPublicHoursOverrides } from "@/lib/db/public"
 import { getPublicUpcomingEvents } from "@/lib/db/public"
-import { getIgPosts } from "@/app/__fixtures__/instagram"
+import { fetchIgPosts } from "@/lib/instagram"
+import { fetchCheckins } from "@/lib/untappd"
 import { getLocation } from "@/app/__fixtures__/location"
 import { HomeHero } from "@/components/marketing/HomeHero"
 import { EventCard } from "@/components/marketing/EventCard"
@@ -11,6 +12,7 @@ import { MenuItem } from "@/components/marketing/MenuItem"
 import { HoursCard } from "@/components/marketing/HoursCard"
 import { MapBlock } from "@/components/marketing/MapBlock"
 import { InstagramSlot } from "@/components/marketing/InstagramSlot"
+import { CheckinsTicker } from "@/components/marketing/CheckinsTicker"
 import { NewsletterCTA } from "@/components/marketing/NewsletterCTA"
 import { SectionHeading } from "@/components/marketing/SectionHeading"
 import { Section } from "@/components/marketing/layout/Section"
@@ -35,7 +37,7 @@ export const metadata: Metadata = {
 const FEATURED_ITEM_COUNT = 4
 
 export default async function HomePage() {
-  const [hero, callouts, sections, hours, overrides, events, igPosts, loc] =
+  const [hero, callouts, sections, hours, overrides, events, igPostsResult, checkinsResult, loc] =
     await Promise.all([
       getPublicContentBlock('home_hero')(),
       getPublicContentBlock('home_callouts')(),
@@ -43,9 +45,13 @@ export default async function HomePage() {
       getPublicWeeklyHours(),
       getPublicHoursOverrides(),
       getPublicUpcomingEvents(),
-      getIgPosts(),
+      fetchIgPosts(),
+      fetchCheckins(),
       getLocation(),
     ])
+
+  const igPosts = igPostsResult.data
+  const checkins = checkinsResult.data
 
   const upcomingThree = events.data.slice(0, 3)
 
@@ -60,22 +66,7 @@ export default async function HomePage() {
     <>
       <HomeHero hero={hero} />
 
-      {/* Tap-counter strip */}
-      <section className="bg-card [padding-block:clamp(1.5rem,4vw,2.5rem)]" aria-label="Tap count">
-        <Container>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
-            <p className="tabular-nums font-display font-medium text-[clamp(2rem,1.5rem+2.5vw,3.5rem)] leading-none text-primary">
-              24 / 32
-            </p>
-            <div className="flex flex-col gap-0.5">
-              <p className="text-foreground font-medium">pours flowing right now</p>
-              <p className="text-xs text-muted-foreground">
-                live from Untappd · refreshes every ~5 min
-              </p>
-            </div>
-          </div>
-        </Container>
-      </section>
+      <CheckinsTicker initial={checkins} />
 
       {/* Upcoming events strip */}
       <Section padding="md" className="bg-background">

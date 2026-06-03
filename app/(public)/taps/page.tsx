@@ -19,6 +19,7 @@ export default async function TapsPage() {
   return (
     <>
       <PageHero
+        eyebrow="What's Pouring"
         title="On Tap"
         lead="Pour your own at our self-pour wall. Updated live from Untappd every ~5 minutes."
       />

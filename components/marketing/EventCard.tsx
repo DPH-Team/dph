@@ -67,41 +67,52 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
           className
         )}
       >
-        <div className="aspect-[16/9] bg-neutral-900 relative overflow-hidden">
-          {event.imageUrl ? (
-            <Image
-              src={event.imageUrl}
-              alt={event.title}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-              placeholder="blur"
-              blurDataURL={BLUR_CHARCOAL}
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-            />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900" />
-          )}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+        <Link
+          href={`/events/${event.slug}`}
+          aria-label={`View details for ${event.title}`}
+          className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+        >
+          <div className="aspect-[16/9] bg-neutral-900 relative overflow-hidden">
+            {event.imageUrl ? (
+              <Image
+                src={event.imageUrl}
+                alt={event.title}
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                placeholder="blur"
+                blurDataURL={BLUR_CHARCOAL}
+                className="object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900" />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
 
-          <div className="absolute top-3 left-3 flex gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-packers-gold text-brand-base">
-              Featured
-            </span>
-          </div>
-
-          {past && (
-            <div className="absolute top-3 right-3">
-              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-black/60 text-cream/70">
-                Past event
+            <div className="absolute top-3 left-3 flex gap-2">
+              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-packers-gold text-brand-base">
+                Featured
               </span>
             </div>
-          )}
-        </div>
+
+            {past && (
+              <div className="absolute top-3 right-3">
+                <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-black/60 text-cream/70">
+                  Past event
+                </span>
+              </div>
+            )}
+          </div>
+        </Link>
 
         <div className="p-5 flex flex-col gap-3">
-          <h2 className="font-display font-medium text-xl leading-tight text-foreground">
-            {event.title}
-          </h2>
+          <Link
+            href={`/events/${event.slug}`}
+            className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+          >
+            <h2 className="font-display font-medium text-xl leading-tight text-foreground hover:text-primary transition-colors">
+              {event.title}
+            </h2>
+          </Link>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Calendar size={14} aria-hidden="true" />
             <time dateTime={event.startsAt}>{formatEventDate(event.startsAt)}</time>
@@ -137,39 +148,50 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
         className
       )}
     >
-      <div className="aspect-[16/9] bg-neutral-900 relative overflow-hidden">
-        {event.imageUrl ? (
-          <Image
-            src={event.imageUrl}
-            alt={event.title}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            placeholder="blur"
-            blurDataURL={BLUR_CHARCOAL}
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900" />
-        )}
+      <Link
+        href={`/events/${event.slug}`}
+        aria-label={`View details for ${event.title}`}
+        className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+      >
+        <div className="aspect-[16/9] bg-neutral-900 relative overflow-hidden">
+          {event.imageUrl ? (
+            <Image
+              src={event.imageUrl}
+              alt={event.title}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              placeholder="blur"
+              blurDataURL={BLUR_CHARCOAL}
+              className="object-cover transition-transform duration-500 group-hover:scale-105"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-neutral-800 to-neutral-900" />
+          )}
 
-        <div className="absolute top-3 left-3 flex gap-2 flex-wrap">
-          {event.featured && (
-            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-packers-gold text-brand-base">
-              Featured
-            </span>
-          )}
-          {past && (
-            <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-black/60 text-cream/70">
-              Past event
-            </span>
-          )}
+          <div className="absolute top-3 left-3 flex gap-2 flex-wrap">
+            {event.featured && (
+              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-packers-gold text-brand-base">
+                Featured
+              </span>
+            )}
+            {past && (
+              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-black/60 text-cream/70">
+                Past event
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      </Link>
 
       <div className="p-4 flex flex-col gap-2">
-        <h2 className="font-display font-medium text-lg leading-tight text-foreground group-hover:text-primary transition-colors">
-          {event.title}
-        </h2>
+        <Link
+          href={`/events/${event.slug}`}
+          className="focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded"
+        >
+          <h2 className="font-display font-medium text-lg leading-tight text-foreground group-hover:text-primary transition-colors">
+            {event.title}
+          </h2>
+        </Link>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Calendar size={12} aria-hidden="true" />
           <time dateTime={event.startsAt}>{formatEventDate(event.startsAt)}</time>

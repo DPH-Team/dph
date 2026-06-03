@@ -15,7 +15,7 @@ export default async function TermsPage() {
   if (!doc) notFound()
 
   return (
-    <LegalPage title={doc.title} updatedAt={doc.updatedAt}>
+    <LegalPage title={doc.title} updatedAt={doc.updatedAt} eyebrow="Legal">
       <LegalBody paragraphs={doc.paragraphs} />
     </LegalPage>
   )

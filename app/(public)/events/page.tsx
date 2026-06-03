@@ -43,6 +43,7 @@ export default async function EventsPage() {
   return (
     <>
       <PageHero
+        eyebrow="What's On"
         title="Events"
         lead="Live music, trivia nights, Packers watch parties, and more. Check back often — we keep things moving."
       />

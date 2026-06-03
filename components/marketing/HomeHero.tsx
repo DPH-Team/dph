@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { useReducedMotion, motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
@@ -10,18 +11,67 @@ export type HomeHeroProps = {
   hero: HomeHeroType
 }
 
+function resolveMediaUrl(hero: HomeHeroType): string | null {
+  const raw = hero.mediaUrl ?? hero.imageUrl
+  if (!raw) return null
+  if (raw.startsWith("http")) return raw
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ""
+  return `${base}/storage/v1/object/public/media/${raw}`
+}
+
+function isVideoUrl(url: string, mediaType: HomeHeroType["mediaType"]): boolean {
+  if (mediaType === "video") return true
+  if (mediaType === "image") return false
+  return url.endsWith(".mp4") || url.endsWith(".webm")
+}
+
 export function HomeHero({ hero }: HomeHeroProps) {
   const reduced = useReducedMotion()
+
+  const mediaUrl = resolveMediaUrl(hero)
+  const hasVideo = mediaUrl ? isVideoUrl(mediaUrl, hero.mediaType) : false
+  const hasImage = mediaUrl && !hasVideo
 
   return (
     <section
       className="relative min-h-[90svh] flex items-center bg-background overflow-hidden"
       aria-label="Welcome to District Pour Haus"
     >
-      {/* Background parallax layer */}
+      {/* ── Media background layer (video or image) ─────────────────────────── */}
+      {hasVideo && mediaUrl ? (
+        <video
+          className="absolute inset-0 w-full h-full object-cover"
+          src={mediaUrl}
+          autoPlay={!reduced}
+          muted
+          loop={!reduced}
+          playsInline
+          preload={reduced ? "metadata" : "auto"}
+          aria-hidden="true"
+          tabIndex={-1}
+        />
+      ) : hasImage && mediaUrl ? (
+        <Image
+          src={mediaUrl}
+          alt=""
+          fill
+          className="object-cover"
+          priority
+          aria-hidden="true"
+          sizes="100vw"
+        />
+      ) : null}
+
+      {/* ── Dark scrim — always present to keep text legible over any media ─── */}
+      <div
+        className="absolute inset-0 bg-black/55"
+        aria-hidden="true"
+      />
+
+      {/* Background gradient — shown always (fallback when no media; scrim-blend otherwise) */}
       {!reduced ? (
         <motion.div
-          className="absolute inset-0 bg-gradient-to-br from-background via-background to-neutral-900"
+          className="absolute inset-0 bg-gradient-to-br from-background/80 via-background/40 to-transparent"
           initial={{ scale: 1.05 }}
           animate={{ scale: 1 }}
           transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
@@ -29,12 +79,12 @@ export function HomeHero({ hero }: HomeHeroProps) {
         />
       ) : (
         <div
-          className="absolute inset-0 bg-gradient-to-br from-background via-background to-neutral-900"
+          className={mediaUrl ? "absolute inset-0" : "absolute inset-0 bg-gradient-to-br from-background via-background to-neutral-900"}
           aria-hidden="true"
         />
       )}
 
-      {/* Subtle grain-like radial accent */}
+      {/* Subtle grain-like radial accent — sits above the scrim */}
       <div
         className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_-10%,oklch(0.648_0.130_47_/_0.06),transparent)]"
         aria-hidden="true"
