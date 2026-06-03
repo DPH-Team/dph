@@ -124,7 +124,10 @@ function joinUrl(base: string, path: string): string {
  *       variants: [{ price: number, is_enabled: boolean, ... }],
  *       tags: string[],
  *       product_type: string,
- *       // Published-to-Pop-Up-Store fields:
+ *       // Visibility / publish-state fields:
+ *       visible: boolean,           // VERIFIED: false = hidden/draft; exclude from store.
+ *       is_locked: boolean,         // VERIFIED: true = mid-publish operation; not yet live.
+ *       // Populated once published to a sales channel:
  *       external: { id: string; handle: string; url?: string } | null,
  *       // External-channel (Shopify/Etsy/etc.) listings — NOT populated for
  *       // the Pop-Up store, which uses the `external` object instead:
@@ -134,6 +137,17 @@ function joinUrl(base: string, path: string): string {
  *     current_page: number,
  *     last_page: number,
  *   }
+ *
+ * VERIFIED field semantics (confirmed via printify-sdk-js docs/API.md):
+ *   visible   — boolean. Controls whether the product appears in store listings.
+ *               false = hidden or draft product. (VERIFIED)
+ *   is_locked — boolean. true while a publish operation is in progress; the
+ *               product is not yet live on the sales channel. false + external
+ *               populated = successfully published. (VERIFIED)
+ *   external  — { id, handle, url? } | null. Populated only after
+ *               setPublishSucceeded() — i.e. only for products that have
+ *               actually been published to a channel. null/absent = unpublished.
+ *               (VERIFIED; consistent with OBSERVED production data)
  *
  * OBSERVED in production: when a product is published to the Pop-Up store the
  * `external` object is populated with `{ id, handle }` where `handle` is an
@@ -159,8 +173,8 @@ function joinUrl(base: string, path: string): string {
  *      external object exists with an id but no usable handle.)
  *   5. joinUrl(PRINTIFY_STORE_URL, `/product/${productId}`) — id-only fallback
  *      when no handle or slug is derivable.
- *   6. Bare PRINTIFY_STORE_URL — last resort for unpublished products that have
- *      no external object and no product page yet.
+ *   6. Bare PRINTIFY_STORE_URL — last resort (indicates an unpublished product
+ *      with no external object; filtered out below).
  *
  * CRITICAL INVARIANT: an absolute URL (http:// or https://) is ALWAYS used
  * directly and NEVER prepended with PRINTIFY_STORE_URL. Concatenating a base
@@ -173,6 +187,10 @@ function joinUrl(base: string, path: string): string {
  * imageUrl: first image marked is_default, else first image, else empty string.
  *
  * Defensive access throughout — all fields default gracefully when absent.
+ *
+ * PUBLISH-STATE FILTER (see block below):
+ * After mapping, products are filtered so only genuinely live, linkable items
+ * are returned. Excluded products never enter the merch_products table.
  */
 function normalizeProducts(raw: unknown): MerchProduct[] {
   if (!raw || typeof raw !== 'object') return [];
@@ -182,7 +200,9 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
   // Products list is under "data" in the paginated envelope.
   const items = Array.isArray(envelope['data']) ? envelope['data'] : [];
 
-  return items.map((item, index): MerchProduct => {
+  // Map every raw item to a candidate MerchProduct first, then filter.
+  // We do this in two passes so the filter logic is isolated and easy to audit.
+  const candidates: MerchProduct[] = items.map((item, index): MerchProduct => {
     if (!item || typeof item !== 'object') {
       return {
         id: `product-unknown-${index}`,
@@ -337,7 +357,7 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
             ? joinUrl(PRINTIFY_STORE_URL, `/product/${idSegment}/${slug}`)
             : joinUrl(PRINTIFY_STORE_URL, `/product/${idSegment}`);
         }
-        // Candidate 6: bare store URL for unpublished products.
+        // Candidate 6: bare store URL — signals an unpublished product.
         return PRINTIFY_STORE_URL;
       })();
 
@@ -350,6 +370,56 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
       tags,
       category,
     };
+  });
+
+  // ─── PUBLISH-STATE FILTER ────────────────────────────────────────────────────
+  //
+  // Only include products that are genuinely live and have a real per-product
+  // page URL. Excluded: drafts, hidden products, mid-publish (locked) products,
+  // and any product whose only resolvable URL is the bare store homepage.
+  //
+  // Inclusion conditions (ALL must hold):
+  //
+  //   1. visible === true
+  //      VERIFIED: `visible` controls store listing visibility. false = hidden
+  //      or draft; the product is not shown in the Pop-Up store.
+  //
+  //   2. is_locked !== true
+  //      VERIFIED: `is_locked` is set to true while a publish operation is in
+  //      progress. The product is not yet live on the sales channel. Excluding
+  //      locked products prevents transient mid-publish entries surfacing
+  //      with potentially broken links. Safer choice for a public storefront.
+  //
+  //   3. printifyUrl !== PRINTIFY_STORE_URL  (i.e. a real per-product page exists)
+  //      The URL resolution above falls back to the bare store URL (candidate 6)
+  //      only when there is no external object and no other linkable path. If we
+  //      ended up with the bare store URL, the product has no public product page
+  //      and linking to it would produce a 404 or redirect to the store home.
+  //      INFERRED from observed production behaviour (external === null on
+  //      unpublished products, consistent with VERIFIED external semantics above).
+  //
+  // Together these three conditions mean: only products the owner has explicitly
+  // published and made visible in their Pop-Up store (or another sales channel)
+  // are returned. The filtered, ordered array is returned directly; sortOrder in
+  // printify-sync.ts is derived from the index in this array, so positions are
+  // always contiguous for the surviving set.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  return candidates.filter((product, idx) => {
+    const raw = items[idx];
+    if (!raw || typeof raw !== 'object') return false;
+    const p = raw as Record<string, unknown>;
+
+    // Condition 1: visible must be explicitly true (VERIFIED field).
+    if (p['visible'] !== true) return false;
+
+    // Condition 2: exclude mid-publish / locked products (VERIFIED field).
+    if (p['is_locked'] === true) return false;
+
+    // Condition 3: exclude products whose only URL is the bare store fallback.
+    if (product.printifyUrl === PRINTIFY_STORE_URL) return false;
+
+    return true;
   });
 }
 
