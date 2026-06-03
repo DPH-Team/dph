@@ -143,7 +143,7 @@ const UNTAPPD_FIELDS: FieldConfig[] = [
     label: 'Read & Write Token',
     placeholder: 'Read & Write API token (business.untappd.com/account)',
     type: 'password',
-    maxLength: 200,
+    maxLength: 4096,
   },
 ];
 
@@ -153,7 +153,7 @@ const PRINTIFY_FIELDS: FieldConfig[] = [
     label: 'API Key',
     placeholder: 'Printify personal access token',
     type: 'password',
-    maxLength: 200,
+    maxLength: 4096,
   },
   {
     name: 'shop_id',
@@ -682,7 +682,7 @@ export function IntegrationCard({ integration }: IntegrationCardProps) {
           <p className="text-xs text-muted-foreground">
             {name === 'untappd'
               ? 'Supplements the automatic 5-minute cron. Fetches the latest events and tap list from Untappd and updates the public site immediately.'
-              : 'Supplements the automatic 5-minute cron. Busts the merch cache and re-fetches products from Printify so the public shop reflects the latest inventory.'}
+              : 'Fetches products from Printify, mirrors their images into our storage, and refreshes the public shop.'}
           </p>
           <SyncNowButton
             name={name as 'untappd' | 'printify'}

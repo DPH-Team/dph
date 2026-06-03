@@ -136,3 +136,44 @@ export async function deleteObject(opts: DeleteObjectOpts): Promise<void> {
     throw new Error(`storage.deleteObject failed: ${error.message}`);
   }
 }
+
+// ─── Buffer upload ────────────────────────────────────────────────────────────
+
+export interface UploadBufferOpts {
+  bucket: 'media';
+  path: string;
+  bytes: ArrayBuffer | Uint8Array | Buffer;
+  contentType: string;
+  /** Whether to overwrite an existing object at the same path. Defaults to true. */
+  upsert?: boolean;
+}
+
+/**
+ * Upload a raw buffer (ArrayBuffer, Uint8Array, or Node Buffer) directly to a
+ * public Supabase Storage bucket from the server.
+ *
+ * Uses the admin client (service-role) so the upload bypasses storage RLS.
+ * Intended for server-side sync jobs (e.g. mirroring Printify product images
+ * into the `media` bucket) where there is no authenticated browser session.
+ *
+ * Returns `{ path }` — the storage-relative path at which the object was stored.
+ * Throws with a descriptive message on failure.
+ */
+export async function uploadBufferToMedia(
+  opts: UploadBufferOpts,
+): Promise<{ path: string }> {
+  const { bucket, path, bytes, contentType, upsert = true } = opts;
+  const admin = createAdminClient();
+
+  const { data, error } = await admin.storage
+    .from(bucket)
+    .upload(path, bytes, { contentType, upsert });
+
+  if (error || !data) {
+    throw new Error(
+      `storage.uploadBufferToMedia failed (${path}): ${error?.message ?? 'no data returned'}`,
+    );
+  }
+
+  return { path: data.path };
+}

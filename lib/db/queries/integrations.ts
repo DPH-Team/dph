@@ -324,6 +324,36 @@ export async function updateResendConfig(
   return row;
 }
 
+// ─── Instagram config (jsonb — not encrypted) ─────────────────────────────────
+
+/**
+ * Persist Instagram feed_id into the `config` jsonb column and update `enabled`.
+ * Behold feed_id is a non-secret public identifier — no encryption needed.
+ * Uses the user-session Drizzle client so RLS applies (admin-only update).
+ */
+export async function updateInstagramConfig(
+  config: { feed_id: string },
+  enabled: boolean,
+  actorId: string,
+): Promise<Integration> {
+  const rows = await db
+    .update(integrations)
+    .set({
+      config: config as unknown as Record<string, unknown>,
+      enabled,
+      updatedBy: actorId,
+      updatedAt: new Date(),
+    })
+    .where(eq(integrations.name, 'instagram'))
+    .returning();
+
+  const row = rows[0];
+  if (!row) {
+    throw new Error('updateInstagramConfig: instagram integration row not found');
+  }
+  return row;
+}
+
 // ─── Decrypt credentials ──────────────────────────────────────────────────────
 
 /**

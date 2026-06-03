@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // ─── Integration names ────────────────────────────────────────────────────────
 
-export const INTEGRATION_NAMES = ['untappd', 'printify', 'plausible', 'resend'] as const;
+export const INTEGRATION_NAMES = ['untappd', 'printify', 'plausible', 'resend', 'instagram'] as const;
 export type IntegrationName = (typeof INTEGRATION_NAMES)[number];
 
 // ─── Untappd credentials ──────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ export const untappdCredentialsSchema = z.object({
     .string()
     .trim()
     .min(1, 'Read/write token is required')
-    .max(200, 'Token must be 200 characters or fewer'),
+    .max(4096, 'Token must be 4096 characters or fewer'),
 });
 
 export type UntappdCredentials = z.infer<typeof untappdCredentialsSchema>;
@@ -48,7 +48,7 @@ export const printifyCredentialsSchema = z.object({
     .string()
     .trim()
     .min(1, 'API key is required')
-    .max(200, 'API key must be 200 characters or fewer'),
+    .max(4096, 'API key must be 4096 characters or fewer'),
   shop_id: z
     .string()
     .trim()
@@ -150,6 +150,32 @@ export const resendConfigSaveSchema = z.object({
 export type ResendConfig = z.infer<typeof resendConfigSchema>;
 export type ResendConfigSave = z.infer<typeof resendConfigSaveSchema>;
 
+// ─── Instagram config ─────────────────────────────────────────────────────────
+//
+// Behold feed_id is a NON-secret public identifier stored in the `config` jsonb
+// column (NOT the encrypted credentials column). The empty string is intentional
+// in the seed row; instagramConfigSaveSchema enforces a non-empty value on save.
+
+/** Lenient schema — allows empty string (matches the seed row default). */
+export const instagramConfigSchema = z.object({
+  feed_id: z
+    .string()
+    .trim()
+    .max(120, 'Behold feed ID must be 120 characters or fewer'),
+});
+
+/** Strict schema — used when the admin explicitly saves the config; feed_id must be non-empty. */
+export const instagramConfigSaveSchema = z.object({
+  feed_id: z
+    .string()
+    .trim()
+    .min(1, 'Behold feed ID is required')
+    .max(120, 'Behold feed ID must be 120 characters or fewer'),
+});
+
+export type InstagramConfig = z.infer<typeof instagramConfigSchema>;
+export type InstagramConfigSave = z.infer<typeof instagramConfigSaveSchema>;
+
 // ─── Mode / enabled toggle ────────────────────────────────────────────────────
 
 export const integrationTogglesSchema = z.object({
@@ -164,11 +190,11 @@ export type IntegrationTogglesInput = z.infer<typeof integrationTogglesSchema>;
 /**
  * Return the credentials schema for the given integration name.
  * Switch on name — safe to call from a server action.
- * Plausible has no credentials (config is stored in jsonb, not encrypted bytea).
+ * Plausible and instagram have no credentials (config is stored in jsonb, not encrypted bytea).
  * Resend stores api_key as encrypted credentials.
  */
 export function getCredentialsSchema(
-  name: Exclude<IntegrationName, 'plausible'>,
+  name: Exclude<IntegrationName, 'plausible' | 'instagram'>,
 ) {
   switch (name) {
     case 'untappd':

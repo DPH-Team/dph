@@ -7,6 +7,8 @@ export const hero: HomeHero = {
   primaryCta: { label: "See What's Pouring", href: "/taps" },
   secondaryCta: { label: "Reserve a Table", href: "/reservations" },
   imageUrl: null,
+  mediaType: null,
+  mediaUrl: null,
 }
 
 export async function getHero(): Promise<HomeHero> {

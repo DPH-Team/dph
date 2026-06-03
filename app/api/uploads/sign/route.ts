@@ -10,9 +10,20 @@ const ALLOWED_CONTENT_TYPES = [
   'image/png',
   'image/webp',
   'image/avif',
+  'video/mp4',
+  'video/webm',
 ] as const;
 
-const MAX_SIZE_BYTES = 8 * 1024 * 1024; // 8 MiB
+const IMAGE_MAX_SIZE_BYTES = 8 * 1024 * 1024;  // 8 MiB
+const VIDEO_MAX_SIZE_BYTES = 50 * 1024 * 1024; // 50 MiB
+
+const VIDEO_CONTENT_TYPES = new Set(['video/mp4', 'video/webm']);
+
+// The 'media' bucket was created without an explicit file_size_limit or
+// allowed_mime_types (migration 20260519000003_media_storage_bucket.sql), so
+// the Supabase project defaults apply. The default limit is typically 50 MiB,
+// which is sufficient for our video uploads. No additional migration is needed
+// to raise the per-bucket limit.
 
 /** Maps MIME type to canonical extension. */
 const MIME_TO_EXT: Record<string, string[]> = {
@@ -20,15 +31,18 @@ const MIME_TO_EXT: Record<string, string[]> = {
   'image/png': ['png'],
   'image/webp': ['webp'],
   'image/avif': ['avif'],
+  'video/mp4': ['mp4'],
+  'video/webm': ['webm'],
 };
 
 // ─── Validation schema ────────────────────────────────────────────────────────
 
 const signUploadSchema = z.object({
-  kind: z.enum(['gallery', 'team']),
+  kind: z.enum(['gallery', 'team', 'hero']),
   filename: z.string().min(1).max(260),
   contentType: z.enum(ALLOWED_CONTENT_TYPES),
-  size: z.number().int().positive().max(MAX_SIZE_BYTES, 'File must be 8 MiB or less'),
+  // Size is validated per content-type after parsing (images: 8 MiB, videos: 50 MiB).
+  size: z.number().int().positive().max(VIDEO_MAX_SIZE_BYTES, 'File must be 50 MiB or less'),
 });
 
 // ─── Route handler ────────────────────────────────────────────────────────────
@@ -93,6 +107,17 @@ export async function POST(request: NextRequest) {
 
   const { kind, filename, contentType, size } = parsed.data;
 
+  // ── Per content-type size cap ────────────────────────────────────────────────
+  const isVideo = VIDEO_CONTENT_TYPES.has(contentType);
+  const maxSize = isVideo ? VIDEO_MAX_SIZE_BYTES : IMAGE_MAX_SIZE_BYTES;
+  if (size > maxSize) {
+    const capMiB = maxSize / (1024 * 1024);
+    return NextResponse.json(
+      { error: `File must be ${capMiB} MiB or less for content type "${contentType}"` },
+      { status: 400 },
+    );
+  }
+
   // ── Validate that the file extension matches the declared MIME type ─────────
   const rawExt = filename.split('.').pop()?.toLowerCase() ?? '';
   const allowedExts = MIME_TO_EXT[contentType] ?? [];
@@ -123,7 +148,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to create upload URL' }, { status: 500 });
   }
 
-  void size; // validated above for the 8 MiB ceiling; storage enforces server-side
+  void size; // validated above per content-type (images 8 MiB, videos 50 MiB)
 
   return NextResponse.json({
     signedUrl: signedUploadResult.signedUrl,

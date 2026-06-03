@@ -2,13 +2,13 @@
  * lib/printify.ts — Server-only Printify merch fetcher.
  *
  * Exports:
- *   fetchProducts()  Promise<{ data: MerchProduct[]; stale: boolean }>
+ *   fetchLiveProducts()  Promise<{ mode: 'mock' } | { mode: 'live'; data: MerchProduct[] }>
  *
  * Mock/live precedence (first match → mock):
  *   1. integration row absent, disabled, or mode !== 'live'  → mock
  *   2. mode === 'live' but creds null / {} (decrypt fail)    → mock + warn
  *   3. creds present                                         → live fetch
- *   4. live fetch throws / non-2xx / timeout                 → graceful fallback
+ *   4. live fetch throws / non-2xx / timeout                 → throw (let sync catch)
  *
  * Checkout does NOT happen on our site. Each product card carries a
  * printifyUrl that opens the Printify Pop-Up Store in a new tab.
@@ -16,9 +16,9 @@
 
 import 'server-only';
 
-import { unstable_cache } from 'next/cache';
 import { getIntegration, decryptCredentials } from '@/lib/db/queries/integrations';
-import { merchProducts as mockProducts, PRINTIFY_STORE_URL } from '@/lib/fixtures/merch';
+import { PRINTIFY_STORE_URL } from '@/lib/fixtures/merch';
+import { slugify } from '@/lib/slugify';
 import type { MerchProduct } from '@/lib/fixtures/types';
 
 // ─── Credential resolution ────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ type PrintifyMode =
   | { mode: 'live'; creds: { api_key: string; shop_id: string } };
 
 /**
- * resolvePrintifyMode — decision logic shared by fetchProducts.
+ * resolvePrintifyMode — decision logic shared by fetchLiveProducts.
  *
  * Returns mock mode whenever:
  *   - the integration row is absent, disabled, or set to 'mock'
@@ -75,6 +75,39 @@ async function resolvePrintifyMode(): Promise<PrintifyMode> {
   return { mode: 'live', creds: { api_key, shop_id } };
 }
 
+// ─── URL helpers ─────────────────────────────────────────────────────────────
+
+/**
+ * isAbsoluteUrl — returns true when the value starts with "http://" or
+ * "https://". Used to detect the Pop-Up store case where external.handle is
+ * already a full URL (OBSERVED in production: external.handle arrives as
+ * "https://districtpourhaus.printify.me/product/28908097" — an absolute URL
+ * using the published/external id, NOT the internal product id).
+ */
+function isAbsoluteUrl(value: string): boolean {
+  return value.startsWith('https://') || value.startsWith('http://');
+}
+
+/**
+ * joinUrl — safely concatenate a base URL and a relative path so that the
+ * result never contains "//" in the path segment (other than after the scheme).
+ *
+ * Rules:
+ *   - Trailing slash on base is stripped before joining.
+ *   - Leading slash on path is ensured.
+ *   - Never call with an absolute `path` — use the value directly in that case.
+ *
+ * Examples:
+ *   joinUrl("https://foo.printify.me",  "/product/123")  → "https://foo.printify.me/product/123"
+ *   joinUrl("https://foo.printify.me/", "product/123")   → "https://foo.printify.me/product/123"
+ *   joinUrl("https://foo.printify.me",  "product/123")   → "https://foo.printify.me/product/123"
+ */
+function joinUrl(base: string, path: string): string {
+  const cleanBase = base.replace(/\/+$/, '');
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${cleanBase}${cleanPath}`;
+}
+
 // ─── Product normalisation ────────────────────────────────────────────────────
 
 /**
@@ -88,16 +121,64 @@ async function resolvePrintifyMode(): Promise<PrintifyMode> {
  *       title: string,
  *       images: [{ src: string, is_default: boolean, ... }],
  *       variants: [{ price: number, is_enabled: boolean, ... }],
- *       sales_channel_listings: [{ url: string, ... }],
  *       tags: string[],
+ *       product_type: string,
+ *       // Visibility / publish-state fields:
+ *       visible: boolean,           // VERIFIED: false = hidden/draft; exclude from store.
+ *       is_locked: boolean,         // VERIFIED: true = mid-publish operation; not yet live.
+ *       // Populated once published to a sales channel:
+ *       external: { id: string; handle: string; url?: string } | null,
+ *       // External-channel (Shopify/Etsy/etc.) listings — NOT populated for
+ *       // the Pop-Up store, which uses the `external` object instead:
+ *       sales_channel_listings: [{ channel_type: string; url?: string; ... }],
  *       // ...
  *     }],
  *     current_page: number,
  *     last_page: number,
  *   }
  *
- * printifyUrl: use the first sales channel listing URL if present; fall back
- * to the PRINTIFY_STORE_URL constant from lib/fixtures/merch.ts.
+ * VERIFIED field semantics (confirmed via printify-sdk-js docs/API.md):
+ *   visible   — boolean. Controls whether the product appears in store listings.
+ *               false = hidden or draft product. (VERIFIED)
+ *   is_locked — boolean. true while a publish operation is in progress; the
+ *               product is not yet live on the sales channel. false + external
+ *               populated = successfully published. (VERIFIED)
+ *   external  — { id, handle, url? } | null. Populated only after
+ *               setPublishSucceeded() — i.e. only for products that have
+ *               actually been published to a channel. null/absent = unpublished.
+ *               (VERIFIED; consistent with OBSERVED production data)
+ *
+ * OBSERVED in production: when a product is published to the Pop-Up store the
+ * `external` object is populated with `{ id, handle }` where `handle` is an
+ * ABSOLUTE URL such as "https://districtpourhaus.printify.me/product/28908097"
+ * (using the published/external id, NOT the internal product `id`). The handle
+ * field is NOT a bare slug as previously assumed — it arrives as a full URL.
+ *
+ * `sales_channel_listings` covers third-party channels (Shopify, Etsy,
+ * WooCommerce, etc.) — it is typically empty for Pop-Up-only products and does
+ * NOT carry a `url` field for the Pop-Up store.
+ *
+ * printifyUrl resolution (candidates tried in order; first usable value wins):
+ *   1. external.handle  — OBSERVED to be an absolute URL for Pop-Up products.
+ *      If absolute → use directly. If non-empty relative → join with base.
+ *   2. external.url     — INFERRED: may be present on some API responses.
+ *      If absolute → use directly. If non-empty relative → join with base.
+ *   3. sales_channel_listings[0].url — absolute URL from a third-party channel
+ *      (Shopify, Etsy, etc.). Only use if it is an absolute https:// URL.
+ *   4. Construct from base using external.id (published id) when present, else
+ *      internal product id, plus slugify(title) as path:
+ *      joinUrl(PRINTIFY_STORE_URL, `/product/${externalId ?? productId}/${slug}`)
+ *      (INFERRED: this path is a safe approximation for products where the
+ *      external object exists with an id but no usable handle.)
+ *   5. joinUrl(PRINTIFY_STORE_URL, `/product/${productId}`) — id-only fallback
+ *      when no handle or slug is derivable.
+ *   6. Bare PRINTIFY_STORE_URL — last resort (indicates an unpublished product
+ *      with no external object; filtered out below).
+ *
+ * CRITICAL INVARIANT: an absolute URL (http:// or https://) is ALWAYS used
+ * directly and NEVER prepended with PRINTIFY_STORE_URL. Concatenating a base
+ * onto an absolute URL produces a malformed URL
+ * (e.g. "https://foo.me/product/X/https:/foo.me/product/Y").
  *
  * priceCents: derived from the lowest enabled variant price (Printify prices
  * are in cents already for USD shops). Defaults to 0 when no enabled variant.
@@ -105,6 +186,10 @@ async function resolvePrintifyMode(): Promise<PrintifyMode> {
  * imageUrl: first image marked is_default, else first image, else empty string.
  *
  * Defensive access throughout — all fields default gracefully when absent.
+ *
+ * PUBLISH-STATE FILTER (see block below):
+ * After mapping, products are filtered so only genuinely live, linkable items
+ * are returned. Excluded products never enter the merch_products table.
  */
 function normalizeProducts(raw: unknown): MerchProduct[] {
   if (!raw || typeof raw !== 'object') return [];
@@ -114,7 +199,9 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
   // Products list is under "data" in the paginated envelope.
   const items = Array.isArray(envelope['data']) ? envelope['data'] : [];
 
-  return items.map((item, index): MerchProduct => {
+  // Map every raw item to a candidate MerchProduct first, then filter.
+  // We do this in two passes so the filter logic is isolated and easy to audit.
+  const candidates: MerchProduct[] = items.map((item, index): MerchProduct => {
     if (!item || typeof item !== 'object') {
       return {
         id: `product-unknown-${index}`,
@@ -123,6 +210,7 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
         imageUrl: '',
         printifyUrl: PRINTIFY_STORE_URL,
         tags: [],
+        category: 'Other',
       };
     }
 
@@ -158,7 +246,35 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
         ? ((resolvedImage as Record<string, unknown>)['src'] as string)
         : '';
 
-    // ── printifyUrl: first sales channel listing URL, else store fallback ──
+    // ── printifyUrl: resolve with candidate precedence 1 → 2 → 3 → 4 → 5 → 6 ──
+    //
+    // Gather the external object fields first.
+    const externalRaw =
+      p['external'] !== null &&
+      p['external'] !== undefined &&
+      typeof p['external'] === 'object'
+        ? (p['external'] as Record<string, unknown>)
+        : null;
+
+    // external.handle — OBSERVED: arrives as an absolute URL for Pop-Up products
+    // (e.g. "https://districtpourhaus.printify.me/product/28908097").
+    const externalHandle =
+      externalRaw && typeof externalRaw['handle'] === 'string' && externalRaw['handle']
+        ? (externalRaw['handle'] as string)
+        : null;
+
+    // external.url — INFERRED: may be present on some responses.
+    const externalUrl =
+      externalRaw && typeof externalRaw['url'] === 'string' && externalRaw['url']
+        ? (externalRaw['url'] as string)
+        : null;
+
+    // external.id — the published/external id used in Pop-Up store URLs.
+    // Prefer this over the internal product id when constructing relative paths.
+    const externalId =
+      externalRaw && externalRaw['id'] != null ? String(externalRaw['id']) : null;
+
+    // sales_channel_listings[0].url — third-party channel (Shopify, Etsy, etc.)
     const listings = Array.isArray(p['sales_channel_listings'])
       ? (p['sales_channel_listings'] as unknown[])
       : [];
@@ -166,95 +282,374 @@ function normalizeProducts(raw: unknown): MerchProduct[] {
     const listingUrl =
       firstListing &&
       typeof firstListing === 'object' &&
-      typeof (firstListing as Record<string, unknown>)['url'] === 'string'
+      typeof (firstListing as Record<string, unknown>)['url'] === 'string' &&
+      ((firstListing as Record<string, unknown>)['url'] as string).startsWith('https://')
         ? ((firstListing as Record<string, unknown>)['url'] as string)
         : null;
+
+    // Internal product id — always present for real API products.
+    const productId = p['id'] ? String(p['id']) : null;
+
+    /**
+     * resolveCandidate — given a raw string candidate from the API, returns
+     * the usable URL or null.
+     *
+     * - Absolute URL (http:// or https://)  → return as-is (never prepend base).
+     * - Relative path starting with /product/ or /  → joinUrl(base, candidate).
+     * - Other non-empty relative value  → treat as a slug/handle and build
+     *   /product/<externalId ?? productId>/<candidate>.
+     * - Empty string or null  → null.
+     */
+    function resolveCandidate(candidate: string | null): string | null {
+      if (!candidate) return null;
+      if (isAbsoluteUrl(candidate)) return candidate;
+      // Relative candidate — join safely.
+      if (candidate.startsWith('/')) {
+        return joinUrl(PRINTIFY_STORE_URL, candidate);
+      }
+      // Bare slug/handle value.
+      const idSegment = externalId ?? productId;
+      if (idSegment) {
+        return joinUrl(PRINTIFY_STORE_URL, `/product/${idSegment}/${candidate}`);
+      }
+      // Cannot construct a path without an id — discard.
+      return null;
+    }
 
     // ── tags ──
     const tags = Array.isArray(p['tags'])
       ? (p['tags'] as unknown[]).filter((t) => typeof t === 'string').map(String)
       : [];
 
+    // ── category: derive from product_type field, fall back to first tag (Title-Cased), then 'Other' ──
+    const productType =
+      typeof p['product_type'] === 'string' && p['product_type']
+        ? (p['product_type'] as string)
+        : null;
+
+    function toTitleCase(s: string): string {
+      return s
+        .toLowerCase()
+        .split(/[\s_-]+/)
+        .map((word) => (word.length > 0 ? word[0].toUpperCase() + word.slice(1) : word))
+        .join(' ');
+    }
+
+    const rawCategory = productType ?? (tags.length > 0 ? tags[0] : null);
+    const category = rawCategory ? toTitleCase(rawCategory) : 'Other';
+
+    // Evaluate candidates in priority order.
+    // Candidate 1: external.handle (OBSERVED to be absolute for Pop-Up products)
+    // Candidate 2: external.url (INFERRED; may be present)
+    // Candidate 3: sales_channel_listings[0].url (third-party channels only)
+    const printifyUrl: string =
+      resolveCandidate(externalHandle) ??
+      resolveCandidate(externalUrl) ??
+      listingUrl ??
+      (() => {
+        // Candidates 4 + 5: construct from id + slugified title.
+        const idSegment = externalId ?? productId;
+        if (idSegment) {
+          const title = String(p['title'] ?? '');
+          const slug = title ? slugify(title) : null;
+          return slug
+            ? joinUrl(PRINTIFY_STORE_URL, `/product/${idSegment}/${slug}`)
+            : joinUrl(PRINTIFY_STORE_URL, `/product/${idSegment}`);
+        }
+        // Candidate 6: bare store URL — signals an unpublished product.
+        return PRINTIFY_STORE_URL;
+      })();
+
     return {
       id: String(p['id'] ?? `product-${index}`),
       title: String(p['title'] ?? 'Untitled Product'),
       priceCents,
       imageUrl,
-      printifyUrl: listingUrl ?? PRINTIFY_STORE_URL,
+      printifyUrl,
       tags,
+      category,
     };
+  });
+
+  // ─── PUBLISH-STATE FILTER ────────────────────────────────────────────────────
+  //
+  // Only include products that are genuinely live and have a real per-product
+  // page URL. Excluded: drafts, hidden products, mid-publish (locked) products,
+  // and any product whose only resolvable URL is the bare store homepage.
+  //
+  // Inclusion conditions (ALL must hold):
+  //
+  //   1. visible === true
+  //      VERIFIED: `visible` controls store listing visibility. false = hidden
+  //      or draft; the product is not shown in the Pop-Up store.
+  //
+  //   2. is_locked !== true
+  //      VERIFIED: `is_locked` is set to true while a publish operation is in
+  //      progress. The product is not yet live on the sales channel. Excluding
+  //      locked products prevents transient mid-publish entries surfacing
+  //      with potentially broken links. Safer choice for a public storefront.
+  //
+  //   3. printifyUrl !== PRINTIFY_STORE_URL  (i.e. a real per-product page exists)
+  //      The URL resolution above falls back to the bare store URL (candidate 6)
+  //      only when there is no external object and no other linkable path. If we
+  //      ended up with the bare store URL, the product has no public product page
+  //      and linking to it would produce a 404 or redirect to the store home.
+  //      INFERRED from observed production behaviour (external === null on
+  //      unpublished products, consistent with VERIFIED external semantics above).
+  //
+  // Together these three conditions mean: only products the owner has explicitly
+  // published and made visible in their Pop-Up store (or another sales channel)
+  // are returned. The filtered, ordered array is returned directly; sortOrder in
+  // printify-sync.ts is derived from the index in this array, so positions are
+  // always contiguous for the surviving set.
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  return candidates.filter((product, idx) => {
+    const raw = items[idx];
+    if (!raw || typeof raw !== 'object') return false;
+    const p = raw as Record<string, unknown>;
+
+    // Condition 1: visible must be explicitly true (VERIFIED field).
+    if (p['visible'] !== true) return false;
+
+    // Condition 2: exclude mid-publish / locked products (VERIFIED field).
+    if (p['is_locked'] === true) return false;
+
+    // Condition 3: exclude products whose only URL is the bare store fallback.
+    if (product.printifyUrl === PRINTIFY_STORE_URL) return false;
+
+    return true;
   });
 }
 
-// ─── Cached live fetch (products) ─────────────────────────────────────────────
+// ─── Live fetch (products — all pages, always fresh) ────────────────────────
 
 /**
- * getCachedProductsRaw — private Next Data Cache wrapper around the live
- * Printify products fetch.
- *
- * Only SUCCESSFUL responses are cached (throws on failure so failed fetches
- * are never stored). The public fetchProducts() wrapper catches the throw and
- * falls back to the last-good cache or mock fixture.
- *
- * Tagged ['merch'] so revalidateTag('merch', 'max') from the admin panel busts
- * this entry.
+ * MAX_PAGES — safety cap on pagination to prevent runaway fetches.
+ * Printify's pagination returns current_page / last_page in the envelope.
+ * A shop with >500 products (10 pages × 50/page default) is extremely unlikely;
+ * cap at 20 pages to protect against an accidentally enormous catalogue.
  */
-const getCachedProductsRaw = unstable_cache(
-  async (api_key: string, shop_id: string): Promise<MerchProduct[]> => {
-    const url = `https://api.printify.com/v1/shops/${encodeURIComponent(shop_id)}/products.json`;
+const MAX_PAGES = 20;
 
+/**
+ * fetchAllProductsRaw — plain async function that pages through ALL pages of
+ * the Printify products endpoint and returns normalised MerchProduct[].
+ *
+ * This is intentionally NOT wrapped in unstable_cache. The daily cron and the
+ * admin "Sync now" button are the only callers; each run needs a fresh Printify
+ * response so the publish-state filter (visible / is_locked / printifyUrl) acts
+ * on current data rather than a 5-minute stale snapshot. Caching the raw fetch
+ * here caused the filter to be silently bypassed when the Next Data Cache served
+ * a pre-filter result within its revalidate window.
+ *
+ * The public /merch page reads from merch_products via getPublicMerchProducts —
+ * that path is cached separately and busted by revalidateTag('merch') inside the
+ * sync engine, which is unaffected by this change.
+ *
+ * Throws on any non-2xx response so the sync engine can distinguish "upstream
+ * down" (skip the cycle, DB untouched) from a successful empty result.
+ *
+ * Diagnostic logging:
+ *   After all pages are collected, emits a single console.info line:
+ *     [printify] catalogue=N kept=K excluded={notVisible:A, locked:B, noProductUrl:C}
+ *   Then, if kept > 0, logs a compact sample of the first 3 kept products'
+ *   diagnostic fields so field shapes can be verified against real data.
+ *   No API keys or tokens are ever logged.
+ */
+async function fetchAllProductsRaw(api_key: string, shop_id: string): Promise<MerchProduct[]> {
+  const baseUrl = `https://api.printify.com/v1/shops/${encodeURIComponent(shop_id)}/products.json`;
+
+  async function fetchPage(page: number): Promise<unknown> {
+    const url = `${baseUrl}?page=${page}`;
     const res = await fetch(url, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${api_key}`,
+        // User-Agent is required by the Printify API.
         'User-Agent': 'District-Pour-Haus/1.0',
         Accept: 'application/json',
       },
-      signal: AbortSignal.timeout(5_000),
+      signal: AbortSignal.timeout(8_000),
     });
 
     if (!res.ok) {
-      throw new Error(`[printify] products endpoint returned ${res.status}`);
+      throw new Error(`[printify] products page ${page} returned ${res.status}`);
     }
 
-    const json: unknown = await res.json();
-    return normalizeProducts(json);
-  },
-  ['printify-products-raw'],
-  { tags: ['merch'], revalidate: 300 },
-);
+    return res.json() as Promise<unknown>;
+  }
+
+  // Fetch page 1 to learn last_page.
+  const firstPageJson = await fetchPage(1);
+  const firstEnvelope =
+    firstPageJson && typeof firstPageJson === 'object'
+      ? (firstPageJson as Record<string, unknown>)
+      : {};
+
+  const lastPage =
+    typeof firstEnvelope['last_page'] === 'number' ? firstEnvelope['last_page'] : 1;
+
+  // ── Collect raw items from all pages so we can compute filter diagnostics ──
+  //
+  // We accumulate raw page envelopes alongside normalised products so the
+  // diagnostic counts can be derived from the original API fields (visible,
+  // is_locked) rather than re-inferring them from the normalised shape.
+
+  // Raw items from the entire catalogue (pre-filter, pre-normalise).
+  const allRawItems: unknown[] = [];
+
+  // Helper: extract the raw items array from a page envelope.
+  function rawItemsFromEnvelope(envelope: unknown): unknown[] {
+    if (!envelope || typeof envelope !== 'object') return [];
+    const env = envelope as Record<string, unknown>;
+    return Array.isArray(env['data']) ? (env['data'] as unknown[]) : [];
+  }
+
+  // Gather raw items from page 1.
+  allRawItems.push(...rawItemsFromEnvelope(firstPageJson));
+
+  // Fetch remaining pages sequentially (rate-limit friendly).
+  const totalPages = Math.min(lastPage, MAX_PAGES);
+  for (let page = 2; page <= totalPages; page++) {
+    const pageJson = await fetchPage(page);
+    allRawItems.push(...rawItemsFromEnvelope(pageJson));
+  }
+
+  // ── Normalise + filter the full raw list ────────────────────────────────────
+  //
+  // normalizeProducts expects the paginated envelope shape { data: [...] }. We
+  // construct a synthetic single-page envelope from the aggregated raw items so
+  // we can call normalizeProducts once over the complete catalogue. This gives
+  // us a single pre-filter total and a clean post-filter kept list.
+  const syntheticEnvelope = { data: allRawItems };
+  const keptProducts = normalizeProducts(syntheticEnvelope);
+
+  // ── Diagnostic logging ───────────────────────────────────────────────────────
+  //
+  // Compute per-exclusion-reason counts by iterating over all raw items.
+  // Each excluded item can only trigger one reason (evaluated in priority order
+  // matching the filter conditions in normalizeProducts):
+  //   1. notVisible  — p.visible !== true
+  //   2. locked      — p.is_locked === true  (after visible passes)
+  //   3. noProductUrl — printifyUrl resolved to the bare store URL (after both)
+  //
+  // The third case (noProductUrl) requires the normalised URL, so we map the raw
+  // index to the pre-filter candidate list. Because normalizeProducts iterates
+  // items in order and the synthetic envelope preserves order, keptProducts
+  // indices correspond directly to allRawItems indices for surviving products.
+  // We compute the full candidate+flag list here independently (one linear pass)
+  // rather than re-running normalizeProducts a second time.
+
+  let notVisible = 0;
+  let locked = 0;
+  let noProductUrl = 0;
+
+  // Build a set of kept product ids for O(1) lookup.
+  const keptIds = new Set(keptProducts.map((p) => p.id));
+
+  // Walk the raw items to count exclusions.
+  for (let i = 0; i < allRawItems.length; i++) {
+    const raw = allRawItems[i];
+    if (!raw || typeof raw !== 'object') continue;
+    const p = raw as Record<string, unknown>;
+    const rawId = p['id'] ? String(p['id']) : `product-${i}`;
+
+    // If this product survived the filter, it is in keptIds — skip counting.
+    if (keptIds.has(rawId)) continue;
+
+    // Determine exclusion reason (priority order mirrors the filter in normalizeProducts).
+    if (p['visible'] !== true) {
+      notVisible++;
+    } else if (p['is_locked'] === true) {
+      locked++;
+    } else {
+      // visible=true, not locked — must have resolved to the bare store URL.
+      noProductUrl++;
+    }
+  }
+
+  const catalogue = allRawItems.length;
+  const kept = keptProducts.length;
+
+  console.info(
+    `[printify] catalogue=${catalogue} kept=${kept} excluded={notVisible:${notVisible}, locked:${locked}, noProductUrl:${noProductUrl}}`,
+  );
+
+  // If a suspiciously large number of products passed the filter, log a compact
+  // sample of the first 3 kept products' diagnostic fields so the field shapes
+  // can be verified against real API data. Capped at 3 to avoid log spam.
+  // Never logs api keys, tokens, or any credential values.
+  if (kept > 0) {
+    const sample = keptProducts.slice(0, 3).map((product) => {
+      // Look up the corresponding raw item to extract the visibility fields.
+      // We find by id (string match) since that is stable across the mapping.
+      const rawItem = allRawItems.find((r) => {
+        if (!r || typeof r !== 'object') return false;
+        return String((r as Record<string, unknown>)['id']) === product.id;
+      });
+      const rp = rawItem && typeof rawItem === 'object'
+        ? (rawItem as Record<string, unknown>)
+        : {};
+
+      // Check whether external.handle exists (the primary URL resolution path).
+      const externalRaw =
+        rp['external'] !== null &&
+        rp['external'] !== undefined &&
+        typeof rp['external'] === 'object'
+          ? (rp['external'] as Record<string, unknown>)
+          : null;
+      const hasExternal = !!(
+        externalRaw &&
+        typeof externalRaw['handle'] === 'string' &&
+        externalRaw['handle']
+      );
+
+      return {
+        id: product.id,
+        visible: rp['visible'],
+        is_locked: rp['is_locked'],
+        hasExternal,
+        printifyUrl: product.printifyUrl,
+      };
+    });
+
+    console.info('[printify] kept sample (first 3):', JSON.stringify(sample));
+  }
+
+  return keptProducts;
+}
 
 // ─── Public export ────────────────────────────────────────────────────────────
 
 /**
- * fetchProducts — public entry point for the merch page and any RSC that
- * renders the product grid.
+ * fetchLiveProducts — entry point for the merch sync engine.
  *
  * Returns:
- *   { data: MerchProduct[]; stale: boolean }
- *   stale=false → data is fresh (mock or live cache hit)
- *   stale=true  → live fetch failed; data is the last-known-good cache or mock
- *                 fixture fallback (cold-start edge: first-ever fetch failed)
+ *   { mode: 'mock' }                     — integration not live; sync should skip
+ *   { mode: 'live'; data: MerchProduct[] } — fresh data ready to sync into DB
  *
- * The caller should surface "live shop temporarily unavailable" when stale=true.
- * Checkout always redirects to the Printify Pop-Up Store — never on our site.
+ * This function does NOT catch upstream
+ * errors — it lets them throw so the sync engine can distinguish "upstream down"
+ * (skipped, DB untouched) from "mode=mock" (also skipped). The sync pipeline
+ * wraps the call in its own try/catch.
+ *
+ * MerchProduct.imageUrl holds the raw Printify image src for live products —
+ * that is the source_image_url for change detection. MerchProduct.id is the
+ * Printify product id (→ printifyProductId).
  */
-export async function fetchProducts(): Promise<{ data: MerchProduct[]; stale: boolean }> {
+export async function fetchLiveProducts(): Promise<
+  { mode: 'mock' } | { mode: 'live'; data: MerchProduct[] }
+> {
   const modeResult = await resolvePrintifyMode();
 
   if (modeResult.mode === 'mock') {
-    return { data: mockProducts, stale: false };
+    return { mode: 'mock' };
   }
 
   const { api_key, shop_id } = modeResult.creds;
 
-  try {
-    const data = await getCachedProductsRaw(api_key, shop_id);
-    return { data, stale: false };
-  } catch (err) {
-    console.error('[printify] fetchProducts live fetch failed — returning stale/mock fallback:', err);
-    // Cold-start or cache invalidated during an outage:
-    // fall back to mock fixture so the page is never blank.
-    return { data: mockProducts, stale: true };
-  }
+  // Let errors propagate — the sync engine catches them.
+  const data = await fetchAllProductsRaw(api_key, shop_id);
+  return { mode: 'live', data };
 }

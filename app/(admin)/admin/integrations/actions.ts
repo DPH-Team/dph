@@ -7,6 +7,7 @@ import {
   integrationTogglesSchema,
   plausibleConfigSchema,
   resendConfigSaveSchema,
+  instagramConfigSaveSchema,
 } from '@/lib/validators/integrations';
 import type { IntegrationName } from '@/lib/validators/integrations';
 import {
@@ -15,6 +16,7 @@ import {
   updateIntegrationToggles,
   updatePlausibleConfig,
   updateResendConfig,
+  updateInstagramConfig,
   decryptCredentials,
   recordTestResult,
 } from '@/lib/db/queries/integrations';
@@ -25,7 +27,7 @@ import {
   testResendConnection,
 } from '@/lib/integrations/test-connections';
 import { runEventsSync } from '@/lib/untappd-sync';
-import { fetchProducts } from '@/lib/printify';
+import { runMerchSync } from '@/lib/printify-sync';
 import type { ActionState } from '@/lib/types/action-state';
 import type { Integration } from '@/lib/db/schema';
 
@@ -73,7 +75,11 @@ export async function saveCredentialsAction(
     return { ok: false, error: 'Plausible does not use credentials. Use savePlausibleConfigAction instead.' };
   }
 
-  const schema = getCredentialsSchema(name as Exclude<IntegrationName, 'plausible'>);
+  if (name === 'instagram') {
+    return { ok: false, error: 'Instagram does not use credentials. Use saveInstagramConfigAction instead.' };
+  }
+
+  const schema = getCredentialsSchema(name as Exclude<IntegrationName, 'plausible' | 'instagram'>);
   const fields = Object.keys(schema.shape) as string[];
 
   // Check if all credential fields are blank — if so, skip the save.
@@ -213,11 +219,18 @@ export async function testConnectionAction(
 ): Promise<TestActionState> {
   await requireAdmin();
 
-  // Plausible has no credentials to test.
+  // Plausible and Instagram have no encrypted credentials to test.
   if (name === 'plausible') {
     return {
       ok: false,
       error: 'Plausible does not support connection testing — it has no server-side credentials.',
+    };
+  }
+
+  if (name === 'instagram') {
+    return {
+      ok: false,
+      error: 'Instagram does not support connection testing — it uses a public Behold feed ID with no server-side credentials.',
     };
   }
 
@@ -507,70 +520,74 @@ export async function syncUntappdNowAction(): Promise<SyncActionState> {
 /**
  * syncPrintifyNowAction — admin-only manual sync trigger for Printify.
  *
- * Busts the 'merch' cache with revalidateTag('merch','max') so the next
- * public render re-fetches products from Printify. Then calls fetchProducts()
- * to warm the cache and detect whether upstream is healthy or stale.
- *
- * Returns "refreshed" when the warm fetch succeeds (stale=false) and the
- * integration is in live mode. Returns "mock data refreshed" in mock mode.
- * Returns a degraded-gracefully message when stale=true (last-known-good cache).
+ * Delegates to runMerchSync() (the same function the Vercel Cron calls) which:
+ *   1. Calls fetchLiveProducts() — skips DB write on upstream failure or mock mode.
+ *   2. Downloads new/changed product images into Supabase Storage.
+ *   3. Upserts all product rows into merch_products.
+ *   4. Soft-deletes products no longer reported by Printify (and their storage objects).
+ *   5. Calls revalidateTag('merch','max').
  *
  * Audit action: integration.printify_sync_now
  */
 export async function syncPrintifyNowAction(): Promise<SyncActionState> {
   await requireAdmin();
 
-  // Bust the merch ISR cache so the next page render re-fetches from Printify.
-  revalidateTag('merch', 'max');
+  const result = await runMerchSync();
 
-  // Warm the cache immediately and surface whether upstream was healthy.
-  let stale = false;
-  let productCount = 0;
-  let isMock = false;
-  try {
-    const { data, stale: fetchStale } = await fetchProducts();
-    stale = fetchStale;
-    productCount = data.length;
-    // fetchProducts returns mock data (stale=false) when mode is not 'live'.
-    // We can infer mock mode when stale is false but the integration row says mock.
-    const row = await getIntegration('printify');
-    isMock = !row || !row.enabled || row.mode !== 'live';
-  } catch (err) {
-    // fetchProducts itself never throws (graceful fallback), but guard anyway.
-    const reason = err instanceof Error ? err.message : String(err);
-    console.error('[syncPrintifyNowAction] fetchProducts threw unexpectedly:', reason);
-    stale = true;
+  // Audit — non-fatal; failures are logged by the audit helper itself.
+  if (result.ok) {
+    await audit(
+      'integration.printify_sync_now',
+      'integration',
+      'printify',
+      {
+        ok: true,
+        upserted: result.upserted,
+        downloaded: result.downloaded,
+        softDeleted: result.softDeleted,
+      },
+    );
+  } else {
+    await audit(
+      'integration.printify_sync_now',
+      'integration',
+      'printify',
+      {
+        ok: false,
+        skipped: result.skipped,
+        reason: result.reason,
+      },
+    );
   }
-
-  // Audit — non-fatal.
-  await audit(
-    'integration.printify_sync_now',
-    'integration',
-    'printify',
-    { stale, productCount, isMock },
-  );
 
   revalidatePath('/admin/integrations');
 
-  if (isMock) {
+  if (result.ok) {
+    const productNoun = result.upserted === 1 ? 'product' : 'products';
+    const imageNoun = result.downloaded === 1 ? 'image' : 'images';
+    const parts: string[] = [`${result.upserted} ${productNoun} refreshed`];
+    if (result.downloaded > 0) {
+      parts.push(`${result.downloaded} ${imageNoun} mirrored`);
+    }
+    if (result.softDeleted > 0) {
+      parts.push(`${result.softDeleted} removed`);
+    }
     return {
       ok: true,
-      message: 'Cache refreshed — running in mock mode (no live Printify data).',
+      message: `Sync complete — ${parts.join(', ')}.`,
     };
   }
 
-  if (stale) {
+  if (result.skipped) {
     return {
-      ok: true,
-      message:
-        'Cache refreshed — Printify upstream unavailable. Showing last-known-good products.',
+      ok: false,
+      error: 'Sync skipped — Printify unavailable or in mock mode.',
     };
   }
 
-  const noun = productCount === 1 ? 'product' : 'products';
   return {
-    ok: true,
-    message: `Cache refreshed — ${productCount} ${noun} fetched from Printify.`,
+    ok: false,
+    error: `Sync failed — ${result.reason}`,
   };
 }
 
@@ -611,6 +628,65 @@ export async function updatePlausibleEnabledAction(
     sanitizeRow(before),
     sanitizeRow(after),
     { action: 'plausible_enabled_toggled' },
+  );
+
+  revalidatePath('/admin/integrations');
+  return { ok: true };
+}
+
+// ─── Instagram: save config ───────────────────────────────────────────────────
+
+/**
+ * Persist Instagram (Behold) feed_id + enabled into the `config` jsonb column.
+ * The feed_id is a non-secret public identifier — it is NOT stored in the
+ * encrypted credentials column. The enabled toggle is saved in the same call.
+ *
+ * Validates with instagramConfigSaveSchema (requires non-empty feed_id).
+ * Writes to audit_log — mandatory per project rules.
+ */
+export async function saveInstagramConfigAction(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
+  const profile = await requireAdmin();
+
+  const raw = {
+    feed_id: formData.get('feed_id') ?? '',
+    enabled: formData.get('enabled') === 'true',
+  };
+
+  const result = instagramConfigSaveSchema.safeParse({ feed_id: raw.feed_id });
+  if (!result.success) {
+    return {
+      ok: false,
+      error: 'Validation failed.',
+      fieldErrors: result.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  const before = await getIntegration('instagram');
+  if (!before) {
+    return { ok: false, error: "Integration 'instagram' not found." };
+  }
+
+  let after: Integration;
+  try {
+    after = await updateInstagramConfig(
+      { feed_id: result.data.feed_id },
+      raw.enabled,
+      profile.id,
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    return { ok: false, error: `Failed to save Instagram config: ${msg}` };
+  }
+
+  await auditUpdate(
+    'integration',
+    'instagram',
+    sanitizeRow(before),
+    sanitizeRow(after),
+    { action: 'instagram_config_saved' },
   );
 
   revalidatePath('/admin/integrations');

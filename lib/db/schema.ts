@@ -129,7 +129,7 @@ export const integrations = pgTable(
     updatedBy: uuid('updated_by'),
   },
   (t) => [
-    check('integrations_name_check', sql`${t.name} IN ('untappd', 'printify', 'plausible', 'resend')`),
+    check('integrations_name_check', sql`${t.name} IN ('untappd', 'printify', 'plausible', 'resend', 'instagram')`),
     check('integrations_mode_check', sql`${t.mode} IN ('mock', 'live')`),
   ],
 );
@@ -634,6 +634,50 @@ export const eventsCache = pgTable(
 
 export type EventCacheRow = InferSelectModel<typeof eventsCache>;
 export type NewEventCacheRow = InferInsertModel<typeof eventsCache>;
+
+// ─── merch_products ───────────────────────────────────────────────────────────
+//
+// One row per Printify product. Written exclusively by the merch sync cron task
+// via the Drizzle `db` client (RLS has no write policy). Soft-deleted rows remain
+// in the table and are excluded by the select policy and all query helpers.
+// printify_product_id is the upsert key; image_path is a 'media'-relative path
+// like `merch/<id>.jpg` (null when the product has no image); source_image_url is
+// the raw Printify image src used as a change-detection key.
+
+export const merchProducts = pgTable(
+  'merch_products',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    printifyProductId: text('printify_product_id').notNull().unique(),
+    title: text('title').notNull(),
+    priceCents: integer('price_cents').notNull().default(0),
+    category: text('category').notNull().default('Other'),
+    tags: jsonb('tags').notNull().default(sql`'[]'::jsonb`),
+    printifyUrl: text('printify_url').notNull(),
+    imagePath: text('image_path'),
+    sourceImageUrl: text('source_image_url'),
+    sortOrder: integer('sort_order').notNull().default(0),
+    visible: boolean('visible').notNull().default(true),
+    syncedAt: timestamp('synced_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index('merch_products_sort_active_idx')
+      .on(t.sortOrder)
+      .where(sql`${t.deletedAt} IS NULL`),
+  ],
+);
+
+export type MerchProductRow = InferSelectModel<typeof merchProducts>;
+export type NewMerchProductRow = InferInsertModel<typeof merchProducts>;
 
 // ─── subscribers ──────────────────────────────────────────────────────────────
 //

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation"
 import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
-import { Calendar, MapPin, ExternalLink, Share2, Clock, CalendarDays } from "lucide-react"
+import { Calendar, MapPin, ExternalLink, Clock, CalendarDays } from "lucide-react"
 import { pageMetadata, eventJsonLd } from "@/lib/seo"
 import { BLUR_CHARCOAL } from "@/lib/blur"
 import type { Location } from "@/lib/fixtures/types"
@@ -14,6 +14,7 @@ import {
 import { getLocation } from "@/app/__fixtures__/location"
 import { JsonLd } from "@/components/seo/JsonLd"
 import { EventCard } from "@/components/marketing/EventCard"
+import { EventShareRow } from "@/components/marketing/EventShareRow"
 import { Section } from "@/components/marketing/layout/Section"
 import { Container } from "@/components/marketing/layout/Container"
 import { SectionHeading } from "@/components/marketing/SectionHeading"
@@ -338,36 +339,7 @@ export default async function EventDetailPage({
                 </div>
 
                 {/* Share row */}
-                <div className="flex flex-col gap-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Share
-                  </h3>
-                  <div className="flex items-center gap-3">
-                    <Share2
-                      size={14}
-                      className="text-muted-foreground"
-                      aria-hidden="true"
-                    />
-                    <a
-                      href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(event.title)}&url=${encodeURIComponent(shareUrl)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-                      aria-label="Share on X (Twitter)"
-                    >
-                      X / Twitter
-                    </a>
-                    <a
-                      href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
-                      aria-label="Share on Facebook"
-                    >
-                      Facebook
-                    </a>
-                  </div>
-                </div>
+                <EventShareRow shareUrl={shareUrl} title={event.title} />
               </div>
             </aside>
           </div>

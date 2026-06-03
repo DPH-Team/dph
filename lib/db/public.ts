@@ -51,6 +51,7 @@ import {
   getEventsSyncStatus,
   listEventSlugs,
 } from '@/lib/db/queries/events-cache';
+import { listMerchProductRows } from '@/lib/db/queries/merch-products';
 import { getPublicUrl } from '@/lib/supabase/storage';
 import { hero } from '@/lib/fixtures/hero';
 import { homeCallouts } from '@/lib/fixtures/home-callouts';
@@ -60,7 +61,8 @@ import {
   getPastEvents,
   getEventBySlug,
 } from '@/lib/fixtures/events';
-import type { MenuSection, MenuItem, WeeklyHours, HoursOverride, TeamMember, GalleryImage, Posting, Event } from '@/lib/fixtures/types';
+import { merchProducts as mockProducts } from '@/lib/fixtures/merch';
+import type { MenuSection, MenuItem, WeeklyHours, HoursOverride, TeamMember, GalleryImage, Posting, Event, MerchProduct } from '@/lib/fixtures/types';
 import type { ContentBlockKey } from '@/lib/validators/content-blocks';
 import type { EffectiveHours } from '@/lib/db/queries/hours';
 import type { EventsSyncStatus } from '@/lib/db/queries/events-cache';
@@ -618,4 +620,54 @@ const _getPublicEventSlugsWithDatesCached = unstable_cache(
 
 export async function getPublicEventSlugsWithDates(): Promise<EventSlugWithDate[]> {
   return withFallback('getPublicEventSlugsWithDates', _getPublicEventSlugsWithDatesCached, []);
+}
+
+// ─── Merch ────────────────────────────────────────────────────────────────────
+
+/**
+ * Return public merch products from the merch_products mirror table.
+ *
+ * stale: true when zero rows are returned (table not yet populated or all
+ * products soft-deleted). On DB error falls back to mock fixtures and marks
+ * stale: true — same pattern as events.
+ *
+ * imageUrl: derived from row.imagePath via getPublicUrl when imagePath is set;
+ * falls back to '' when the product has no mirrored image (the card handles
+ * the empty string case with a placeholder).
+ *
+ * The `id` field is set to the printifyProductId string so it serves as the
+ * stable key consumed by MerchBrowser / MerchCard.
+ */
+const _getPublicMerchProductsCached = unstable_cache(
+  async (): Promise<{ data: MerchProduct[]; stale: boolean }> => {
+    const rows = await listMerchProductRows();
+    if (rows.length === 0) {
+      return { data: mockProducts, stale: true };
+    }
+    const data: MerchProduct[] = rows.map((row) => ({
+      id: row.printifyProductId,
+      title: row.title,
+      priceCents: row.priceCents,
+      imageUrl: row.imagePath
+        ? getPublicUrl({ bucket: 'media', path: row.imagePath })
+        : '',
+      printifyUrl: row.printifyUrl,
+      tags: Array.isArray(row.tags) ? (row.tags as string[]) : [],
+      category: row.category,
+    }));
+    return { data, stale: false };
+  },
+  ['public-merch'],
+  { tags: ['merch'] },
+);
+
+export async function getPublicMerchProducts(): Promise<{
+  data: MerchProduct[];
+  stale: boolean;
+}> {
+  return withFallback(
+    'getPublicMerchProducts',
+    _getPublicMerchProductsCached,
+    { data: mockProducts, stale: true },
+  );
 }

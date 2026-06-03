@@ -11,8 +11,15 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { z } from 'zod';
 import { HomeHeroSchema } from '@/lib/validators/content-blocks';
 import type { HomeHeroValue } from '@/lib/validators/content-blocks';
+import { MediaUploadInput } from '@/components/admin/MediaUploadInput';
+
+// react-hook-form's zodResolver types the form values as the schema INPUT type
+// (fields with .default() are optional/undefined in input, required in output).
+// We use z.input here so the generic matches what zodResolver provides.
+type HomeHeroFormInput = z.input<typeof HomeHeroSchema>;
 import type { ActionState } from '@/lib/types/action-state';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -110,12 +117,29 @@ export function HomeHeroForm({ initialValue, action }: HomeHeroFormProps) {
     handleSubmit,
     setError,
     getValues,
+    watch,
+    setValue,
     formState: { errors },
-  } = useForm<HomeHeroValue>({
+  } = useForm<HomeHeroFormInput>({
     resolver: zodResolver(HomeHeroSchema),
-    defaultValues: initialValue,
+    defaultValues: {
+      eyebrow: initialValue.eyebrow,
+      headline: initialValue.headline,
+      lead: initialValue.lead,
+      primaryCta: initialValue.primaryCta,
+      secondaryCta: initialValue.secondaryCta,
+      imageUrl: initialValue.imageUrl,
+      // Explicitly default the new fields to null so they are always present
+      // even when the stored content block was created before these fields existed.
+      mediaType: initialValue.mediaType ?? null,
+      mediaUrl: initialValue.mediaUrl ?? null,
+    },
     mode: 'onTouched',
   });
+
+  // Watch the media fields so we can pass them into MediaUploadInput.
+  const mediaUrl = watch('mediaUrl') ?? null;
+  const mediaType = watch('mediaType') ?? null;
 
   // Sync server field errors back into react-hook-form
   useEffect(() => {
@@ -139,9 +163,10 @@ export function HomeHeroForm({ initialValue, action }: HomeHeroFormProps) {
   }, [serverState]);
 
   // On submit: serialise the typed value as JSON into a hidden FormData field.
-  function onSubmit(data: HomeHeroValue) {
+  // data is the schema INPUT (with defaults applied by zod on parse) — cast via HomeHeroValue.
+  function onSubmit(data: HomeHeroFormInput) {
     const fd = new FormData();
-    fd.set('value', JSON.stringify(data));
+    fd.set('value', JSON.stringify(data as HomeHeroValue));
     startTransition(() => formAction(fd));
   }
 
@@ -286,13 +311,34 @@ export function HomeHeroForm({ initialValue, action }: HomeHeroFormProps) {
       </Section>
 
       <Section
-        title="Background image"
-        description="Optional. Full URL to the hero background image. Leave blank to use the default."
+        title="Hero background"
+        description="Upload a background image or video for the hero section, or paste an external image URL below."
       >
+        {/* Media uploader — wired to mediaUrl + mediaType via watch/setValue */}
         <Field
-          label="Image URL"
+          label="Upload background media"
+          description="Upload directly to storage. Replaces any previously uploaded hero media."
+          error={
+            (e.mediaUrl?.message ?? e.mediaType?.message) as string | undefined
+          }
+        >
+          <MediaUploadInput
+            valuePath={mediaUrl as string | null}
+            valueType={mediaType as 'image' | 'video' | null}
+            onChange={({ path, type }) => {
+              setValue('mediaUrl', path, { shouldValidate: true });
+              setValue('mediaType', type, { shouldValidate: true });
+            }}
+            aspect="landscape"
+            label="Upload hero background image or video"
+          />
+        </Field>
+
+        {/* Optional external image URL fallback */}
+        <Field
+          label="Or paste an external image URL"
           htmlFor="imageUrl"
-          description="Must be a full URL (https://…) or leave blank."
+          description="Full URL (https://…). Used only when no upload is present."
           error={e.imageUrl?.message}
         >
           <Input
