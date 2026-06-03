@@ -3,7 +3,7 @@ import type { HomeCallouts } from "./types"
 export const homeCallouts: HomeCallouts = [
   {
     eyebrow: "Self-Pour",
-    title: "32 Taps, Your Rules",
+    title: "48 Taps, Your Rules",
     body: "Load an RFID card and pour exactly what you want — a taste, a half-pint, or a full pour. No waiting, no waste.",
     href: "/taps",
     cta: "See What's Pouring",

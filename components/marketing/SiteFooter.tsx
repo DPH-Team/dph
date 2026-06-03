@@ -34,7 +34,7 @@ export function SiteFooter({ location }: SiteFooterProps) {
                 Our Haus is Your Haus
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Wisconsin self-pour taproom with 32 craft taps and a scratch kitchen in Green Bay.
+                Wisconsin self-pour taproom with 48 craft taps and a scratch kitchen in Green Bay.
               </p>
             </div>
 

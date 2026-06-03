@@ -208,7 +208,7 @@ export function HomeCalloutsForm({ initialValue, action }: HomeCalloutsFormProps
                       id={`${cardId}-title`}
                       {...register(`items.${idx}.title`)}
                       aria-invalid={Boolean(e?.title)}
-                      placeholder="32 Taps, Your Rules"
+                      placeholder="48 Taps, Your Rules"
                       maxLength={80}
                     />
                   </Field>

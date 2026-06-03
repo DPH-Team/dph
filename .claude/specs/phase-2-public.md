@@ -182,7 +182,7 @@ Sections listed in render order. Each row = single section primitive (uses `<Sec
 ### `/` — Home
 
 1. **Hero** — full-bleed (`bg-base`), Fraunces `text-display-xl` headline "Our Haus is Your Haus", cream eyebrow with gold underline rule, copper "See What's Pouring" + outline "Reserve" CTA pair. Subtle parallax behind text via `<motion.div>` (respects reduced-motion). **Neutral + copper + gold eyebrow.**
-2. **Tap-counter strip** — full-bleed `bg-card`, single row: large tabular-num "24 / 32 pours flowing" cream + small "live from Untappd · refreshes ~5 min" muted note. Visual prep for Phase 6. **Neutral + copper for the number.**
+2. **Tap-counter strip** — full-bleed `bg-card`, single row: large tabular-num "24 / 48 pours flowing" cream + small "live from Untappd · refreshes ~5 min" muted note. Visual prep for Phase 6. **Neutral + copper for the number.**
 3. **Upcoming events strip** — section heading "What's Happening", horizontal scroll on mobile / 3-up grid desktop using `<EventCard />` (see §5). One card may carry a gold "Featured" pill. **Neutral cards; gold pill = featured identity.**
 4. **Featured menu** — 4 menu items in a 2x2 grid using `<MenuItem variant="featured" />`. Heading "From the Kitchen", copper "See full menu →" link out. **Neutral + copper link.**
 5. **Hours / Location card** — 2-col split: `<HoursCard />` left, `<MapBlock />` right. Open-now pill at top of HoursCard is **Packers green**. **Neutral surface, green pill.**
@@ -208,7 +208,7 @@ Sections listed in render order. Each row = single section primitive (uses `<Sec
 
 ### `/taps`
 
-1. **Page hero** — display-md "On Tap", live indicator dot (Packers green) + "X of 32 flowing", "Updated ~5 min" muted. **Neutral + green dot.**
+1. **Page hero** — display-md "On Tap", live indicator dot (Packers green) + "X of 48 flowing", "Updated ~5 min" muted. **Neutral + green dot.**
 2. **Filter bar** — `<TapFilters />`: style multi-select (shadcn DropdownMenu), ABV range slider (custom, neutral with copper handle), search input. Sticky below header on scroll. **Neutral + copper handle.**
 3. **Tap grid** — 3-up desktop / 2-up tablet / 1-up mobile of `<TapCard />`. Featured taps carry a **gold "Tap Takeover"** pill (palette rule: gold = featured identity). **Neutral + gold pill.**
 4. **Empty state** — when filters return zero, neutral copy + "Clear filters" copper ghost button. **Neutral + copper.**
@@ -403,10 +403,10 @@ Single placeholder: `public/og/default.png` (1200×630, neutral background + gol
 
 ### Per-page descriptions (content agent writes; architect approves length)
 
-- Home: "Wisconsin self-pour taproom with 32 craft taps, scratch kitchen, and live events. Our Haus is Your Haus."
+- Home: "Wisconsin self-pour taproom with 48 craft taps, scratch kitchen, and live events. Our Haus is Your Haus."
 - About: "How District Pour Haus came to be — Wisconsin roots, RFID self-pour, craft beer first."
 - Menu: "Scratch kitchen menu — shareables, mains, sides, desserts. Pairs with whatever you pour."
-- Taps: "Live tap list from our 32-tap wall. Filter by style or ABV — updated every five minutes."
+- Taps: "Live tap list from our 48-tap wall. Filter by style or ABV — updated every five minutes."
 - Events: "Live music, trivia, game-day specials, and private events at District Pour Haus."
 - Reservations: "Reserve a table, plan a private event, or send us a note."
 - Gallery: "Inside the Haus — taproom, kitchen, events."

@@ -47,7 +47,7 @@ insert into public.content_blocks (key, value) values
     '{
       "eyebrow": "Wisconsin Self-Pour Taproom",
       "headline": "Our Haus is Your Haus",
-      "lead": "32 craft taps, a scratch kitchen, and a front-row seat to the game. Pour your own adventure — you set the pace.",
+      "lead": "48 craft taps, a scratch kitchen, and a front-row seat to the game. Pour your own adventure — you set the pace.",
       "primaryCta": {"label": "See What''s Pouring", "href": "/taps"},
       "secondaryCta": {"label": "Reserve a Table", "href": "/reservations"},
       "imageUrl": null
@@ -58,7 +58,7 @@ insert into public.content_blocks (key, value) values
     '[
       {
         "eyebrow": "Self-Pour",
-        "title": "32 Taps, Your Rules",
+        "title": "48 Taps, Your Rules",
         "body": "Load an RFID card and pour exactly what you want — a taste, a half-pint, or a full pour. No waiting, no waste.",
         "href": "/taps",
         "cta": "See What''s Pouring"
@@ -86,7 +86,7 @@ insert into public.content_blocks (key, value) values
       "lead": "We built District Pour Haus because we wanted a place where the beer was great, the food was honest, and the Wi-Fi password was somewhere on the wall. A place that felt like yours the minute you walked in.",
       "paragraphs": [
         "It started with a craving — not for a specific beer, but for a specific feeling. That rare thing where you walk into a bar and immediately relax, where the person next to you is already talking about the game, and where nobody''s rushing you out.",
-        "District Pour Haus opened in Green Bay because this city deserved a taproom that matched its energy: big, bold, and genuinely proud of where it''s from. We''re a self-pour taproom, which means you''re in charge. RFID card, 32 taps, pour as much or as little as you want. Try the imperial stout. Try the farmhouse ale. Try three things on the same Saturday afternoon — that''s the whole point.",
+        "District Pour Haus opened in Green Bay because this city deserved a taproom that matched its energy: big, bold, and genuinely proud of where it''s from. We''re a self-pour taproom, which means you''re in charge. RFID card, 48 taps, pour as much or as little as you want. Try the imperial stout. Try the farmhouse ale. Try three things on the same Saturday afternoon — that''s the whole point.",
         "The kitchen came next. Because you can''t drink on an empty stomach, and because Wisconsin has good food if you know where to look. We smoke our own brisket, batter our curds in pale ale, and bake a kringle that rotates with the seasons. Everything pairs with something on the wall."
       ],
       "rfidSteps": [

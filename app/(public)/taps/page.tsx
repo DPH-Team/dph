@@ -9,7 +9,7 @@ import { AlertTriangle } from "lucide-react"
 
 export const metadata: Metadata = pageMetadata({
   title: "Taps",
-  description: "Live tap list from our 32-tap wall. Filter by style or ABV — updated every five minutes.",
+  description: "Live tap list from our 48-tap wall. Filter by style or ABV — updated every five minutes.",
   path: "/taps",
 })
 
