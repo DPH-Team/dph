@@ -4,6 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Calendar, MapPin, ExternalLink, Clock, CalendarDays } from "lucide-react"
 import { pageMetadata, eventJsonLd } from "@/lib/seo"
+import { isTodayInVenue, isPastVenueDay } from "@/lib/datetime"
 import { BLUR_CHARCOAL } from "@/lib/blur"
 import type { Location } from "@/lib/fixtures/types"
 import {
@@ -62,10 +63,6 @@ function formatDate(startsAt: string, endsAt: string | null): string {
   const end = new Date(endsAt)
   const endStr = end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
   return `${dateStr} · ${timeStr} – ${endStr}`
-}
-
-function isPast(startsAt: string): boolean {
-  return new Date(startsAt) < new Date()
 }
 
 function buildCalendarLinks(
@@ -127,7 +124,9 @@ export default async function EventDetailPage({
   const jsonLdImageUrl = event.imageUrl || `${base}/og/default.png`
   const location = await getLocation()
 
-  const past = isPast(event.startsAt)
+  const eventDate = new Date(event.endsAt ?? event.startsAt)
+  const past = isPastVenueDay(eventDate)
+  const today = isTodayInVenue(eventDate)
   const calLinks = buildCalendarLinks(event.title, event.startsAt, event.endsAt, location)
   const upcomingResult = await getPublicUpcomingEvents()
   const related = upcomingResult.data
@@ -160,6 +159,11 @@ export default async function EventDetailPage({
               {event.featured && (
                 <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-packers-gold text-brand-base">
                   Featured
+                </span>
+              )}
+              {today && (
+                <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-packers-green-bright text-cream">
+                  Today
                 </span>
               )}
               {past && (
@@ -264,9 +268,16 @@ export default async function EventDetailPage({
             <aside>
               <div className="sticky top-24 flex flex-col gap-5 p-6 rounded-xl bg-card border border-border">
                 <div className="flex flex-col gap-3">
-                  <h2 className="font-display font-medium text-lg text-foreground">
-                    Event details
-                  </h2>
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="font-display font-medium text-lg text-foreground">
+                      Event details
+                    </h2>
+                    {today && (
+                      <span className="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold bg-packers-green-bright text-cream">
+                        Today
+                      </span>
+                    )}
+                  </div>
                   <div className="flex flex-col gap-3 text-sm text-muted-foreground">
                     <span className="flex items-start gap-2.5">
                       <Calendar size={15} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />

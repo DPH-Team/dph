@@ -66,14 +66,14 @@ export default async function HomePage() {
     <>
       <HomeHero hero={hero} />
 
-      <CheckinsTicker initial={checkins} />
+      <CheckinsTicker initial={checkins} hours={hours} overrides={overrides} />
 
       {/* Upcoming events strip */}
       <Section padding="md" className="bg-background">
         <Container>
           <ScrollReveal>
-            <SectionHeading eyebrow="What's On" className="mb-8">
-              What&apos;s Happening
+            <SectionHeading eyebrow="Coming Up" className="mb-8">
+              The Lineup
             </SectionHeading>
           </ScrollReveal>
 
@@ -98,7 +98,7 @@ export default async function HomePage() {
               </div>
             </>
           ) : (
-            <p className="text-muted-foreground">No upcoming events scheduled. Check back soon.</p>
+            <p className="text-muted-foreground">Brewing something up. Check back soon or follow us for the announcement.</p>
           )}
 
           <div className="mt-8">

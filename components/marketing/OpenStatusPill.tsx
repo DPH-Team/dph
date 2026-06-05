@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils"
-import type { WeeklyHours, HoursOverride, DayOfWeek } from "@/lib/fixtures/types"
+import type { WeeklyHours, HoursOverride } from "@/lib/fixtures/types"
+import { venueDateOf, venueDateToDow, VENUE_TZ } from "@/lib/datetime"
 
 export type OpenStatusPillProps = {
   hours: WeeklyHours
@@ -23,16 +24,6 @@ function formatTime(timeStr: string): string {
   return m === 0 ? `${displayH} ${period}` : `${displayH}:${String(m).padStart(2, "0")} ${period}`
 }
 
-const DAY_NAMES: DayOfWeek[] = [
-  "sunday",
-  "monday",
-  "tuesday",
-  "wednesday",
-  "thursday",
-  "friday",
-  "saturday",
-]
-
 type OpenStatus = {
   isOpen: boolean
   closesAt: string | null
@@ -44,8 +35,16 @@ export function computeOpenStatus(
   overrides: HoursOverride[],
   now: Date = new Date()
 ): OpenStatus {
-  const todayIso = now.toISOString().slice(0, 10)
-  const currentMinutes = now.getHours() * 60 + now.getMinutes()
+  const todayIso = venueDateOf(now)
+  const _timeParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: VENUE_TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now)
+  const _venueH = parseInt(_timeParts.find((p) => p.type === 'hour')?.value ?? '0', 10)
+  const _venueM = parseInt(_timeParts.find((p) => p.type === 'minute')?.value ?? '0', 10)
+  const currentMinutes = (isNaN(_venueH) ? 0 : _venueH) * 60 + (isNaN(_venueM) ? 0 : _venueM)
 
   const override = overrides.find((o) => o.date === todayIso)
   if (override) {
@@ -62,7 +61,7 @@ export function computeOpenStatus(
     }
   }
 
-  const dayName = DAY_NAMES[now.getDay()]
+  const dayName = venueDateToDow(todayIso)
   if (!dayName) return { isOpen: false, closesAt: null, opensAt: null }
 
   const dayHours = hours[dayName]

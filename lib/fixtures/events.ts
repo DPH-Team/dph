@@ -1,3 +1,4 @@
+import { isPastVenueDay } from "@/lib/datetime"
 import type { Event } from "./types"
 
 export const events: Event[] = [
@@ -79,14 +80,25 @@ export async function getEvents(): Promise<Event[]> {
   return events
 }
 
+/**
+ * Return fixture events whose venue-local calendar day is today or in the
+ * future. Mirrors the day-based predicate used by listUpcomingEventRows:
+ * an event is "upcoming" as long as its venue-local calendar day is not yet
+ * over, regardless of what time it is. Uses coalesce(endsAt, startsAt) so
+ * that events with an end time are judged by when they finish, not when they
+ * start — matching the DB query behaviour.
+ */
 export async function getUpcomingEvents(): Promise<Event[]> {
-  const now = new Date().toISOString()
-  return events.filter((e) => e.startsAt > now)
+  return events.filter((e) => !isPastVenueDay(new Date(e.endsAt ?? e.startsAt)))
 }
 
+/**
+ * Return fixture events whose venue-local calendar day is strictly before
+ * today — the exact complement of getUpcomingEvents. An event happening today
+ * is never in the past bucket, even if its start time has already passed.
+ */
 export async function getPastEvents(): Promise<Event[]> {
-  const now = new Date().toISOString()
-  return events.filter((e) => e.startsAt <= now)
+  return events.filter((e) => isPastVenueDay(new Date(e.endsAt ?? e.startsAt)))
 }
 
 export function getEventBySlug(slug: string): Event | undefined {

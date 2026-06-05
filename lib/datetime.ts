@@ -160,24 +160,67 @@ export function venueLocalToUTC(localInput: string): Date {
 // ─── Venue-date helpers ────────────────────────────────────────────────────────
 
 /**
- * Return today's date in the venue's local timezone as a YYYY-MM-DD string.
+ * Return the YYYY-MM-DD calendar date of a given Date as observed in VENUE_TZ
+ * (America/Chicago).
  *
- * Uses `Intl.DateTimeFormat` rather than `.toISOString()` so the date is always
- * correct for `America/Chicago` regardless of what timezone the server runs in.
+ * Uses `en-CA` locale with `Intl.DateTimeFormat` because that locale produces
+ * the ISO `YYYY-MM-DD` format natively, so no manual zero-padding is required.
+ * The result is always correct for America/Chicago regardless of what timezone
+ * the server or browser runs in.
+ *
+ * Example: venueDateOf(new Date('2026-06-05T04:00:00Z')) → '2026-06-04'
+ * (midnight UTC on Jun 5 is still Jun 4 in Chicago, which is UTC-5 in winter /
+ * UTC-6 in summer — the Intl API handles DST automatically.)
  */
-export function todayInVenueDate(): string {
+export function venueDateOf(d: Date): string {
   const parts = new Intl.DateTimeFormat('en-CA', {
     // en-CA produces 'YYYY-MM-DD' natively
     timeZone: VENUE_TZ,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).formatToParts(new Date());
+  }).formatToParts(d);
 
   const get = (type: string) =>
     parts.find((p) => p.type === type)?.value ?? '00';
 
   return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+/**
+ * Return today's date in the venue's local timezone as a YYYY-MM-DD string.
+ *
+ * Delegates to `venueDateOf(new Date())` so there is a single implementation
+ * of the VENUE_TZ date extraction logic.
+ */
+export function todayInVenueDate(): string {
+  return venueDateOf(new Date());
+}
+
+/**
+ * Return true iff the given Date falls on today's calendar date in VENUE_TZ
+ * (America/Chicago).
+ *
+ * Uses a YYYY-MM-DD string comparison, which is safe and correct because the
+ * format is zero-padded and lexicographically ordered.
+ */
+export function isTodayInVenue(d: Date): boolean {
+  return venueDateOf(d) === todayInVenueDate();
+}
+
+/**
+ * Return true iff the given Date's calendar date in VENUE_TZ is strictly
+ * before today's calendar date in VENUE_TZ.
+ *
+ * Uses YYYY-MM-DD string comparison (safe for ISO dates — zero-padded,
+ * lexicographically ordered). An event whose venue day is today returns false;
+ * only events whose venue day is already over return true.
+ *
+ * Example usage: filter out past events while keeping today's events visible
+ * for the entire calendar day regardless of what time it is.
+ */
+export function isPastVenueDay(d: Date): boolean {
+  return venueDateOf(d) < todayInVenueDate();
 }
 
 /**

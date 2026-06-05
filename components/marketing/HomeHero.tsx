@@ -147,12 +147,12 @@ export function HomeHero({ hero }: HomeHeroProps) {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
-              className="font-display font-medium text-[clamp(2.75rem,2rem+4vw,6rem)] leading-[1.05] tracking-[-0.03em] text-foreground [text-shadow:0_2px_20px_rgba(0,0,0,0.7)]"
+              className="font-display font-medium text-[clamp(1.7rem,9vw,4.5rem)] leading-[1.05] tracking-[-0.03em] whitespace-nowrap text-foreground [text-shadow:0_2px_20px_rgba(0,0,0,0.7)]"
             >
               {hero.headline}
             </motion.h1>
           ) : (
-            <h1 className="font-display font-medium text-[clamp(2.75rem,2rem+4vw,6rem)] leading-[1.05] tracking-[-0.03em] text-foreground [text-shadow:0_2px_20px_rgba(0,0,0,0.7)]">
+            <h1 className="font-display font-medium text-[clamp(1.7rem,9vw,4.5rem)] leading-[1.05] tracking-[-0.03em] whitespace-nowrap text-foreground [text-shadow:0_2px_20px_rgba(0,0,0,0.7)]">
               {hero.headline}
             </h1>
           )}

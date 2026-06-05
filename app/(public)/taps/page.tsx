@@ -13,7 +13,14 @@ export const metadata: Metadata = pageMetadata({
   path: "/taps",
 })
 
-export default async function TapsPage() {
+export default async function TapsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[] }>
+}) {
+  const { q } = await searchParams
+  const initialQuery = Array.isArray(q) ? q[0] : typeof q === "string" ? q : undefined
+
   const { data: taps, stale } = await fetchTaps()
 
   return (
@@ -47,7 +54,7 @@ export default async function TapsPage() {
 
       <Section padding="sm">
         <Container>
-          <TapsClient taps={taps} />
+          <TapsClient taps={taps} initialQuery={initialQuery} />
 
           <p className="mt-8 text-xs text-muted-foreground text-center">
             Live data from Untappd · refreshes every ~5 minutes
