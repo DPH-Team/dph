@@ -196,7 +196,7 @@ function TapRoomStatLine({
   }
 
   return (
-    <div className="flex flex-col items-center gap-1 mb-2 px-4">
+    <div className="flex flex-col items-center gap-1 mb-4 px-4">
       {/* Live kicker tag — own line */}
       <span className="flex items-center">
         <PulseDot reduced={reduced} />
@@ -440,7 +440,7 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
   if (reduced) {
     return (
       <section
-        className="bg-card [padding-block:clamp(0.875rem,2.5vw,1.5rem)] overflow-hidden"
+        className="bg-card [padding-block:clamp(0.5rem,1.5vw,0.875rem)] overflow-hidden"
         aria-label="Recent check-ins — scrollable list"
       >
         <Container>
@@ -476,7 +476,7 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
 
   return (
     <section
-      className="bg-card [padding-block:clamp(0.875rem,2.5vw,1.5rem)] overflow-hidden"
+      className="bg-card [padding-block:clamp(0.5rem,1.5vw,0.875rem)] overflow-hidden"
       aria-label="Recent check-ins ticker"
     >
       <Container>
