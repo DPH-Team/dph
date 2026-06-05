@@ -3,12 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import Link from "next/link"
-import type { Checkin } from "@/lib/fixtures/types"
+import type { Checkin, WeeklyHours, HoursOverride } from "@/lib/fixtures/types"
 import { Container } from "@/components/marketing/layout/Container"
 import { VENUE_TZ } from "@/lib/datetime"
+import { computeOpenStatus } from "@/components/marketing/OpenStatusPill"
 
 export type CheckinsTickerProps = {
   initial: Checkin[]
+  hours: WeeklyHours
+  overrides: HoursOverride[]
 }
 
 const POLL_MS = 5 * 60 * 1000 // 5 minutes
@@ -18,6 +21,13 @@ const KICKER_PHRASES = [
   "Fresh off the wall",
   "Live from the taps",
   "Now pouring",
+]
+
+const CLOSED_KICKER_PHRASES = [
+  "Lately on tap",
+  "Recently poured",
+  "What the Haus was sippin'",
+  "Fresh off the wall",
 ]
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -89,55 +99,66 @@ function BeerGlyph() {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-/** Animated copper pulse dot. Under reduced motion: static dot, no ring. */
-function PulseDot({ reduced }: { reduced: boolean }) {
+/** Animated copper pulse dot. Under reduced motion or when closed: static dot, no ring. */
+function PulseDot({ reduced, live }: { reduced: boolean; live: boolean }) {
   return (
     <span className="relative inline-flex size-2 shrink-0 mr-1.5" aria-hidden="true">
-      {!reduced && (
+      {live && !reduced && (
         <span
           className="absolute inset-0 rounded-full bg-primary opacity-75"
           style={{ animation: "ping-ring 1.4s cubic-bezier(0,0,0.2,1) infinite" }}
         />
       )}
-      <span className="relative rounded-full size-2 bg-primary block" />
+      <span
+        className={`relative rounded-full size-2 block ${live ? "bg-primary" : "bg-muted-foreground"}`}
+      />
     </span>
   )
 }
 
 /**
- * Cycles through KICKER_PHRASES every ~6.5 s with a cross-fade.
- * Under reduced motion: renders the first phrase only, static.
+ * Cycles through the appropriate phrase set every ~6.5 s with a cross-fade.
+ * Uses KICKER_PHRASES when live (open), CLOSED_KICKER_PHRASES when closed.
+ * Under reduced motion: renders the first phrase of the active set, static.
  */
-function RotatingKicker({ reduced }: { reduced: boolean }) {
+function RotatingKicker({ reduced, live }: { reduced: boolean; live: boolean }) {
   const [idx, setIdx] = useState(0)
+  const phrases = live ? KICKER_PHRASES : CLOSED_KICKER_PHRASES
+  const textColor = live ? "text-primary" : "text-muted-foreground"
+
+  useEffect(() => {
+    if (reduced) return
+    // Reset index when switching between open/closed phrase sets
+    setIdx(0)
+  }, [live, reduced])
 
   useEffect(() => {
     if (reduced) return
     const id = setInterval(() => {
-      setIdx((prev) => (prev + 1) % KICKER_PHRASES.length)
+      setIdx((prev) => (prev + 1) % phrases.length)
     }, 6500)
     return () => clearInterval(id)
-  }, [reduced])
+  }, [reduced, phrases.length])
 
-  const phrase = reduced ? KICKER_PHRASES[0] : KICKER_PHRASES[idx]
+  const phrase = reduced ? phrases[0] : phrases[idx]
 
   return (
     <span className="relative inline-block">
       {reduced ? (
-        <span className="uppercase tracking-wide text-[11px] font-medium text-primary">
+        <span className={`uppercase tracking-wide text-[11px] font-medium ${textColor}`}>
           {phrase}
         </span>
       ) : (
         <AnimatePresence mode="wait" initial={false}>
           <motion.span
-            key={idx}
+            key={`${live ? "open" : "closed"}-${idx}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.5, ease: "easeInOut" }}
-            className="uppercase tracking-wide text-[11px] font-medium text-primary inline-block"
+            className={`uppercase tracking-wide text-[11px] font-medium ${textColor} inline-block`}
           >
-            {KICKER_PHRASES[idx]}
+            {phrases[idx]}
           </motion.span>
         </AnimatePresence>
       )}
@@ -153,9 +174,11 @@ function RotatingKicker({ reduced }: { reduced: boolean }) {
 function TapRoomStatLine({
   checkins,
   reduced,
+  live,
 }: {
   checkins: Checkin[]
   reduced: boolean
+  live: boolean
 }) {
   const stats = useMemo(() => {
     const top = topBrewery(checkins)
@@ -206,8 +229,8 @@ function TapRoomStatLine({
     <div className="flex flex-col items-center gap-1 mb-4 px-4">
       {/* Live kicker tag — own line */}
       <span className="flex items-center">
-        <PulseDot reduced={reduced} />
-        <RotatingKicker reduced={reduced} />
+        <PulseDot reduced={reduced} live={live} />
+        <RotatingKicker reduced={reduced} live={live} />
       </span>
 
       {/* Stat clauses — second line, centered */}
@@ -354,9 +377,10 @@ const MASK_STYLE_REDUCED: React.CSSProperties = {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-export function CheckinsTicker({ initial }: CheckinsTickerProps) {
+export function CheckinsTicker({ initial, hours, overrides }: CheckinsTickerProps) {
   const reduced = useReducedMotion() ?? false
   const [checkins, setCheckins] = useState<Checkin[]>(initial)
+  const [isOpen, setIsOpen] = useState(() => computeOpenStatus(hours, overrides).isOpen)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Track the newest createdAt timestamp seen so far (for fresh-pour detection).
@@ -388,6 +412,10 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
 
   useEffect(() => {
     async function poll() {
+      // Refresh open/closed status on every tick so the kicker stays correct
+      // if the venue opens or closes while the page is resident.
+      setIsOpen(computeOpenStatus(hours, overrides).isOpen)
+
       try {
         const res = await fetch("/api/checkins")
         if (!res.ok) return
@@ -425,7 +453,7 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
-  }, [])
+  }, [hours, overrides])
 
   // ── Empty state ─────────────────────────────────────────────────────────────
   if (checkins.length === 0) {
@@ -451,7 +479,7 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
         aria-label="Recent check-ins — scrollable list"
       >
         <Container>
-          <TapRoomStatLine checkins={sortedCheckins} reduced={reduced} />
+          <TapRoomStatLine checkins={sortedCheckins} reduced={reduced} live={isOpen} />
         </Container>
 
         {/* Scrollable row with edge fades */}
@@ -487,7 +515,7 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
       aria-label="Recent check-ins ticker"
     >
       <Container>
-        <TapRoomStatLine checkins={sortedCheckins} reduced={reduced} />
+        <TapRoomStatLine checkins={sortedCheckins} reduced={reduced} live={isOpen} />
       </Container>
 
       {/*

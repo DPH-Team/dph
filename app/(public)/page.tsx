@@ -66,7 +66,7 @@ export default async function HomePage() {
     <>
       <HomeHero hero={hero} />
 
-      <CheckinsTicker initial={checkins} />
+      <CheckinsTicker initial={checkins} hours={hours} overrides={overrides} />
 
       {/* Upcoming events strip */}
       <Section padding="md" className="bg-background">
