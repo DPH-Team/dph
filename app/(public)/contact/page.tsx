@@ -39,7 +39,7 @@ export default async function ContactPage() {
       )}
 
       <PageHero
-        eyebrow="Find us"
+        eyebrow="Stop in"
         title="Find Us"
         lead="We're in the heart of Green Bay. Easy parking, accessible entrance, and the tap wall's always ready."
       />
