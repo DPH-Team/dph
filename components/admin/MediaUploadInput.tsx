@@ -39,10 +39,7 @@ const IMAGE_MAX_BYTES = 8 * 1024 * 1024;  // 8 MiB
 const VIDEO_MAX_BYTES = 50 * 1024 * 1024; // 50 MiB
 
 function resolvePublicUrl(path: string): string {
-  const base =
-    typeof window !== 'undefined'
-      ? (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
-      : '';
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
   return `${base}/storage/v1/object/public/media/${path}`;
 }
 
