@@ -196,24 +196,26 @@ function TapRoomStatLine({
   }
 
   return (
-    <div className="flex items-center justify-center flex-wrap gap-x-0 gap-y-1 mb-2 px-4">
-      {/* Live kicker tag */}
-      <span className="flex items-center mr-2">
+    <div className="flex flex-col items-center gap-1 mb-2 px-4">
+      {/* Live kicker tag — own line */}
+      <span className="flex items-center">
         <PulseDot reduced={reduced} />
         <RotatingKicker reduced={reduced} />
       </span>
 
-      {/* Stat clauses separated by · */}
-      {clauses.map((clause, i) => (
-        <span key={i} className="flex items-center text-xs">
-          {i > 0 && (
-            <span className="mx-1.5 text-muted-foreground/40 select-none" aria-hidden="true">
-              ·
-            </span>
-          )}
-          {clause}
-        </span>
-      ))}
+      {/* Stat clauses — second line, centered */}
+      <div className="flex items-center justify-center flex-wrap text-xs">
+        {clauses.map((clause, i) => (
+          <span key={i} className="flex items-center">
+            {i > 0 && (
+              <span className="mx-1.5 text-muted-foreground/40 select-none" aria-hidden="true">
+                ·
+              </span>
+            )}
+            {clause}
+          </span>
+        ))}
+      </div>
     </div>
   )
 }
