@@ -8,6 +8,7 @@ import type { Tap } from "@/lib/fixtures/types"
 export type TapFiltersProps = {
   taps: Tap[]
   onChange: (filtered: Tap[]) => void
+  onQueryChange?: (q: string) => void
   className?: string
   initialQuery?: string
 }
@@ -158,7 +159,7 @@ function AbvSlider({ min, max, value, onChange, id }: AbvSliderProps) {
   )
 }
 
-export function TapFilters({ taps, onChange, className, initialQuery }: TapFiltersProps) {
+export function TapFilters({ taps, onChange, onQueryChange, className, initialQuery }: TapFiltersProps) {
   const id = useId()
   const styles = getUniqueStyles(taps)
 
@@ -177,6 +178,7 @@ export function TapFilters({ taps, onChange, className, initialQuery }: TapFilte
   const handleQueryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const q = e.target.value
     setQuery(q)
+    onQueryChange?.(q)
     applyFilters(q, selectedStyles, abvRange)
   }
 
@@ -195,6 +197,7 @@ export function TapFilters({ taps, onChange, className, initialQuery }: TapFilte
 
   const clearAll = () => {
     setQuery("")
+    onQueryChange?.("")
     setSelectedStyles([])
     setAbvRange([GLOBAL_MIN_ABV, GLOBAL_MAX_ABV])
     onChange(taps)

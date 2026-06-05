@@ -16,6 +16,7 @@ export function TapsClient({ taps, initialQuery }: TapsClientProps) {
     filterTaps(taps, initialQuery ?? "", [], [GLOBAL_MIN_ABV, GLOBAL_MAX_ABV]),
   )
   const [isSticky, setIsSticky] = useState(false)
+  const [currentQuery, setCurrentQuery] = useState(initialQuery ?? "")
 
   const handleChange = useCallback((result: Tap[]) => {
     setFiltered(result)
@@ -44,12 +45,28 @@ export function TapsClient({ taps, initialQuery }: TapsClientProps) {
             : "py-3"
         }
       >
-        <TapFilters taps={taps} onChange={handleChange} initialQuery={initialQuery} />
+        <TapFilters
+          taps={taps}
+          onChange={handleChange}
+          onQueryChange={setCurrentQuery}
+          initialQuery={initialQuery}
+        />
       </div>
 
       {filtered.length === 0 ? (
         <div className="flex flex-col items-center gap-4 py-16 text-center">
-          <p className="text-muted-foreground">No taps match your filters.</p>
+          {currentQuery.trim() !== "" ? (
+            <>
+              <p className="text-foreground font-medium">
+                Nothing from &ldquo;{currentQuery.trim()}&rdquo; on tap right now.
+              </p>
+              <p className="text-sm text-muted-foreground max-w-xs">
+                It may have just kicked — check back soon, or browse the full wall.
+              </p>
+            </>
+          ) : (
+            <p className="text-muted-foreground">No taps match your filters.</p>
+          )}
           <Button
             variant="ghost"
             onClick={() => {
