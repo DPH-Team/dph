@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import { useReducedMotion } from "framer-motion"
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import type { Checkin } from "@/lib/fixtures/types"
 import { Container } from "@/components/marketing/layout/Container"
 
@@ -11,6 +11,61 @@ export type CheckinsTickerProps = {
 
 const POLL_MS = 5 * 60 * 1000 // 5 minutes
 
+const KICKER_PHRASES = [
+  "What the Haus is sippin'",
+  "Fresh off the wall",
+  "Live from the taps",
+  "Now pouring",
+]
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function truncateComment(s: string, max = 80): string {
+  return s.length > max ? s.slice(0, max).trimEnd() + "…" : s
+}
+
+function formatCheckinTime(iso: string): string {
+  const date = new Date(iso)
+  if (isNaN(date.getTime())) return ""
+  const diffMs = Date.now() - date.getTime()
+  const diffMin = Math.floor(diffMs / 60_000)
+  if (diffMin < 1) return "just now"
+  if (diffMin < 60) return `${diffMin}m ago`
+  const diffHours = Math.floor(diffMin / 60)
+  if (diffHours < 24) return `${diffHours}h ago`
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
+/** Mode of brewery strings; ties broken by recency (first in sorted-desc array wins). */
+function topBrewery(checkins: Checkin[]): string | null {
+  if (checkins.length === 0) return null
+  const counts = new Map<string, number>()
+  for (const c of checkins) {
+    counts.set(c.brewery, (counts.get(c.brewery) ?? 0) + 1)
+  }
+  let best: string | null = null
+  let bestCount = 0
+  // checkins are already sorted newest-first; iterating preserves recency tie-break
+  for (const c of checkins) {
+    const n = counts.get(c.brewery) ?? 0
+    if (n > bestCount) {
+      bestCount = n
+      best = c.brewery
+    }
+  }
+  return best
+}
+
+function avgRating(checkins: Checkin[]): number | null {
+  const rated = checkins.filter((c) => c.rating !== null)
+  if (rated.length === 0) return null
+  const sum = rated.reduce((acc, c) => acc + (c.rating as number), 0)
+  return sum / rated.length
+}
+
+// ─── BeerGlyph variants ───────────────────────────────────────────────────────
+
+/** Large placeholder shown when a checkin card has no image. */
 function BeerGlyph() {
   return (
     <svg
@@ -30,33 +85,228 @@ function BeerGlyph() {
   )
 }
 
-function truncateComment(s: string, max = 80): string {
-  return s.length > max ? s.slice(0, max).trimEnd() + "…" : s
+/** Tiny filled beer glass glyph for the 5-glass rating row. */
+function GlassFilledIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      strokeWidth="0"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3"
+      aria-hidden="true"
+    >
+      <path d="M5 3h14l-1.5 13.5a2 2 0 0 1-2 1.5H8.5a2 2 0 0 1-2-1.5L5 3Z" />
+      <path d="M17 3c0-1 1-2 2-2s2 1 2 2v5l-4 1V3Z" />
+    </svg>
+  )
 }
 
-function formatCheckinTime(iso: string): string {
-  const date = new Date(iso)
-  if (isNaN(date.getTime())) return ""
-  const diffMs = Date.now() - date.getTime()
-  const diffMin = Math.floor(diffMs / 60_000)
-  if (diffMin < 1) return "just now"
-  if (diffMin < 60) return `${diffMin}m ago`
-  const diffHours = Math.floor(diffMin / 60)
-  if (diffHours < 24) return `${diffHours}h ago`
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+/** Tiny outline beer glass glyph for the 5-glass rating row. */
+function GlassOutlineIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-3"
+      aria-hidden="true"
+    >
+      <path d="M5 3h14l-1.5 13.5a2 2 0 0 1-2 1.5H8.5a2 2 0 0 1-2-1.5L5 3Z" />
+      <path d="M17 7c0-1 1-2 2-2s2 1 2 2v3" />
+    </svg>
+  )
 }
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+/** Five small beer glass icons representing a 0–5 rating. */
+function GlassRating({ rating }: { rating: number }) {
+  const filled = Math.round(rating)
+  return (
+    <span
+      className="inline-flex items-center gap-px ml-1"
+      aria-label={`Rated ${rating.toFixed(1)} out of 5`}
+    >
+      {Array.from({ length: 5 }, (_, i) =>
+        i < filled ? (
+          <span key={i} className="text-primary" aria-hidden="true">
+            <GlassFilledIcon />
+          </span>
+        ) : (
+          <span key={i} className="text-muted-foreground/30" aria-hidden="true">
+            <GlassOutlineIcon />
+          </span>
+        ),
+      )}
+    </span>
+  )
+}
+
+/** Animated copper pulse dot. Under reduced motion: static dot, no ring. */
+function PulseDot({ reduced }: { reduced: boolean }) {
+  return (
+    <span className="relative inline-flex size-2 shrink-0 mr-1.5" aria-hidden="true">
+      {!reduced && (
+        <span
+          className="absolute inset-0 rounded-full bg-primary opacity-75"
+          style={{ animation: "ping-ring 1.4s cubic-bezier(0,0,0.2,1) infinite" }}
+        />
+      )}
+      <span className="relative rounded-full size-2 bg-primary block" />
+    </span>
+  )
+}
+
+/**
+ * Cycles through KICKER_PHRASES every ~6.5 s with a cross-fade.
+ * Under reduced motion: renders the first phrase only, static.
+ */
+function RotatingKicker({ reduced }: { reduced: boolean }) {
+  const [idx, setIdx] = useState(0)
+
+  useEffect(() => {
+    if (reduced) return
+    const id = setInterval(() => {
+      setIdx((prev) => (prev + 1) % KICKER_PHRASES.length)
+    }, 6500)
+    return () => clearInterval(id)
+  }, [reduced])
+
+  const phrase = reduced ? KICKER_PHRASES[0] : KICKER_PHRASES[idx]
+
+  return (
+    <span className="relative inline-block">
+      {reduced ? (
+        <span className="uppercase tracking-wide text-[11px] font-medium text-primary">
+          {phrase}
+        </span>
+      ) : (
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.span
+            key={idx}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: "easeInOut" }}
+            className="uppercase tracking-wide text-[11px] font-medium text-primary inline-block"
+          >
+            {KICKER_PHRASES[idx]}
+          </motion.span>
+        </AnimatePresence>
+      )}
+    </span>
+  )
+}
+
+/**
+ * Derived tap-room stats line.
+ * Computes: pours in last hour, top brewery, avg rating.
+ * All clauses are optional; never renders a dangling separator.
+ */
+function TapRoomStatLine({
+  checkins,
+  reduced,
+}: {
+  checkins: Checkin[]
+  reduced: boolean
+}) {
+  const stats = useMemo(() => {
+    const now = Date.now()
+    const oneHourAgo = now - 60 * 60 * 1000
+
+    const recentPours = checkins.filter((c) => {
+      const t = new Date(c.createdAt).getTime()
+      return !isNaN(t) && t >= oneHourAgo
+    }).length
+
+    const top = topBrewery(checkins)
+    const avg = avgRating(checkins)
+
+    return { recentPours, top, avg }
+  }, [checkins])
+
+  const clauses: React.ReactNode[] = []
+
+  if (stats.recentPours === 0) {
+    // Low-count graceful fallback — pull from full array for brewery/rating context
+    clauses.push(
+      <span key="quiet" className="text-muted-foreground">
+        Last call was a little ago — here&rsquo;s what&rsquo;s been pouring
+      </span>,
+    )
+  } else {
+    clauses.push(
+      <span key="pours" className="text-muted-foreground">
+        <span className="text-foreground font-medium tabular-nums">
+          {stats.recentPours}
+        </span>{" "}
+        {stats.recentPours === 1 ? "pour" : "pours"} in the last hour
+      </span>,
+    )
+  }
+
+  if (stats.top) {
+    clauses.push(
+      <span key="brewery" className="text-muted-foreground">
+        loving <span className="text-foreground font-medium">{stats.top}</span> tonight
+      </span>,
+    )
+  }
+
+  if (stats.avg !== null) {
+    clauses.push(
+      <span key="rating" className="text-muted-foreground">
+        <span className="text-packers-gold font-medium tabular-nums">
+          {stats.avg.toFixed(1)}★
+        </span>{" "}
+        on average
+      </span>,
+    )
+  }
+
+  return (
+    <div className="flex items-center justify-center flex-wrap gap-x-0 gap-y-1 mb-3 px-4">
+      {/* Live kicker tag */}
+      <span className="flex items-center mr-2">
+        <PulseDot reduced={reduced} />
+        <RotatingKicker reduced={reduced} />
+      </span>
+
+      {/* Stat clauses separated by · */}
+      {clauses.map((clause, i) => (
+        <span key={i} className="flex items-center text-xs">
+          {i > 0 && (
+            <span className="mx-1.5 text-muted-foreground/40 select-none" aria-hidden="true">
+              ·
+            </span>
+          )}
+          {clause}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+// ─── CheckinItem ──────────────────────────────────────────────────────────────
 
 type CheckinItemProps = {
   checkin: Checkin
   ariaHidden?: boolean
+  isFresh?: boolean
+  reduced?: boolean
 }
 
-function CheckinItem({ checkin, ariaHidden }: CheckinItemProps) {
+function CheckinItem({ checkin, ariaHidden, isFresh, reduced }: CheckinItemProps) {
   const imgSrc = checkin.beerLabelUrl ?? checkin.userAvatarUrl
   const altText = `${checkin.beerName} by ${checkin.brewery}`
   const hasComment = typeof checkin.comment === "string" && checkin.comment.length > 0
 
-  return (
+  const inner = (
     <span
       className="inline-flex items-start gap-2.5 px-5 shrink-0 whitespace-nowrap"
       aria-hidden={ariaHidden ? "true" : undefined}
@@ -94,10 +344,8 @@ function CheckinItem({ checkin, ariaHidden }: CheckinItemProps) {
           <span className="text-muted-foreground">{checkin.brewery}</span>
           {checkin.rating !== null && (
             <>
-              <span className="text-muted-foreground ml-1">·</span>
-              <span className="text-packers-gold font-medium tabular-nums">
-                {checkin.rating.toFixed(1)}★
-              </span>
+              <span className="text-muted-foreground ml-1" aria-hidden="true">·</span>
+              <GlassRating rating={checkin.rating} />
             </>
           )}
         </span>
@@ -114,12 +362,82 @@ function CheckinItem({ checkin, ariaHidden }: CheckinItemProps) {
       <span className="w-1 h-1 rounded-full bg-border shrink-0 mt-2" aria-hidden="true" />
     </span>
   )
+
+  // Fresh-pour flash: copper glow entrance animation
+  // Under reduced motion: static faint background tint (no animation, no layout shift)
+  if (isFresh) {
+    if (reduced) {
+      return (
+        <span
+          className="inline-flex"
+          style={{
+            background: "color-mix(in oklch, var(--primary) 8%, transparent)",
+            borderRadius: "0.375rem",
+          }}
+        >
+          {inner}
+        </span>
+      )
+    }
+    return (
+      <motion.span
+        className="inline-flex"
+        initial={{ opacity: 0, scale: 0.96, filter: "brightness(1.6) drop-shadow(0 0 6px var(--primary))" }}
+        animate={{ opacity: 1, scale: 1, filter: "brightness(1) drop-shadow(0 0 0px transparent)" }}
+        transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }}
+        style={{ borderRadius: "0.375rem" }}
+      >
+        {inner}
+      </motion.span>
+    )
+  }
+
+  return <>{inner}</>
 }
 
+// ─── Mask style helpers ───────────────────────────────────────────────────────
+
+/**
+ * Horizontal fade-mask applied to the marquee/scroll wrapper.
+ * Uses alpha-based mask-image so it works on any background color.
+ * Mobile: tighter 6% fade so short cards aren't swallowed.
+ * Desktop: 8% fade.
+ */
+const MASK_STYLE: React.CSSProperties = {
+  WebkitMaskImage:
+    "linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%)",
+  maskImage:
+    "linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%)",
+}
+
+const MASK_STYLE_REDUCED: React.CSSProperties = {
+  WebkitMaskImage:
+    "linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%)",
+  maskImage:
+    "linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%)",
+}
+
+// ─── Main export ──────────────────────────────────────────────────────────────
+
 export function CheckinsTicker({ initial }: CheckinsTickerProps) {
-  const reduced = useReducedMotion()
+  const reduced = useReducedMotion() ?? false
   const [checkins, setCheckins] = useState<Checkin[]>(initial)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Track the newest createdAt timestamp seen so far (for fresh-pour detection).
+  // Initialised to the newest in the initial list so initial mount never flashes.
+  const newestSeenRef = useRef<number>(
+    (() => {
+      let max = -Infinity
+      for (const c of initial) {
+        const t = new Date(c.createdAt).getTime()
+        if (!isNaN(t) && t > max) max = t
+      }
+      return max === -Infinity ? 0 : max
+    })(),
+  )
+
+  const [freshIds, setFreshIds] = useState<ReadonlySet<string>>(new Set())
 
   const sortedCheckins = useMemo(
     () =>
@@ -139,8 +457,29 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
         const res = await fetch("/api/checkins")
         if (!res.ok) return
         const json = (await res.json()) as { checkins: Checkin[]; stale: boolean }
-        if (Array.isArray(json.checkins) && json.checkins.length > 0) {
-          setCheckins(json.checkins)
+        if (!Array.isArray(json.checkins) || json.checkins.length === 0) return
+
+        const prevNewest = newestSeenRef.current
+        const incoming = json.checkins
+
+        // Identify truly new arrivals
+        const newIds = new Set<string>()
+        let nextNewest = prevNewest
+        for (const c of incoming) {
+          const t = new Date(c.createdAt).getTime()
+          if (!isNaN(t)) {
+            if (t > prevNewest) newIds.add(c.id)
+            if (t > nextNewest) nextNewest = t
+          }
+        }
+
+        newestSeenRef.current = nextNewest
+        setCheckins(incoming)
+
+        if (newIds.size > 0) {
+          setFreshIds(newIds)
+          // Clear fresh flags after the entrance animation completes
+          setTimeout(() => setFreshIds(new Set()), 2200)
         }
       } catch {
         // keep last-good data — ignore fetch errors silently
@@ -153,37 +492,58 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
     }
   }, [])
 
+  // ── Empty state ─────────────────────────────────────────────────────────────
   if (checkins.length === 0) {
     return (
-      <section className="bg-card [padding-block:clamp(1.5rem,4vw,2.5rem)]" aria-label="Recent check-ins">
+      <section
+        className="bg-card [padding-block:clamp(1.5rem,4vw,2.5rem)]"
+        aria-label="Recent check-ins"
+      >
         <Container>
-          <p className="text-sm text-muted-foreground text-center">Quiet at the bar right now — check back soon.</p>
+          <p className="text-sm text-muted-foreground text-center">
+            Quiet at the bar right now — first round&rsquo;s on whoever shows up.
+          </p>
         </Container>
       </section>
     )
   }
 
+  // ── Reduced-motion fallback: scrollable list ────────────────────────────────
   if (reduced) {
     return (
       <section
         className="bg-card [padding-block:clamp(1.5rem,4vw,2.5rem)] overflow-hidden"
         aria-label="Recent check-ins — scrollable list"
       >
-        <div
-          className="overflow-x-auto scrollbar-none"
-          role="region"
-          aria-label="Recent check-ins"
-        >
-          <div className="flex w-max py-1">
-            {sortedCheckins.map((c) => (
-              <CheckinItem key={c.id} checkin={c} />
-            ))}
+        <Container>
+          <TapRoomStatLine checkins={sortedCheckins} reduced={reduced} />
+        </Container>
+
+        {/* Scrollable row with edge fades */}
+        <div className="relative overflow-hidden">
+          <div
+            className="overflow-x-auto scrollbar-none"
+            role="region"
+            aria-label="Recent check-ins"
+            style={MASK_STYLE_REDUCED}
+          >
+            <div className="flex w-max py-1">
+              {sortedCheckins.map((c) => (
+                <CheckinItem
+                  key={c.id}
+                  checkin={c}
+                  isFresh={freshIds.has(c.id)}
+                  reduced={reduced}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </section>
     )
   }
 
+  // ── Animated marquee ────────────────────────────────────────────────────────
   const duration = Math.max(60, sortedCheckins.length * 10)
 
   return (
@@ -191,30 +551,53 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
       className="bg-card [padding-block:clamp(1.5rem,4vw,2.5rem)] overflow-hidden"
       aria-label="Recent check-ins ticker"
     >
-      {/*
-       * Marquee: two copies of the list side-by-side.
-       * The first copy is visible content; the second is aria-hidden
-       * for screen readers (purely decorative repetition for seamless loop).
-       * Pause on hover via .ticker-track:hover in the style block below.
-       * The duration CSS variable is set inline so the hover rule
-       * (which only touches animation-play-state) is never overridden.
-       */}
-      <div
-        className="ticker-track flex w-max"
-        style={{ "--ticker-duration": `${duration}s` } as React.CSSProperties}
-      >
-        {/* Primary — visible to screen readers */}
-        <div className="flex">
-          {sortedCheckins.map((c) => (
-            <CheckinItem key={c.id} checkin={c} />
-          ))}
-        </div>
+      <Container>
+        <TapRoomStatLine checkins={sortedCheckins} reduced={reduced} />
+      </Container>
 
-        {/* Duplicate — aria-hidden; makes the loop seamless */}
-        <div className="flex" aria-hidden="true">
-          {sortedCheckins.map((c) => (
-            <CheckinItem key={`dup-${c.id}`} checkin={c} ariaHidden />
-          ))}
+      {/*
+       * Mask wrapper: dissolves cards into bg-card at both edges.
+       * overflow-hidden prevents the mask from showing bleed outside
+       * the section. The mask is applied here (not on the scrolling
+       * track itself) so it stays fixed while content scrolls under it.
+       */}
+      <div className="relative overflow-hidden" style={MASK_STYLE}>
+        {/*
+         * Marquee: two copies of the list side-by-side.
+         * The first copy is visible content; the second is aria-hidden
+         * for screen readers (purely decorative repetition for seamless loop).
+         * Pause on hover via .ticker-track:hover in the style block below.
+         * The duration CSS variable is set inline so the hover rule
+         * (which only touches animation-play-state) is never overridden.
+         */}
+        <div
+          className="ticker-track flex w-max"
+          style={{ "--ticker-duration": `${duration}s` } as React.CSSProperties}
+        >
+          {/* Primary — visible to screen readers */}
+          <div className="flex">
+            {sortedCheckins.map((c) => (
+              <CheckinItem
+                key={c.id}
+                checkin={c}
+                isFresh={freshIds.has(c.id)}
+                reduced={reduced}
+              />
+            ))}
+          </div>
+
+          {/* Duplicate — aria-hidden; makes the loop seamless */}
+          <div className="flex" aria-hidden="true">
+            {sortedCheckins.map((c) => (
+              <CheckinItem
+                key={`dup-${c.id}`}
+                checkin={c}
+                ariaHidden
+                isFresh={freshIds.has(c.id)}
+                reduced={reduced}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
@@ -228,6 +611,12 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
         @keyframes ticker-scroll {
           0%   { transform: translateX(0); }
           100% { transform: translateX(-50%); }
+        }
+        @keyframes ping-ring {
+          75%, 100% {
+            transform: scale(2.2);
+            opacity: 0;
+          }
         }
       `}</style>
     </section>
