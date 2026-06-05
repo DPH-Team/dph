@@ -1,17 +1,20 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { TapFilters } from "@/components/marketing/TapFilters"
+import { TapFilters, filterTaps, GLOBAL_MIN_ABV, GLOBAL_MAX_ABV } from "@/components/marketing/TapFilters"
 import { TapCard } from "@/components/marketing/TapCard"
 import { Button } from "@/components/ui/button"
 import type { Tap } from "@/lib/fixtures/types"
 
 export type TapsClientProps = {
   taps: Tap[]
+  initialQuery?: string
 }
 
-export function TapsClient({ taps }: TapsClientProps) {
-  const [filtered, setFiltered] = useState<Tap[]>(taps)
+export function TapsClient({ taps, initialQuery }: TapsClientProps) {
+  const [filtered, setFiltered] = useState<Tap[]>(() =>
+    filterTaps(taps, initialQuery ?? "", [], [GLOBAL_MIN_ABV, GLOBAL_MAX_ABV]),
+  )
   const [isSticky, setIsSticky] = useState(false)
 
   const handleChange = useCallback((result: Tap[]) => {
@@ -41,7 +44,7 @@ export function TapsClient({ taps }: TapsClientProps) {
             : "py-3"
         }
       >
-        <TapFilters taps={taps} onChange={handleChange} />
+        <TapFilters taps={taps} onChange={handleChange} initialQuery={initialQuery} />
       </div>
 
       {filtered.length === 0 ? (

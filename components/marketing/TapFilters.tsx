@@ -9,13 +9,14 @@ export type TapFiltersProps = {
   taps: Tap[]
   onChange: (filtered: Tap[]) => void
   className?: string
+  initialQuery?: string
 }
 
 function getUniqueStyles(taps: Tap[]): string[] {
   return Array.from(new Set(taps.map((t) => t.style))).sort()
 }
 
-function filterTaps(
+export function filterTaps(
   taps: Tap[],
   query: string,
   selectedStyles: string[],
@@ -37,8 +38,8 @@ function filterTaps(
   })
 }
 
-const GLOBAL_MIN_ABV = 0
-const GLOBAL_MAX_ABV = 15
+export const GLOBAL_MIN_ABV = 0
+export const GLOBAL_MAX_ABV = 15
 
 type AbvSliderProps = {
   min: number
@@ -157,11 +158,11 @@ function AbvSlider({ min, max, value, onChange, id }: AbvSliderProps) {
   )
 }
 
-export function TapFilters({ taps, onChange, className }: TapFiltersProps) {
+export function TapFilters({ taps, onChange, className, initialQuery }: TapFiltersProps) {
   const id = useId()
   const styles = getUniqueStyles(taps)
 
-  const [query, setQuery] = useState("")
+  const [query, setQuery] = useState(initialQuery ?? "")
   const [selectedStyles, setSelectedStyles] = useState<string[]>([])
   const [abvRange, setAbvRange] = useState<[number, number]>([GLOBAL_MIN_ABV, GLOBAL_MAX_ABV])
   const [styleDropdownOpen, setStyleDropdownOpen] = useState(false)

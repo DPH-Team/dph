@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import Link from "next/link"
 import type { Checkin } from "@/lib/fixtures/types"
 import { Container } from "@/components/marketing/layout/Container"
 import { VENUE_TZ } from "@/lib/datetime"
@@ -178,7 +179,13 @@ function TapRoomStatLine({
     clauses.push(
       <span key="brewery" className="text-muted-foreground">
         Everyone&rsquo;s loving{" "}
-        <span className="text-foreground font-medium">{stats.top}</span>{" "}
+        <Link
+          href={`/taps?q=${encodeURIComponent(stats.top)}`}
+          aria-label={`See ${stats.top} pours on tap`}
+          className="text-foreground font-medium underline decoration-transparent hover:decoration-primary hover:text-primary underline-offset-2 transition-colors"
+        >
+          {stats.top}
+        </Link>{" "}
         {stats.timeWord}
       </span>,
     )
