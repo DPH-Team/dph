@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
 import type { Checkin } from "@/lib/fixtures/types"
 import { Container } from "@/components/marketing/layout/Container"
+import { VENUE_TZ } from "@/lib/datetime"
 
 export type CheckinsTickerProps = {
   initial: Checkin[]
@@ -85,67 +86,7 @@ function BeerGlyph() {
   )
 }
 
-/** Tiny filled beer glass glyph for the 5-glass rating row. */
-function GlassFilledIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      strokeWidth="0"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="size-3"
-      aria-hidden="true"
-    >
-      <path d="M5 3h14l-1.5 13.5a2 2 0 0 1-2 1.5H8.5a2 2 0 0 1-2-1.5L5 3Z" />
-      <path d="M17 3c0-1 1-2 2-2s2 1 2 2v5l-4 1V3Z" />
-    </svg>
-  )
-}
-
-/** Tiny outline beer glass glyph for the 5-glass rating row. */
-function GlassOutlineIcon() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="size-3"
-      aria-hidden="true"
-    >
-      <path d="M5 3h14l-1.5 13.5a2 2 0 0 1-2 1.5H8.5a2 2 0 0 1-2-1.5L5 3Z" />
-      <path d="M17 7c0-1 1-2 2-2s2 1 2 2v3" />
-    </svg>
-  )
-}
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
-
-/** Five small beer glass icons representing a 0–5 rating. */
-function GlassRating({ rating }: { rating: number }) {
-  const filled = Math.round(rating)
-  return (
-    <span
-      className="inline-flex items-center gap-px ml-1"
-      aria-label={`Rated ${rating.toFixed(1)} out of 5`}
-    >
-      {Array.from({ length: 5 }, (_, i) =>
-        i < filled ? (
-          <span key={i} className="text-primary" aria-hidden="true">
-            <GlassFilledIcon />
-          </span>
-        ) : (
-          <span key={i} className="text-muted-foreground/30" aria-hidden="true">
-            <GlassOutlineIcon />
-          </span>
-        ),
-      )}
-    </span>
-  )
-}
 
 /** Animated copper pulse dot. Under reduced motion: static dot, no ring. */
 function PulseDot({ reduced }: { reduced: boolean }) {
@@ -205,7 +146,7 @@ function RotatingKicker({ reduced }: { reduced: boolean }) {
 
 /**
  * Derived tap-room stats line.
- * Computes: pours in last hour, top brewery, avg rating.
+ * Computes: top brewery, avg rating, today/tonight from venue-local hour.
  * All clauses are optional; never renders a dangling separator.
  */
 function TapRoomStatLine({
@@ -216,44 +157,29 @@ function TapRoomStatLine({
   reduced: boolean
 }) {
   const stats = useMemo(() => {
-    const now = Date.now()
-    const oneHourAgo = now - 60 * 60 * 1000
-
-    const recentPours = checkins.filter((c) => {
-      const t = new Date(c.createdAt).getTime()
-      return !isNaN(t) && t >= oneHourAgo
-    }).length
-
     const top = topBrewery(checkins)
     const avg = avgRating(checkins)
 
-    return { recentPours, top, avg }
+    // Determine "today" vs "tonight" from venue-local hour
+    const hourStr = new Intl.DateTimeFormat("en-US", {
+      timeZone: VENUE_TZ,
+      hour: "numeric",
+      hour12: false,
+    }).format(new Date())
+    const venueHour = parseInt(hourStr, 10)
+    const timeWord = venueHour < 17 ? "today" : "tonight"
+
+    return { top, avg, timeWord }
   }, [checkins])
 
   const clauses: React.ReactNode[] = []
 
-  if (stats.recentPours === 0) {
-    // Low-count graceful fallback — pull from full array for brewery/rating context
-    clauses.push(
-      <span key="quiet" className="text-muted-foreground">
-        Last call was a little ago — here&rsquo;s what&rsquo;s been pouring
-      </span>,
-    )
-  } else {
-    clauses.push(
-      <span key="pours" className="text-muted-foreground">
-        <span className="text-foreground font-medium tabular-nums">
-          {stats.recentPours}
-        </span>{" "}
-        {stats.recentPours === 1 ? "pour" : "pours"} in the last hour
-      </span>,
-    )
-  }
-
   if (stats.top) {
     clauses.push(
       <span key="brewery" className="text-muted-foreground">
-        loving <span className="text-foreground font-medium">{stats.top}</span> tonight
+        Everyone&rsquo;s loving{" "}
+        <span className="text-foreground font-medium">{stats.top}</span>{" "}
+        {stats.timeWord}
       </span>,
     )
   }
@@ -261,7 +187,7 @@ function TapRoomStatLine({
   if (stats.avg !== null) {
     clauses.push(
       <span key="rating" className="text-muted-foreground">
-        <span className="text-packers-gold font-medium tabular-nums">
+        <span className="text-primary font-medium tabular-nums">
           {stats.avg.toFixed(1)}★
         </span>{" "}
         on average
@@ -270,7 +196,7 @@ function TapRoomStatLine({
   }
 
   return (
-    <div className="flex items-center justify-center flex-wrap gap-x-0 gap-y-1 mb-3 px-4">
+    <div className="flex items-center justify-center flex-wrap gap-x-0 gap-y-1 mb-2 px-4">
       {/* Live kicker tag */}
       <span className="flex items-center mr-2">
         <PulseDot reduced={reduced} />
@@ -345,7 +271,7 @@ function CheckinItem({ checkin, ariaHidden, isFresh, reduced }: CheckinItemProps
           {checkin.rating !== null && (
             <>
               <span className="text-muted-foreground ml-1" aria-hidden="true">·</span>
-              <GlassRating rating={checkin.rating} />
+              <span className="text-primary font-medium tabular-nums" aria-label={`Rated ${checkin.rating.toFixed(1)} out of 5`}>{checkin.rating.toFixed(1)}★</span>
             </>
           )}
         </span>
@@ -512,7 +438,7 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
   if (reduced) {
     return (
       <section
-        className="bg-card [padding-block:clamp(1.5rem,4vw,2.5rem)] overflow-hidden"
+        className="bg-card [padding-block:clamp(0.875rem,2.5vw,1.5rem)] overflow-hidden"
         aria-label="Recent check-ins — scrollable list"
       >
         <Container>
@@ -527,7 +453,7 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
             aria-label="Recent check-ins"
             style={MASK_STYLE_REDUCED}
           >
-            <div className="flex w-max py-1">
+            <div className="flex w-max">
               {sortedCheckins.map((c) => (
                 <CheckinItem
                   key={c.id}
@@ -548,7 +474,7 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
 
   return (
     <section
-      className="bg-card [padding-block:clamp(1.5rem,4vw,2.5rem)] overflow-hidden"
+      className="bg-card [padding-block:clamp(0.875rem,2.5vw,1.5rem)] overflow-hidden"
       aria-label="Recent check-ins ticker"
     >
       <Container>
