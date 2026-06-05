@@ -333,16 +333,16 @@ function CheckinItem({ checkin, ariaHidden, isFresh, reduced }: CheckinItemProps
  */
 const MASK_STYLE: React.CSSProperties = {
   WebkitMaskImage:
-    "linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%)",
+    "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
   maskImage:
-    "linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%)",
+    "linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
 }
 
 const MASK_STYLE_REDUCED: React.CSSProperties = {
   WebkitMaskImage:
-    "linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%)",
+    "linear-gradient(to right, transparent 0%, black 9%, black 91%, transparent 100%)",
   maskImage:
-    "linear-gradient(to right, transparent 0%, black 4%, black 96%, transparent 100%)",
+    "linear-gradient(to right, transparent 0%, black 9%, black 91%, transparent 100%)",
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────────
