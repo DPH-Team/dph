@@ -26,29 +26,47 @@ import type { EventCacheRow, NewEventCacheRow } from '@/lib/db/schema';
 // ─── Public read helpers ──────────────────────────────────────────────────────
 
 /**
- * Return all non-deleted upcoming events (coalesce(ends_at, starts_at) >= now()),
- * sorted ascending by starts_at.
+ * Return all non-deleted upcoming events, sorted ascending by starts_at.
+ *
+ * "Upcoming" is day-based in venue local time (America/Chicago): an event
+ * stays in this bucket through the entire calendar day it occurs on, and only
+ * moves to past once that venue-local day is fully over.
+ *
+ * SQL predicate:
+ *   coalesce(ends_at, starts_at) >= date_trunc('day', now() AT TIME ZONE 'America/Chicago') AT TIME ZONE 'America/Chicago'
+ *
+ * The inner expression converts now() to venue local time, truncates to
+ * midnight, then the outer AT TIME ZONE 'America/Chicago' converts that
+ * venue-local midnight back to a timestamptz boundary — which is what
+ * starts_at/ends_at (both timestamptz) are compared against.
  */
 export async function listUpcomingEventRows(): Promise<EventCacheRow[]> {
   return db
     .select()
     .from(eventsCache)
     .where(
-      sql`${eventsCache.deletedAt} IS NULL AND coalesce(${eventsCache.endsAt}, ${eventsCache.startsAt}) >= now()`,
+      sql`${eventsCache.deletedAt} IS NULL AND coalesce(${eventsCache.endsAt}, ${eventsCache.startsAt}) >= date_trunc('day', now() AT TIME ZONE 'America/Chicago') AT TIME ZONE 'America/Chicago'`,
     )
     .orderBy(asc(eventsCache.startsAt));
 }
 
 /**
- * Return all non-deleted past events (coalesce(ends_at, starts_at) < now()),
- * sorted descending by starts_at (most recent first).
+ * Return all non-deleted past events, sorted descending by starts_at (most
+ * recent first).
+ *
+ * "Past" is the exact complement of listUpcomingEventRows — an event is past
+ * only once its entire venue-local calendar day is over. An event happening
+ * today is NEVER in the past bucket.
+ *
+ * SQL predicate:
+ *   coalesce(ends_at, starts_at) < date_trunc('day', now() AT TIME ZONE 'America/Chicago') AT TIME ZONE 'America/Chicago'
  */
 export async function listPastEventRows(): Promise<EventCacheRow[]> {
   return db
     .select()
     .from(eventsCache)
     .where(
-      sql`${eventsCache.deletedAt} IS NULL AND coalesce(${eventsCache.endsAt}, ${eventsCache.startsAt}) < now()`,
+      sql`${eventsCache.deletedAt} IS NULL AND coalesce(${eventsCache.endsAt}, ${eventsCache.startsAt}) < date_trunc('day', now() AT TIME ZONE 'America/Chicago') AT TIME ZONE 'America/Chicago'`,
     )
     .orderBy(desc(eventsCache.startsAt));
 }
@@ -90,7 +108,9 @@ export interface EventsSyncStatus {
 /**
  * Return aggregate sync status:
  * - lastSyncedAt: ISO string of MAX(synced_at) across non-deleted rows, or null.
- * - upcomingCount: count of non-deleted rows where coalesce(ends_at, starts_at) >= now().
+ * - upcomingCount: count of non-deleted rows that are upcoming using the same
+ *   day-based venue TZ predicate as listUpcomingEventRows, so admin counts
+ *   stay consistent with what the public pages show.
  *
  * Used by the admin dashboard card and the public "Last updated…" line.
  */
@@ -102,7 +122,7 @@ export async function getEventsSyncStatus(): Promise<EventsSyncStatus> {
     })
     .from(eventsCache)
     .where(
-      sql`${eventsCache.deletedAt} IS NULL AND coalesce(${eventsCache.endsAt}, ${eventsCache.startsAt}) >= now()`,
+      sql`${eventsCache.deletedAt} IS NULL AND coalesce(${eventsCache.endsAt}, ${eventsCache.startsAt}) >= date_trunc('day', now() AT TIME ZONE 'America/Chicago') AT TIME ZONE 'America/Chicago'`,
     );
 
   const row = result[0];

@@ -3,6 +3,7 @@ import Image from "next/image"
 import { Calendar, Tag } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { BLUR_CHARCOAL } from "@/lib/blur"
+import { isTodayInVenue, isPastVenueDay } from "@/lib/datetime"
 import type { Event } from "@/lib/fixtures/types"
 
 export type EventCardProps = {
@@ -25,12 +26,10 @@ function formatEventDate(startsAt: string): string {
   return `${dateStr} · ${timeStr}`
 }
 
-function isPastEvent(startsAt: string): boolean {
-  return new Date(startsAt) < new Date()
-}
-
 export function EventCard({ event, variant = "default", className }: EventCardProps) {
-  const past = isPastEvent(event.startsAt)
+  const eventDate = new Date(event.endsAt ?? event.startsAt)
+  const today = isTodayInVenue(eventDate)
+  const past = isPastVenueDay(eventDate)
 
   if (variant === "compact") {
     return (
@@ -54,6 +53,11 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
           {event.featured && (
             <span className="text-xs font-semibold text-packers-gold px-2 py-0.5 rounded-full border border-packers-gold/30">
               Featured
+            </span>
+          )}
+          {today && (
+            <span className="text-xs font-semibold bg-packers-green-bright text-cream px-2 py-0.5 rounded-full">
+              Today
             </span>
           )}
           {past && (
@@ -101,11 +105,17 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
               </span>
             </div>
 
-            {past && (
+            {(today || past) && (
               <div className="absolute top-3 right-3">
-                <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-cream/15 text-cream border border-cream/30">
-                  Past event
-                </span>
+                {today ? (
+                  <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-packers-green-bright text-cream">
+                    Today
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium bg-cream/15 text-cream border border-cream/30">
+                    Past event
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -179,6 +189,11 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
             {event.featured && (
               <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-packers-gold text-brand-base">
                 Featured
+              </span>
+            )}
+            {today && (
+              <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-packers-green-bright text-cream">
+                Today
               </span>
             )}
             {past && (
