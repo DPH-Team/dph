@@ -440,7 +440,7 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
   if (reduced) {
     return (
       <section
-        className="bg-card [padding-block:clamp(0.5rem,1.5vw,0.875rem)] overflow-hidden"
+        className="bg-card [padding-block:clamp(0.25rem,1vw,0.625rem)] overflow-hidden"
         aria-label="Recent check-ins — scrollable list"
       >
         <Container>
@@ -476,7 +476,7 @@ export function CheckinsTicker({ initial }: CheckinsTickerProps) {
 
   return (
     <section
-      className="bg-card [padding-block:clamp(0.5rem,1.5vw,0.875rem)] overflow-hidden"
+      className="bg-card [padding-block:clamp(0.25rem,1vw,0.625rem)] overflow-hidden"
       aria-label="Recent check-ins ticker"
     >
       <Container>
