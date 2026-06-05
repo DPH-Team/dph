@@ -116,7 +116,7 @@ export default async function HomePage() {
       <Section padding="md" bg="card">
         <Container>
           <ScrollReveal>
-            <SectionHeading eyebrow="From the Kitchen" className="mb-8">
+            <SectionHeading eyebrow="What's Cookin'" className="mb-8">
               From the Kitchen
             </SectionHeading>
           </ScrollReveal>
