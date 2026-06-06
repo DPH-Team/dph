@@ -68,7 +68,7 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
               id="inquiry-type"
               name="type"
               defaultValue={defaultType}
-              onChange={(e) => setType(e.target.value)}
+              onChange={(e) => setType(e.target.value as InquiryType)}
               required
               aria-required="true"
               aria-invalid={fieldError("type") ? "true" : undefined}
