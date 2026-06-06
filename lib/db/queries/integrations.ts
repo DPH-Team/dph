@@ -358,6 +358,128 @@ export async function updateInstagramConfig(
   return row;
 }
 
+// ─── Untappd featured brewery (jsonb — not encrypted) ────────────────────────
+
+/**
+ * Read `config.featured_brewery` from the `untappd` integration row.
+ *
+ * Returns the brewery string when set, or null when unset / row absent / DB
+ * error. Uses the service-role admin client so it is safe to call from the
+ * public Taps page (anonymous visitors, no active session).
+ *
+ * Never throws — callers on the public path must not surface DB errors.
+ */
+export async function getUntappdFeaturedBrewery(): Promise<string | null> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from('integrations')
+      .select('config')
+      .eq('name', 'untappd')
+      .single();
+
+    if (error || !data) return null;
+
+    const config =
+      data.config &&
+      typeof data.config === 'object' &&
+      !Array.isArray(data.config)
+        ? (data.config as Record<string, unknown>)
+        : {};
+
+    const val = config['featured_brewery'];
+    return typeof val === 'string' && val.trim() !== '' ? val.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persist (or clear) the featured brewery in `config.featured_brewery` on the
+ * `untappd` integration row.
+ *
+ * Merges into the existing config so other keys (e.g. future Untappd config
+ * fields) are preserved. Pass null or an empty string to clear the takeover.
+ *
+ * Uses the service-role admin client so staff sessions (which are denied by
+ * RLS on the integrations table) can persist the change. The featured brewery
+ * value is non-secret and the action is fully audited at the call site.
+ * Stamps `updatedBy` and `updatedAt`.
+ */
+export async function updateUntappdFeaturedBrewery(
+  brewery: string | null,
+  actorId: string,
+): Promise<Integration> {
+  const admin = createAdminClient();
+
+  // Read current config via service-role to merge into it.
+  const { data: current, error: readError } = await admin
+    .from('integrations')
+    .select('*')
+    .eq('name', 'untappd')
+    .single();
+
+  if (readError || !current) {
+    throw new Error('updateUntappdFeaturedBrewery: untappd integration row not found');
+  }
+
+  const existingConfig =
+    current.config &&
+    typeof current.config === 'object' &&
+    !Array.isArray(current.config)
+      ? (current.config as Record<string, unknown>)
+      : {};
+
+  const trimmed = typeof brewery === 'string' ? brewery.trim() : null;
+
+  // Build the merged config — set or remove featured_brewery.
+  const newConfig: Record<string, unknown> = { ...existingConfig };
+  if (trimmed && trimmed !== '') {
+    newConfig['featured_brewery'] = trimmed;
+  } else {
+    delete newConfig['featured_brewery'];
+  }
+
+  const { error: updateError } = await admin
+    .from('integrations')
+    .update({
+      config: newConfig,
+      updated_by: actorId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('name', 'untappd');
+
+  if (updateError) {
+    throw new Error(`updateUntappdFeaturedBrewery: update failed — ${updateError.message}`);
+  }
+
+  // Re-fetch via service-role to return the authoritative post-update row.
+  const { data: refetched, error: refetchError } = await admin
+    .from('integrations')
+    .select('*')
+    .eq('name', 'untappd')
+    .single();
+
+  if (refetchError || !refetched) {
+    throw new Error('updateUntappdFeaturedBrewery: could not re-fetch updated row');
+  }
+
+  // Map snake_case Supabase response back to the camelCase Integration type
+  // produced by Drizzle's InferSelectModel.
+  return {
+    name: refetched.name,
+    enabled: refetched.enabled,
+    mode: refetched.mode,
+    credentials: refetched.credentials as Buffer,
+    config: refetched.config,
+    lastTestedAt: refetched.last_tested_at ? new Date(refetched.last_tested_at) : null,
+    lastTestStatus: refetched.last_test_status ?? null,
+    lastTestError: refetched.last_test_error ?? null,
+    updatedAt: new Date(refetched.updated_at),
+    updatedBy: refetched.updated_by ?? null,
+  };
+}
+
 // ─── Decrypt credentials ──────────────────────────────────────────────────────
 
 /**

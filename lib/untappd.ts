@@ -32,7 +32,11 @@
 import 'server-only';
 
 import { unstable_cache } from 'next/cache';
-import { getIntegration, decryptCredentials } from '@/lib/db/queries/integrations';
+import {
+  getIntegration,
+  decryptCredentials,
+} from '@/lib/db/queries/integrations';
+import { getActiveTakeoverBrewery } from '@/lib/db/queries/tap-takeovers';
 import { taps as mockTaps } from '@/lib/fixtures/taps';
 import { events as mockEvents } from '@/lib/fixtures/events';
 import { checkins as mockCheckins } from '@/lib/fixtures/checkins';
@@ -425,6 +429,50 @@ const getCachedTapsRaw = unstable_cache(
 
 // ─── Public exports ───────────────────────────────────────────────────────────
 
+// ─── Tap-takeover overlay + stable sort ──────────────────────────────────────
+
+/**
+ * applyTakeoverOverlay — applies the admin-configured featured brewery flag and
+ * stable-sorts the result.
+ *
+ * Reads `config.featured_brewery` from the DB (service-role, safe for anon).
+ * On any error the overlay is skipped and the original array is returned sorted
+ * only by tapNumber — the public page must never break because of this feature.
+ *
+ * Sort order: featured first (isFeatured desc), then tapNumber asc.
+ * JS Array.sort is stable in Node ≥ 11, but the comparator is fully
+ * deterministic so there is no ambiguity even on older runtimes.
+ *
+ * Preserves fixture-flagged taps (`isFeatured: true` already in the array) in
+ * addition to config-driven ones.
+ */
+async function applyTakeoverOverlay(taps: Tap[]): Promise<Tap[]> {
+  let featuredBrewery: string | null = null;
+  try {
+    featuredBrewery = await getActiveTakeoverBrewery();
+  } catch {
+    // Non-fatal — proceed without overlay.
+  }
+
+  const overlaid = taps.map((tap) => ({
+    ...tap,
+    isFeatured:
+      tap.isFeatured ||
+      (featuredBrewery != null &&
+        tap.brewery.trim().toLowerCase() ===
+          featuredBrewery.trim().toLowerCase()),
+  }));
+
+  // Stable sort: featured first, then ascending tapNumber.
+  overlaid.sort(
+    (a, b) =>
+      Number(b.isFeatured) - Number(a.isFeatured) ||
+      a.tapNumber - b.tapNumber,
+  );
+
+  return overlaid;
+}
+
 /**
  * fetchTaps — public entry point for the tap-list page and any RSC that renders
  * the current tap list.
@@ -436,24 +484,32 @@ const getCachedTapsRaw = unstable_cache(
  *                 fixture fallback (cold-start edge: first-ever fetch failed)
  *
  * The caller should surface "live menu temporarily unavailable" when stale=true.
+ *
+ * The tap-takeover overlay (featured brewery + stable sort) is applied OUTSIDE
+ * getCachedTapsRaw so toggling the takeover takes effect immediately without
+ * waiting for the 5-min cache expiry and without adding the brewery to the
+ * cache key.
  */
 export async function fetchTaps(): Promise<{ data: Tap[]; stale: boolean }> {
   const modeResult = await resolveUntappdMode();
 
   if (modeResult.mode === 'mock') {
-    return { data: mockTaps, stale: false };
+    const data = await applyTakeoverOverlay(mockTaps);
+    return { data, stale: false };
   }
 
   const { email, location_id, read_write_token } = modeResult.creds;
 
   try {
-    const data = await getCachedTapsRaw(email, location_id, read_write_token);
+    const raw = await getCachedTapsRaw(email, location_id, read_write_token);
+    const data = await applyTakeoverOverlay(raw);
     return { data, stale: false };
   } catch (err) {
     console.error('[untappd] fetchTaps live fetch failed — returning stale/mock fallback:', err);
     // Cold-start (nothing in cache) or cache invalidated during an outage:
     // fall back to mock fixture so the page is never blank.
-    return { data: mockTaps, stale: true };
+    const data = await applyTakeoverOverlay(mockTaps);
+    return { data, stale: true };
   }
 }
 

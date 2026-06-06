@@ -1,8 +1,14 @@
 import { requireStaff } from '@/lib/auth';
 import { getEventsSyncStatus } from '@/lib/db/queries/events-cache';
+import { getUntappdFeaturedBrewery } from '@/lib/db/queries/integrations';
+import { listTakeovers } from '@/lib/db/queries/tap-takeovers';
+import { fetchTaps } from '@/lib/untappd';
+import { todayInVenueDate } from '@/lib/datetime';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, TriangleAlert } from 'lucide-react';
+import { TapTakeoverCard } from './TapTakeoverCard';
+import { ScheduledTakeoversCard } from './ScheduledTakeoversCard';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -67,8 +73,36 @@ function deriveSyncDisplay(lastSyncedAt: string | null): {
 export default async function EventsPage() {
   await requireStaff();
 
-  const { lastSyncedAt, upcomingCount } = await getEventsSyncStatus();
+  const [{ lastSyncedAt, upcomingCount }, tapResult, currentFeaturedBrewery, rawTakeovers] =
+    await Promise.all([
+      getEventsSyncStatus(),
+      fetchTaps().catch(() => ({ data: [], stale: true })),
+      getUntappdFeaturedBrewery().catch(() => null),
+      listTakeovers().catch(() => [] as Awaited<ReturnType<typeof listTakeovers>>),
+    ]);
+
   const { isStale, lastSyncedLabel } = deriveSyncDisplay(lastSyncedAt);
+
+  // Extract distinct, non-empty brewery names from the current tap list, sorted
+  // alphabetically. Passed to TapTakeoverCard so the select only offers breweries
+  // that are actually on tap right now.
+  const tapBreweries: string[] = Array.from(
+    new Set(
+      tapResult.data
+        .map((t) => t.brewery.trim())
+        .filter((b) => b !== ''),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+
+  // Map TapTakeover rows to the minimal serializable shape the client component
+  // expects — no Date objects, no full schema row.
+  const scheduledTakeovers = rawTakeovers.map((t) => ({
+    id: t.id,
+    brewery: t.brewery,
+    date: t.date,
+  }));
+
+  const today = todayInVenueDate();
 
   return (
     <div className="space-y-4">
@@ -152,6 +186,20 @@ export default async function EventsPage() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Tap Takeover — lets staff designate a featured brewery without
+          touching the Integrations panel, which is admin-only. */}
+      <TapTakeoverCard
+        breweries={tapBreweries}
+        currentBrewery={currentFeaturedBrewery}
+      />
+
+      {/* Scheduled takeovers — date-keyed future bookings that auto-activate. */}
+      <ScheduledTakeoversCard
+        takeovers={scheduledTakeovers}
+        breweries={tapBreweries}
+        today={today}
+      />
     </div>
   );
 }

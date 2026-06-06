@@ -736,3 +736,39 @@ export const subscribers = pgTable(
 export type Subscriber = InferSelectModel<typeof subscribers>;
 export type NewSubscriber = InferInsertModel<typeof subscribers>;
 
+// ─── tap_takeovers ─────────────────────────────────────────────────────────────
+//
+// Date-keyed scheduled tap takeovers. One row per calendar date (unique
+// constraint). When the date matches today's venue-local date the scheduled
+// brewery supersedes the manual `config.featured_brewery` on the untappd
+// integration row — resolved purely at read time, no cron required.
+// created_by / updated_by → auth.users(id) are hand-written FKs in the SQL
+// migration — Drizzle cannot cross-reference the auth schema.
+
+export const tapTakeovers = pgTable(
+  'tap_takeovers',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    brewery: text('brewery').notNull(),
+    date: date('date', { mode: 'string' }).notNull().unique(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdBy: uuid('created_by'),
+    updatedBy: uuid('updated_by'),
+  },
+  (t) => [
+    index('tap_takeovers_date_idx').on(t.date),
+    check(
+      'tap_takeovers_brewery_length_check',
+      sql`char_length(${t.brewery}) between 1 and 200`,
+    ),
+  ],
+);
+
+export type TapTakeover = InferSelectModel<typeof tapTakeovers>;
+export type NewTapTakeover = InferInsertModel<typeof tapTakeovers>;
+

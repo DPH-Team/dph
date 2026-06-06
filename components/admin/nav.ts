@@ -31,7 +31,7 @@ export const adminNav: NavItem[] = [
   { href: '/admin/inquiries', label: 'Inquiries', icon: 'inbox' },
   { href: '/admin/careers', label: 'Careers', icon: 'briefcase' },
   { href: '/admin/newsletter', label: 'Newsletter', icon: 'mail', adminOnly: true },
-  { href: '/admin/activity', label: 'Activity Log', icon: 'scroll' },
+  { href: '/admin/activity', label: 'Activity Log', icon: 'scroll', adminOnly: true },
   { href: '/admin/integrations', label: 'Integrations', icon: 'plug', adminOnly: true },
   { href: '/admin/users', label: 'Users', icon: 'users', adminOnly: true },
 ];

@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { ScrollText } from 'lucide-react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { requireStaff } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import {
   listAuditLog,
   getDistinctActions,
@@ -53,7 +53,7 @@ function buildPageUrl(
 const DISTINCT_DROPDOWN_MAX = 100;
 
 export default async function ActivityPage({ searchParams }: PageProps) {
-  await requireStaff();
+  await requireAdmin();
 
   const rawParams = await searchParams;
 
