@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuLabel,
+  DropdownMenuGroup,
 } from '@/components/ui/dropdown-menu';
 import {
   Dialog,
@@ -262,9 +263,11 @@ function RowActions({ user, currentUserId }: RowActionsProps) {
         </DropdownMenuTrigger>
 
         <DropdownMenuContent align="end">
-          <DropdownMenuLabel>
-            {user.fullName ?? user.email}
-          </DropdownMenuLabel>
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>
+              {user.fullName ?? user.email}
+            </DropdownMenuLabel>
+          </DropdownMenuGroup>
 
           {/* Role change — only show the opposite role option */}
           {!isSelf && (
