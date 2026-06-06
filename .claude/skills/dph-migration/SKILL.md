@@ -48,7 +48,8 @@ Creates a schema change + the matching migration files.
      with check (public.is_staff());
    ```
    Adjust roles per entity (e.g. integrations + newsletter = admin only — use `public.is_admin()`). NOTE: `profiles.id` is the user PK (it references `auth.users(id)`); there is no `profiles.user_id` column.
-5. **Apply:** `npm run db:push` (dev) or via `drizzle-kit migrate` (CI/prod).
+5. **Apply — LOCAL ONLY.** Apply against the local Supabase stack: `supabase start` then `npm run db:reset` (recreates the local DB from all migrations + RLS/triggers), or `npm run db:push` (Drizzle DDL only → 127.0.0.1 via `DATABASE_URL`).
+   **🚫 NEVER run `supabase db push` or any command that targets the linked/remote project.** `supabase db push` applies migrations to the **remote production** Supabase and is FORBIDDEN. A PreToolUse hook (`.claude/hooks/block-remote-db-push.py`) hard-blocks it. The remote/production database is changed ONLY by the user during an explicitly-approved deploy — never by an agent or skill. If a migration needs to reach production, STOP and ask the user.
 6. **Verify:** connect via `npm run db:studio` OR query `pg_policies` to confirm policies are present:
    ```sql
    select tablename, policyname, cmd from pg_policies where tablename = '<entity>';

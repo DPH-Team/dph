@@ -10,8 +10,6 @@ import {
   Img,
   Link,
   Preview,
-  Row,
-  Column,
   Section,
   Text,
 } from 'react-email';
@@ -19,52 +17,33 @@ import * as React from 'react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface InquiryCustomerReplyProps {
-  name: string;
-  type: string;
-  /** Base URL of the public site, used for CTA links. */
+export interface NewsletterConfirmProps {
+  /** ${siteUrl}/newsletter/confirm?token=${confirmToken} */
+  confirmUrl: string;
+  /** ${siteUrl}/newsletter/unsubscribe?token=${unsubscribeToken} */
+  unsubscribeUrl: string;
+  /** Base URL of the public site (no trailing slash). */
   siteUrl: string;
 }
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 
 const base = '#0E0E0F';
-const surface = '#161617';
 const copper = '#C97B4A';
 const cream = '#F5EFE6';
 const muted = '#8A8A8A';
 const hairline = '#2A2A2B';
 const page = '#F8F5F0';
 
-const serif = 'Fraunces, Georgia, "Times New Roman", serif';
+const serif = 'Georgia, "Times New Roman", serif';
 const sans = 'Inter, Helvetica, Arial, sans-serif';
-
-const typeLabels: Record<string, string> = {
-  reservation: 'reservation',
-  private_event: 'private event',
-  press: 'press inquiry',
-  general: 'message',
-};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function InquiryCustomerReply({ name, type, siteUrl }: InquiryCustomerReplyProps) {
-  const typeLabel = typeLabels[type] ?? 'inquiry';
-  const firstName = name.split(' ')[0] ?? name;
-
+export function NewsletterConfirm({ confirmUrl, unsubscribeUrl, siteUrl }: NewsletterConfirmProps) {
   return (
     <Html lang="en">
       <Head>
-        <Font
-          fontFamily="Fraunces"
-          fallbackFontFamily={['Georgia', 'Times New Roman', 'serif']}
-          webFont={{
-            url: 'https://fonts.gstatic.com/s/fraunces/v31/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9thS9zKlA.woff2',
-            format: 'woff2',
-          }}
-          fontWeight={400}
-          fontStyle="normal"
-        />
         <Font
           fontFamily="Inter"
           fallbackFontFamily={['Helvetica', 'Arial', 'sans-serif']}
@@ -76,7 +55,7 @@ export function InquiryCustomerReply({ name, type, siteUrl }: InquiryCustomerRep
           fontStyle="normal"
         />
       </Head>
-      <Preview>We got your {typeLabel} — we&apos;ll be in touch within one business day.</Preview>
+      <Preview>One more tap to pull — confirm your subscription to District Pour Haus.</Preview>
       <Body style={bodyStyle}>
         <Container style={containerStyle}>
           {/* Copper top-accent bar */}
@@ -84,55 +63,52 @@ export function InquiryCustomerReply({ name, type, siteUrl }: InquiryCustomerRep
             <Text style={{ margin: '0', fontSize: '1px', lineHeight: '4px' }}>&nbsp;</Text>
           </Section>
 
-          <BrandHeader tagline="Our Haus is Your Haus" />
+          <BrandHeader tagline="Our Haus is Your Haus" siteUrl={siteUrl} />
 
           {/* Body */}
           <Section style={{ padding: '36px 40px 8px' }}>
-            <Text style={eyebrowStyle}>We got it</Text>
+            <Text style={eyebrowStyle}>Almost there</Text>
 
             <Heading as="h2" style={displayHeadingStyle}>
-              Hey {firstName}, thanks for reaching out.
+              One more tap to pull.
             </Heading>
 
             <Text style={leadStyle}>
-              Your {typeLabel} just landed in our inbox. A real person on our team will
-              read it and email you back within one business day to sort out the details —
-              no automated runaround.
+              You signed up to hear from District Pour Haus — tap rotations, upcoming
+              events, and whatever else is happening at the haus. We just need you to
+              confirm your email before we add you to the list.
             </Text>
 
             <Text style={bodyTextStyle}>
-              While you wait, pull up a stool. Take a peek at what&apos;s pouring or see what
-              we&apos;ve got coming up. We&apos;d love to see you at the haus.
+              Hit the button below and you&apos;re in. It takes about two seconds.
             </Text>
           </Section>
 
-          {/* CTA buttons */}
-          <Section style={{ padding: '8px 40px 28px' }}>
-            <Row>
-              <Column style={{ paddingRight: '6px' }}>
-                <Button href={`${siteUrl}/taps`} style={primaryButtonStyle}>
-                  View the tap list
-                </Button>
-              </Column>
-              <Column style={{ paddingLeft: '6px' }}>
-                <Button href={`${siteUrl}/events`} style={secondaryButtonStyle}>
-                  See what&apos;s on
-                </Button>
-              </Column>
-            </Row>
+          {/* CTA */}
+          <Section style={{ padding: '8px 40px 32px' }}>
+            <Button href={confirmUrl} style={primaryButtonStyle}>
+              Confirm my subscription
+            </Button>
           </Section>
 
-          <BrandFooter />
+          {/* Ignore note */}
+          <Section style={{ padding: '0 40px 12px' }}>
+            <Text style={ignoreTextStyle}>
+              If you didn&apos;t sign up, just ignore this — you won&apos;t hear from us again.
+            </Text>
+          </Section>
+
+          <BrandFooter unsubscribeUrl={unsubscribeUrl} />
         </Container>
       </Body>
     </Html>
   );
 }
 
-// ─── Shared partials ────────────────────────────────────────────────────────
+// ─── Shared partials ──────────────────────────────────────────────────────────
 
-function BrandHeader({ tagline }: { tagline: string }) {
-  const logoUrl = `${(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://districtpourhaus.com').replace(/\/$/, '')}/brand/logo.png`;
+function BrandHeader({ tagline, siteUrl }: { tagline: string; siteUrl: string }) {
+  const logoUrl = `${siteUrl}/brand/logo.png`;
 
   return (
     <Section style={{ padding: '34px 40px 22px', textAlign: 'center' }}>
@@ -161,14 +137,18 @@ function BrandHeader({ tagline }: { tagline: string }) {
   );
 }
 
-function BrandFooter() {
+function BrandFooter({ unsubscribeUrl }: { unsubscribeUrl: string }) {
   return (
     <Section style={{ padding: '0 40px 36px' }}>
       <Hr style={hrStyle} />
       <Text style={footerBrandStyle}>District Pour Haus</Text>
       <Text style={footerTextStyle}>2331 University Blvd W, Wheaton, MD 20902</Text>
       <Text style={footerMutedStyle}>
-        Questions? Just reply to this email — it goes straight to us.
+        You&apos;re receiving this because you signed up at districtpourhaus.com.{' '}
+        <Link href={unsubscribeUrl} style={unsubscribeLinkStyle}>
+          Unsubscribe
+        </Link>
+        .
       </Text>
     </Section>
   );
@@ -251,9 +231,9 @@ const primaryButtonStyle: React.CSSProperties = {
   backgroundColor: copper,
   color: '#1A1208',
   borderRadius: '8px',
-  padding: '13px 18px',
+  padding: '14px 28px',
   fontFamily: sans,
-  fontSize: '14px',
+  fontSize: '15px',
   fontWeight: 600,
   textDecoration: 'none',
   textAlign: 'center',
@@ -262,20 +242,12 @@ const primaryButtonStyle: React.CSSProperties = {
   boxSizing: 'border-box',
 };
 
-const secondaryButtonStyle: React.CSSProperties = {
-  backgroundColor: surface,
-  color: cream,
-  border: `1px solid ${hairline}`,
-  borderRadius: '8px',
-  padding: '12px 18px',
+const ignoreTextStyle: React.CSSProperties = {
+  color: muted,
   fontFamily: sans,
-  fontSize: '14px',
-  fontWeight: 600,
-  textDecoration: 'none',
-  textAlign: 'center',
-  display: 'block',
-  width: '100%',
-  boxSizing: 'border-box',
+  fontSize: '13px',
+  lineHeight: '1.6',
+  margin: '0',
 };
 
 const hrStyle: React.CSSProperties = {
@@ -309,4 +281,9 @@ const footerMutedStyle: React.CSSProperties = {
   margin: '0',
 };
 
-export default InquiryCustomerReply;
+const unsubscribeLinkStyle: React.CSSProperties = {
+  color: copper,
+  textDecoration: 'underline',
+};
+
+export default NewsletterConfirm;

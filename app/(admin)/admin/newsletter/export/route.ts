@@ -1,7 +1,10 @@
 import { type NextRequest } from 'next/server';
 import { requireAdmin } from '@/lib/auth';
 import { exportSubscribersForCsv } from '@/lib/db/queries/subscribers';
-import { listSubscribersFilterSchema } from '@/lib/validators/newsletter';
+import {
+  listSubscribersFilterSchema,
+  normaliseFilterStatus,
+} from '@/lib/validators/newsletter';
 import { audit } from '@/lib/audit';
 
 // ─── RFC 4180 CSV escaping ────────────────────────────────────────────────────
@@ -31,10 +34,12 @@ export async function GET(request: NextRequest): Promise<Response> {
   };
 
   const parsed = listSubscribersFilterSchema.safeParse(rawFilter);
-  // Default to 'active' if no status param — admins almost always want
-  // active-only for broadcast sends.
-  const filterStatus =
-    parsed.success && parsed.data.status ? parsed.data.status : 'active';
+  // Default to 'confirmed' if no status param — admins almost always want
+  // confirmed-only for broadcast sends (pending rows must never be exported).
+  const rawFilterStatus =
+    parsed.success && parsed.data.status ? parsed.data.status : 'confirmed';
+  // Normalise 'active' → 'confirmed' for back-compat with existing bookmark URLs.
+  const filterStatus = normaliseFilterStatus(rawFilterStatus) ?? 'confirmed';
   const filterSearch = parsed.success ? (parsed.data.search ?? '') : '';
 
   // Fetch rows from DB, applying the status filter.
@@ -50,13 +55,22 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
 
   // Build CSV string.
-  const headerRow = toCsvRow(['email', 'subscribed_at', 'unsubscribed_at', 'source']);
+  const headerRow = toCsvRow([
+    'email',
+    'subscribed_at',
+    'confirmed_at',
+    'unsubscribed_at',
+    'source',
+    'status',
+  ]);
   const dataRows = rows.map((row) =>
     toCsvRow([
       row.email,
       row.subscribedAt.toISOString(),
+      row.confirmedAt ? row.confirmedAt.toISOString() : '',
       row.unsubscribedAt ? row.unsubscribedAt.toISOString() : '',
       row.source,
+      row.status,
     ]),
   );
   const csvString = [headerRow, ...dataRows].join('\r\n');
