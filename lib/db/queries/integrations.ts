@@ -401,16 +401,25 @@ export async function getUntappdFeaturedBrewery(): Promise<string | null> {
  * Merges into the existing config so other keys (e.g. future Untappd config
  * fields) are preserved. Pass null or an empty string to clear the takeover.
  *
- * Uses the user-session Drizzle client so RLS applies (admin-only update).
+ * Uses the service-role admin client so staff sessions (which are denied by
+ * RLS on the integrations table) can persist the change. The featured brewery
+ * value is non-secret and the action is fully audited at the call site.
  * Stamps `updatedBy` and `updatedAt`.
  */
 export async function updateUntappdFeaturedBrewery(
   brewery: string | null,
   actorId: string,
 ): Promise<Integration> {
-  // Read current config to merge into it.
-  const current = await getIntegration('untappd');
-  if (!current) {
+  const admin = createAdminClient();
+
+  // Read current config via service-role to merge into it.
+  const { data: current, error: readError } = await admin
+    .from('integrations')
+    .select('*')
+    .eq('name', 'untappd')
+    .single();
+
+  if (readError || !current) {
     throw new Error('updateUntappdFeaturedBrewery: untappd integration row not found');
   }
 
@@ -431,21 +440,44 @@ export async function updateUntappdFeaturedBrewery(
     delete newConfig['featured_brewery'];
   }
 
-  const rows = await db
-    .update(integrations)
-    .set({
-      config: newConfig as unknown as Record<string, unknown>,
-      updatedBy: actorId,
-      updatedAt: new Date(),
+  const { error: updateError } = await admin
+    .from('integrations')
+    .update({
+      config: newConfig,
+      updated_by: actorId,
+      updated_at: new Date().toISOString(),
     })
-    .where(eq(integrations.name, 'untappd'))
-    .returning();
+    .eq('name', 'untappd');
 
-  const row = rows[0];
-  if (!row) {
-    throw new Error('updateUntappdFeaturedBrewery: update returned no row');
+  if (updateError) {
+    throw new Error(`updateUntappdFeaturedBrewery: update failed — ${updateError.message}`);
   }
-  return row;
+
+  // Re-fetch via service-role to return the authoritative post-update row.
+  const { data: refetched, error: refetchError } = await admin
+    .from('integrations')
+    .select('*')
+    .eq('name', 'untappd')
+    .single();
+
+  if (refetchError || !refetched) {
+    throw new Error('updateUntappdFeaturedBrewery: could not re-fetch updated row');
+  }
+
+  // Map snake_case Supabase response back to the camelCase Integration type
+  // produced by Drizzle's InferSelectModel.
+  return {
+    name: refetched.name,
+    enabled: refetched.enabled,
+    mode: refetched.mode,
+    credentials: refetched.credentials as Buffer,
+    config: refetched.config,
+    lastTestedAt: refetched.last_tested_at ? new Date(refetched.last_tested_at) : null,
+    lastTestStatus: refetched.last_test_status ?? null,
+    lastTestError: refetched.last_test_error ?? null,
+    updatedAt: new Date(refetched.updated_at),
+    updatedBy: refetched.updated_by ?? null,
+  };
 }
 
 // ─── Decrypt credentials ──────────────────────────────────────────────────────

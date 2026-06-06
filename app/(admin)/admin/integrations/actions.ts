@@ -8,7 +8,6 @@ import {
   plausibleConfigSchema,
   resendConfigSaveSchema,
   instagramConfigSaveSchema,
-  tapTakeoverSchema,
 } from '@/lib/validators/integrations';
 import type { IntegrationName } from '@/lib/validators/integrations';
 import {
@@ -18,7 +17,6 @@ import {
   updatePlausibleConfig,
   updateResendConfig,
   updateInstagramConfig,
-  updateUntappdFeaturedBrewery,
   decryptCredentials,
   recordTestResult,
 } from '@/lib/db/queries/integrations';
@@ -701,77 +699,3 @@ export async function saveInstagramConfigAction(
   return { ok: true };
 }
 
-// ─── Tap Takeover: set featured brewery ───────────────────────────────────────
-
-/**
- * updateTapTakeoverAction — persist the featured brewery selection for the Tap
- * Takeover feature.
- *
- * An empty string or null clears the takeover (no brewery featured).
- * A non-empty string designates the brewery: every live tap whose brewery
- * matches (case-insensitive, trimmed) will receive isFeatured=true and float
- * to the top of the tap list without waiting for the Untappd cache to expire.
- *
- * Audit action: integration.update (diff on config.featured_brewery)
- * Revalidation: 'taps' tag + /taps path + /admin/integrations path.
- */
-export async function updateTapTakeoverAction(
-  _prev: ActionState | null,
-  formData: FormData,
-): Promise<ActionState> {
-  const profile = await requireAdmin();
-
-  const raw = {
-    featured_brewery: formData.get('featured_brewery') ?? '',
-  };
-
-  const result = tapTakeoverSchema.safeParse(raw);
-  if (!result.success) {
-    return {
-      ok: false,
-      error: 'Validation failed.',
-      fieldErrors: result.error.flatten().fieldErrors as Record<string, string[]>,
-    };
-  }
-
-  const before = await getIntegration('untappd');
-  if (!before) {
-    return { ok: false, error: "Integration 'untappd' not found." };
-  }
-
-  // Derive the before/after brewery values for the audit diff.
-  const beforeConfig =
-    before.config &&
-    typeof before.config === 'object' &&
-    !Array.isArray(before.config)
-      ? (before.config as Record<string, unknown>)
-      : {};
-  const breweryBefore =
-    typeof beforeConfig['featured_brewery'] === 'string'
-      ? beforeConfig['featured_brewery']
-      : null;
-
-  const breweryAfter = result.data.featured_brewery.trim() || null;
-
-  let after: Integration;
-  try {
-    after = await updateUntappdFeaturedBrewery(breweryAfter, profile.id);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error';
-    return { ok: false, error: `Failed to save tap takeover config: ${msg}` };
-  }
-
-  await auditUpdate(
-    'integration',
-    'untappd',
-    sanitizeRow(before),
-    sanitizeRow(after),
-    { action: 'tap_takeover_updated', featured_brewery: { before: breweryBefore, after: breweryAfter } },
-  );
-
-  // Bust the taps cache so the public list reflects the change immediately.
-  revalidateTag('taps', 'max');
-  revalidatePath('/taps');
-  revalidatePath('/admin/integrations');
-  return { ok: true };
-}

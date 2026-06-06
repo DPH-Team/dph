@@ -110,8 +110,8 @@ function TapTakeoverForm({
         ) : (
           <p id="tap-takeover-brewery-hint" className="text-xs text-muted-foreground">
             Every tap from the selected brewery will show the &ldquo;Tap
-            Takeover&rdquo; banner and float to the top of the list. Selecting
-            &ldquo;None&rdquo; clears the takeover immediately.
+            Takeover&rdquo; banner and float to the top of the public list
+            immediately — no cache wait.
           </p>
         )}
       </div>

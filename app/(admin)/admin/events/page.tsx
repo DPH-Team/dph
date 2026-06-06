@@ -1,8 +1,11 @@
 import { requireStaff } from '@/lib/auth';
 import { getEventsSyncStatus } from '@/lib/db/queries/events-cache';
+import { getUntappdFeaturedBrewery } from '@/lib/db/queries/integrations';
+import { fetchTaps } from '@/lib/untappd';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ExternalLink, TriangleAlert } from 'lucide-react';
+import { TapTakeoverCard } from './TapTakeoverCard';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -67,8 +70,25 @@ function deriveSyncDisplay(lastSyncedAt: string | null): {
 export default async function EventsPage() {
   await requireStaff();
 
-  const { lastSyncedAt, upcomingCount } = await getEventsSyncStatus();
+  const [{ lastSyncedAt, upcomingCount }, tapResult, currentFeaturedBrewery] =
+    await Promise.all([
+      getEventsSyncStatus(),
+      fetchTaps().catch(() => ({ data: [], stale: true })),
+      getUntappdFeaturedBrewery().catch(() => null),
+    ]);
+
   const { isStale, lastSyncedLabel } = deriveSyncDisplay(lastSyncedAt);
+
+  // Extract distinct, non-empty brewery names from the current tap list, sorted
+  // alphabetically. Passed to TapTakeoverCard so the select only offers breweries
+  // that are actually on tap right now.
+  const tapBreweries: string[] = Array.from(
+    new Set(
+      tapResult.data
+        .map((t) => t.brewery.trim())
+        .filter((b) => b !== ''),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
 
   return (
     <div className="space-y-4">
@@ -152,6 +172,13 @@ export default async function EventsPage() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Tap Takeover — lets staff designate a featured brewery without
+          touching the Integrations panel, which is admin-only. */}
+      <TapTakeoverCard
+        breweries={tapBreweries}
+        currentBrewery={currentFeaturedBrewery}
+      />
     </div>
   );
 }
