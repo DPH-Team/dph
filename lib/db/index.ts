@@ -16,6 +16,8 @@ if (!connectionString) {
 }
 
 // Disable prefetching as it is not supported for "transaction" pool mode.
-const client = postgres(connectionString, { prepare: false });
+// connect_timeout: fail fast (10 s) so build prerender falls back to fixtures
+// instead of hanging until Next's 60 s prerender timeout kills the worker.
+const client = postgres(connectionString, { prepare: false, connect_timeout: 10 });
 
 export const db = drizzle(client, { schema });

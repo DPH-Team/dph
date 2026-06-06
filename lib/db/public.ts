@@ -83,21 +83,38 @@ function resolveImageUrl(imagePath: string | null | undefined): string | null {
   return getPublicUrl({ bucket: 'media', path: imagePath });
 }
 
+/** Budget (ms) before a DB call is considered hung and the fallback is served. */
+const DB_TIMEOUT_MS = 8000;
+
 /**
- * Attempt an async read; on any thrown error log it server-side and return the
- * provided fallback value WITHOUT caching it. This ensures the ISR cache is
- * never poisoned with fallback data — only successful DB reads are cached.
+ * Attempt an async read; on any thrown error OR timeout log it server-side and
+ * return the provided fallback value WITHOUT caching it. This ensures the ISR
+ * cache is never poisoned with fallback data — only successful DB reads are
+ * cached.
+ *
+ * The timeout race converts a hanging Supabase pooler connection into a fast
+ * fixture fallback so Next.js build prerender (60 s limit) always completes.
+ * The timer is cleared in a finally block to avoid dangling open handles.
  */
 async function withFallback<T>(
   name: string,
   fn: () => Promise<T>,
   fallback: T,
 ): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new Error(`DB call timed out after ${DB_TIMEOUT_MS}ms`)),
+      DB_TIMEOUT_MS,
+    );
+  });
   try {
-    return await fn();
+    return await Promise.race([fn(), timeout]);
   } catch (err) {
     console.error(`[public-read] ${name} failed, serving fallback:`, err);
     return fallback;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -443,17 +460,23 @@ const EVENTS_STALE_MS = 60 * 60 * 1000;
  * Map a DB row to the public Event fixture type.
  * cover_image_url is nullable in the DB; the fixture type requires imageUrl: string,
  * so we emit '' when null and let the frontend handle the empty-string case.
+ *
+ * Returns null when startsAt is null/undefined — this can happen due to
+ * constraint drift where a prod row has a null starts_at despite the schema
+ * marking it notNull(). Callers filter out null results before returning.
  */
 function rowToEvent(row: {
   id: string;
   slug: string;
   title: string;
   description: string;
-  startsAt: Date;
+  startsAt: Date | null | undefined;
   endsAt: Date | null;
   coverImageUrl: string | null;
   externalUrl: string | null;
-}): Event {
+}): Event | null {
+  // Guard against prod constraint drift — skip rows missing a start time.
+  if (!row.startsAt) return null;
   return {
     id: row.id,
     slug: row.slug,
@@ -487,7 +510,8 @@ const _getPublicUpcomingEventsCached = unstable_cache(
       getEventsSyncStatus(),
     ]);
     return {
-      data: rows.map(rowToEvent),
+      // Filter out rows where rowToEvent returned null (null startsAt drift).
+      data: rows.map(rowToEvent).filter((e): e is Event => e !== null),
       stale: computeStale(syncStatus.lastSyncedAt),
       lastSyncedAt: syncStatus.lastSyncedAt,
     };
@@ -517,7 +541,8 @@ const _getPublicPastEventsCached = unstable_cache(
       getEventsSyncStatus(),
     ]);
     return {
-      data: rows.map(rowToEvent),
+      // Filter out rows where rowToEvent returned null (null startsAt drift).
+      data: rows.map(rowToEvent).filter((e): e is Event => e !== null),
       stale: computeStale(syncStatus.lastSyncedAt),
       lastSyncedAt: syncStatus.lastSyncedAt,
     };
@@ -544,6 +569,7 @@ const _getPublicEventBySlugCached = unstable_cache(
   async (slug: string): Promise<Event | null> => {
     const row = await getEventRowBySlug(slug);
     if (!row) return null;
+    // rowToEvent returns null when startsAt is missing (prod constraint drift).
     return rowToEvent(row);
   },
   ['public-event-by-slug'],
