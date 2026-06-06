@@ -5,7 +5,17 @@ import { requireStaff } from '@/lib/auth';
 import { tapTakeoverSchema } from '@/lib/validators/integrations';
 import { updateUntappdFeaturedBrewery } from '@/lib/db/queries/integrations';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { auditUpdate } from '@/lib/audit';
+import { auditCreate, auditDelete, auditUpdate } from '@/lib/audit';
+import {
+  createTakeover,
+  deleteTakeover,
+  getTakeoverById,
+  TakeoverDateConflictError,
+} from '@/lib/db/queries/tap-takeovers';
+import {
+  createTakeoverSchema,
+  deleteTakeoverSchema,
+} from '@/lib/validators/tap-takeovers';
 import type { ActionState } from '@/lib/types/action-state';
 import type { Integration } from '@/lib/db/schema';
 
@@ -126,6 +136,119 @@ export async function updateTapTakeoverAction(
   );
 
   // Bust the taps cache so the public list reflects the change immediately.
+  revalidateTag('taps', 'max');
+  revalidatePath('/taps');
+  revalidatePath('/admin/events');
+  return { ok: true };
+}
+
+// ─── Scheduled tap takeovers: create ─────────────────────────────────────────
+
+/**
+ * createScheduledTakeoverAction — schedule a brewery for a future date.
+ *
+ * Gated with requireStaff(). Validates with createTakeoverSchema, calls
+ * createTakeover, and writes to audit_log. Surfacing a friendly field error
+ * when TakeoverDateConflictError is thrown (date already booked).
+ *
+ * Revalidates: 'taps' tag + /taps path + /admin/events path.
+ */
+export async function createScheduledTakeoverAction(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
+  const profile = await requireStaff();
+
+  const raw = {
+    brewery: formData.get('brewery') ?? '',
+    date: formData.get('date') ?? '',
+  };
+
+  const result = createTakeoverSchema.safeParse(raw);
+  if (!result.success) {
+    return {
+      ok: false,
+      error: 'Please correct the errors below.',
+      fieldErrors: result.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  let row;
+  try {
+    row = await createTakeover(
+      { brewery: result.data.brewery, date: result.data.date },
+      profile.id,
+    );
+  } catch (err) {
+    if (err instanceof TakeoverDateConflictError) {
+      return {
+        ok: false,
+        error: err.message,
+        fieldErrors: { date: [err.message] },
+      };
+    }
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    return { ok: false, error: `Failed to schedule takeover: ${msg}` };
+  }
+
+  await auditCreate('tap_takeover', row.id, {
+    brewery: row.brewery,
+    date: row.date,
+  });
+
+  revalidateTag('taps', 'max');
+  revalidatePath('/taps');
+  revalidatePath('/admin/events');
+  return { ok: true };
+}
+
+// ─── Scheduled tap takeovers: delete ─────────────────────────────────────────
+
+/**
+ * deleteScheduledTakeoverAction — remove a scheduled tap takeover by id.
+ *
+ * Accepts formData with an `id` field (UUID). Gated with requireStaff().
+ * Fetches the before-state for the audit log, deletes the row, then writes
+ * to audit_log.
+ *
+ * Revalidates: 'taps' tag + /taps path + /admin/events path.
+ */
+export async function deleteScheduledTakeoverAction(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
+  const profile = await requireStaff();
+
+  const raw = { id: formData.get('id') ?? '' };
+
+  const result = deleteTakeoverSchema.safeParse(raw);
+  if (!result.success) {
+    return {
+      ok: false,
+      error: 'Invalid takeover id.',
+      fieldErrors: result.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  const { id } = result.data;
+
+  const before = await getTakeoverById(id);
+  if (!before) {
+    return { ok: false, error: 'Takeover not found — it may have already been deleted.' };
+  }
+
+  try {
+    await deleteTakeover(id, profile.id);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    return { ok: false, error: `Failed to delete takeover: ${msg}` };
+  }
+
+  await auditDelete('tap_takeover', id, {
+    brewery: before.brewery,
+    date: before.date,
+  });
+
   revalidateTag('taps', 'max');
   revalidatePath('/taps');
   revalidatePath('/admin/events');

@@ -35,8 +35,8 @@ import { unstable_cache } from 'next/cache';
 import {
   getIntegration,
   decryptCredentials,
-  getUntappdFeaturedBrewery,
 } from '@/lib/db/queries/integrations';
+import { getActiveTakeoverBrewery } from '@/lib/db/queries/tap-takeovers';
 import { taps as mockTaps } from '@/lib/fixtures/taps';
 import { events as mockEvents } from '@/lib/fixtures/events';
 import { checkins as mockCheckins } from '@/lib/fixtures/checkins';
@@ -449,7 +449,7 @@ const getCachedTapsRaw = unstable_cache(
 async function applyTakeoverOverlay(taps: Tap[]): Promise<Tap[]> {
   let featuredBrewery: string | null = null;
   try {
-    featuredBrewery = await getUntappdFeaturedBrewery();
+    featuredBrewery = await getActiveTakeoverBrewery();
   } catch {
     // Non-fatal — proceed without overlay.
   }
