@@ -110,19 +110,50 @@ function DeleteButton({ id, email }: { id: string; email: string }) {
   );
 }
 
+// ─── Status helpers ───────────────────────────────────────────────────────────
+
+type SubscriberStatus = 'confirmed' | 'pending' | 'unsubscribed';
+
+function deriveStatus(
+  confirmedAt: Date | null | string,
+  unsubscribedAt: Date | null | string,
+): SubscriberStatus {
+  if (unsubscribedAt !== null) return 'unsubscribed';
+  if (confirmedAt !== null) return 'confirmed';
+  return 'pending';
+}
+
 // ─── Status cell ──────────────────────────────────────────────────────────────
 
-function StatusCell({ unsubscribedAt }: { unsubscribedAt: Date | null }) {
-  if (!unsubscribedAt) {
+function StatusCell({
+  confirmedAt,
+  unsubscribedAt,
+}: {
+  confirmedAt: Date | null | string;
+  unsubscribedAt: Date | null | string;
+}) {
+  const status = deriveStatus(confirmedAt, unsubscribedAt);
+
+  if (status === 'confirmed') {
     return (
       <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400">
         Active
       </span>
     );
   }
+  if (status === 'pending') {
+    return (
+      <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-400">
+        Pending
+      </span>
+    );
+  }
+  // unsubscribed
+  const unsubDate =
+    unsubscribedAt instanceof Date ? unsubscribedAt : new Date(unsubscribedAt!);
   return (
     <span className="inline-flex items-center rounded-full border border-border bg-[oklch(0.235_0.004_286)] px-2 py-0.5 text-xs font-medium text-muted-foreground">
-      Unsubscribed · {formatCompact(unsubscribedAt)}
+      Unsubscribed · {formatCompact(unsubDate)}
     </span>
   );
 }
@@ -208,9 +239,11 @@ export function SubscribersTable({
                       aria-hidden="true"
                       className={cn(
                         'size-1.5 rounded-full shrink-0',
-                        sub.unsubscribedAt === null
-                          ? 'bg-emerald-400'
-                          : 'bg-muted-foreground',
+                        sub.unsubscribedAt !== null
+                          ? 'bg-muted-foreground'
+                          : sub.confirmedAt !== null
+                            ? 'bg-emerald-400'
+                            : 'bg-amber-400',
                       )}
                     />
                     <span className="font-mono text-sm text-foreground">
@@ -239,19 +272,18 @@ export function SubscribersTable({
                 {/* Status pill */}
                 <td className="px-4 py-3">
                   <StatusCell
-                    unsubscribedAt={
-                      sub.unsubscribedAt ? new Date(sub.unsubscribedAt) : null
-                    }
+                    confirmedAt={sub.confirmedAt}
+                    unsubscribedAt={sub.unsubscribedAt}
                   />
                 </td>
 
                 {/* Actions */}
                 <td className="px-4 py-3">
                   <div className="flex items-center justify-end gap-1.5">
-                    {sub.unsubscribedAt === null ? (
-                      <UnsubscribeButton id={sub.id} />
-                    ) : (
+                    {sub.unsubscribedAt !== null ? (
                       <ResubscribeButton id={sub.id} />
+                    ) : (
+                      <UnsubscribeButton id={sub.id} />
                     )}
                     <DeleteButton id={sub.id} email={sub.email} />
                   </div>
@@ -276,9 +308,11 @@ export function SubscribersTable({
                   aria-hidden="true"
                   className={cn(
                     'size-1.5 rounded-full shrink-0 mt-0.5',
-                    sub.unsubscribedAt === null
-                      ? 'bg-emerald-400'
-                      : 'bg-muted-foreground',
+                    sub.unsubscribedAt !== null
+                      ? 'bg-muted-foreground'
+                      : sub.confirmedAt !== null
+                        ? 'bg-emerald-400'
+                        : 'bg-amber-400',
                   )}
                 />
                 <span className="font-mono text-sm text-foreground truncate">
@@ -286,9 +320,8 @@ export function SubscribersTable({
                 </span>
               </div>
               <StatusCell
-                unsubscribedAt={
-                  sub.unsubscribedAt ? new Date(sub.unsubscribedAt) : null
-                }
+                confirmedAt={sub.confirmedAt}
+                unsubscribedAt={sub.unsubscribedAt}
               />
             </div>
 
@@ -307,10 +340,10 @@ export function SubscribersTable({
 
             {/* Actions */}
             <div className="flex items-center gap-2">
-              {sub.unsubscribedAt === null ? (
-                <UnsubscribeButton id={sub.id} />
-              ) : (
+              {sub.unsubscribedAt !== null ? (
                 <ResubscribeButton id={sub.id} />
+              ) : (
+                <UnsubscribeButton id={sub.id} />
               )}
               <DeleteButton id={sub.id} email={sub.email} />
             </div>

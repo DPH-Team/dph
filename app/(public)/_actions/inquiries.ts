@@ -7,9 +7,50 @@ import { inquiries } from "@/lib/db/schema"
 import { formTypeToDbType } from "@/lib/validators/inquiries"
 import { verifyTurnstile } from "@/lib/security/turnstile"
 import { sendEmail } from "@/lib/email/send"
+import { getResendConfig } from "@/lib/db/queries/integrations"
 import { InquiryStaffNotification } from "@/lib/email/templates/InquiryStaffNotification"
 import { InquiryCustomerReply } from "@/lib/email/templates/InquiryCustomerReply"
 import * as React from "react"
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/**
+ * Extract a bare email address from a value that may be in
+ * "Display Name <address@example.com>" form. Returns the address portion only.
+ * If no angle-bracket wrapper is present, returns the input trimmed.
+ */
+function extractEmailAddress(raw: string): string {
+  const match = raw.match(/<([^>]+)>/)
+  return match ? match[1].trim() : raw.trim()
+}
+
+/**
+ * Resolve the staff notification recipient.
+ * Precedence: admin DB config replyTo → admin DB config fromEmail →
+ *             RESEND_REPLY_TO env var → RESEND_FROM_EMAIL env var →
+ *             hardcoded fallback.
+ * Always returns a bare email address (no display name wrapper).
+ */
+async function resolveStaffRecipient(): Promise<string> {
+  try {
+    const config = await getResendConfig()
+    if (config) {
+      if (config.replyTo && config.replyTo.trim()) {
+        return extractEmailAddress(config.replyTo)
+      }
+      if (config.fromEmail && config.fromEmail.trim()) {
+        return extractEmailAddress(config.fromEmail)
+      }
+    }
+  } catch {
+    // Non-fatal — fall through to env vars.
+  }
+  const envFallback =
+    process.env.RESEND_REPLY_TO ??
+    process.env.RESEND_FROM_EMAIL ??
+    "info@districtpourhaus.com"
+  return extractEmailAddress(envFallback)
+}
 
 export type InquiryState =
   | { ok: true; message: string }
@@ -105,8 +146,9 @@ export async function submitInquiry(
   const dbType = formTypeToDbType(data.type)
 
   // ── DB insert — source of truth ──────────────────────────────────────────────
+  let newId: string
   try {
-    await db.insert(inquiries).values({
+    const rows = await db.insert(inquiries).values({
       type: dbType,
       name: data.name,
       email: data.email,
@@ -120,7 +162,11 @@ export async function submitInquiry(
       message: data.message,
       consent: true,
       // status defaults to 'pending' via DB default — not passed explicitly.
-    })
+    }).returning({ id: inquiries.id })
+
+    const row = rows[0]
+    if (!row) throw new Error("Insert returned no rows")
+    newId = row.id
   } catch (err) {
     console.error("[inquiries] Failed to insert inquiry:", err)
     return {
@@ -130,9 +176,17 @@ export async function submitInquiry(
     }
   }
 
+  // ── Resolve email metadata ────────────────────────────────────────────────────
+  const siteUrl = (
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://districtpourhaus.com"
+  ).replace(/\/$/, "")
+  const adminUrl = `${siteUrl}/admin/inquiries/${newId}`
+
+  const staffRecipient = await resolveStaffRecipient()
+
   // ── Emails — fire-and-forget, failure cannot fail the submit ─────────────────
   void sendEmail({
-    to: process.env.RESEND_REPLY_TO ?? process.env.RESEND_FROM_EMAIL ?? "info@districtpourhaus.com",
+    to: staffRecipient,
     subject: `New ${dbType.replace("_", " ")} inquiry from ${data.name}`,
     react: React.createElement(InquiryStaffNotification, {
       name: data.name,
@@ -143,6 +197,7 @@ export async function submitInquiry(
       preferredDate: data.preferredDate?.trim() || null,
       preferredTime: data.preferredTime?.trim() || null,
       message: data.message,
+      adminUrl,
     }),
     replyTo: data.email,
     template: "inquiry-staff-notification",
@@ -154,6 +209,7 @@ export async function submitInquiry(
     react: React.createElement(InquiryCustomerReply, {
       name: data.name,
       type: dbType,
+      siteUrl,
     }),
     template: "inquiry-customer-reply",
   })

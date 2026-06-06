@@ -32,6 +32,7 @@ When a task matches one of these repeatable operations, invoke the skill via the
 
 ## Boundaries
 
+- **🚫 NEVER push to the remote/production Supabase.** The linked project `raigylcyufzyyykjuvqw` ("District Pour Haus") is **production**. Agents and skills run migrations **LOCAL ONLY** (`supabase start`, `npm run db:reset`, `drizzle-kit push` → 127.0.0.1). `supabase db push`, `--linked`, `supabase link`, and any command hitting `*.supabase.co` / `pooler.supabase.com` are **forbidden** and hard-blocked by `.claude/hooks/block-remote-db-push.py`. Production DB changes happen only when the **user** runs an explicitly-approved deploy. If a change must reach production, STOP and ask the user.
 - **Do not start a phase before the previous phase's exit criteria are met.**
 - **Do not implement features that aren't in `PHASES.md`.** If scope changes, update `PHASES.md` first and confirm with the user.
 - **Do not skip RLS, audit logging, or auth checks** on admin work, even for prototypes.

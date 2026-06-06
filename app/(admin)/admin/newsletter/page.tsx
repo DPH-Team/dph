@@ -5,7 +5,10 @@ import {
   listSubscribers,
   getSubscriberCounts,
 } from '@/lib/db/queries/subscribers';
-import { listSubscribersFilterSchema } from '@/lib/validators/newsletter';
+import {
+  listSubscribersFilterSchema,
+  type ListSubscribersFilterInput,
+} from '@/lib/validators/newsletter';
 import { cn } from '@/lib/utils';
 import { SubscribersTable } from './SubscribersTable';
 
@@ -24,11 +27,16 @@ export default async function NewsletterPage({ searchParams }: PageProps) {
   };
 
   const parsed = listSubscribersFilterSchema.safeParse(rawFilter);
-  const filter = parsed.success ? parsed.data : {};
+  const filter: { status?: string; search?: string } = parsed.success
+    ? parsed.data
+    : {};
 
   const [list, counts] = await Promise.all([
     listSubscribers({
-      status: filter.status !== 'all' ? filter.status : undefined,
+      status:
+        filter.status && filter.status !== 'all'
+          ? (filter.status as ListSubscribersFilterInput['status'])
+          : undefined,
       search: filter.search,
     }),
     getSubscriberCounts(),
@@ -66,6 +74,9 @@ export default async function NewsletterPage({ searchParams }: PageProps) {
         <div className="flex items-center gap-2 flex-wrap">
           <span className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold tabular-nums bg-emerald-500/10 border-emerald-500/30 text-emerald-400">
             {counts.active} active
+          </span>
+          <span className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold tabular-nums bg-amber-500/10 border-amber-500/30 text-amber-400">
+            {counts.pending} pending
           </span>
           <span
             className={cn(
@@ -108,6 +119,7 @@ export default async function NewsletterPage({ searchParams }: PageProps) {
           >
             <option value="all">All</option>
             <option value="active">Active</option>
+            <option value="pending">Pending</option>
             <option value="unsubscribed">Unsubscribed</option>
           </select>
         </div>

@@ -23,11 +23,17 @@ function withTimeout(ms: number): AbortSignal {
  * Verify a Resend API key by calling GET https://api.resend.com/domains.
  *
  * Status handling:
- *   200            → key is valid
- *   401            → invalid key
- *   other non-2xx  → upstream error (still distinguishable from auth failure)
+ *   2xx                        → key is valid
+ *   401 + name=restricted_api_key → key is a sending-only key — VALID for our
+ *                                   purposes (we only send email, never list
+ *                                   domains). Treat as success. Do NOT "fix"
+ *                                   this to ok:false — sending-only keys are
+ *                                   intentionally restricted and work fine.
+ *   401 + name=missing_api_key → auth header missing/empty → invalid key
+ *   403 + name=invalid_api_key → key does not exist or revoked → invalid key
+ *   other non-2xx              → upstream error
  *
- * The /domains endpoint is lightweight and does not create any side-effects.
+ * The /domains endpoint is lightweight and has no side-effects.
  */
 export async function testResendConnection(creds: {
   api_key: string;
@@ -53,10 +59,30 @@ export async function testResendConnection(creds: {
     return { ok: true };
   }
 
-  if (res.status === 401) {
-    return { ok: false, error: 'Invalid API key — check the value starts with re_' };
+  // Parse the error body to distinguish Resend's named error codes.
+  let errorName: string | undefined;
+  try {
+    const body = await res.json() as Record<string, unknown>;
+    errorName = typeof body.name === 'string' ? body.name : undefined;
+  } catch {
+    // Non-JSON body — fall through to status-based handling below.
   }
 
+  // A sending-only key is restricted from listing domains but sends email fine.
+  // This is the intended scope for a key used only for transactional sends.
+  if (errorName === 'restricted_api_key') {
+    return { ok: true };
+  }
+
+  if (errorName === 'missing_api_key' || errorName === 'invalid_api_key') {
+    return {
+      ok: false,
+      error:
+        'Invalid API key — check the value starts with re_ and was copied in full',
+    };
+  }
+
+  // Fallback: surface the HTTP status for any other non-2xx.
   return { ok: false, error: `Resend returned ${res.status}` };
 }
 

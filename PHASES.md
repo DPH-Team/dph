@@ -196,14 +196,16 @@ Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with
 - Careers application form: same pattern + resume upload to Supabase Storage, link in staff email
 - Form spam protection: hCaptcha or Cloudflare Turnstile
 - Newsletter signup wired (writes to `subscribers` table; broadcast send remains manual via Resend dashboard for now)
+- Newsletter double opt-in: subscribing creates a *pending* row + sends a branded confirm email; clicking the confirm link activates the subscriber. Every newsletter email footer carries a CAN-SPAM unsubscribe link backed by public `/newsletter/confirm` and `/newsletter/unsubscribe` pages. "Active subscriber" now means confirmed-and-not-unsubscribed.
 
-**Agents:** `dph-integrations`, `dph-frontend`
-**Skills:** none new
+**Agents:** `dph-integrations`, `dph-frontend`, `dph-backend`, `dph-admin`
+**Skills:** `dph-migration`
 
 **Exit criteria**
-- Submitting the inquiry form writes a row to `inquiries`, sends staff email, sends auto-reply to customer
+- Submitting the inquiry form writes a row to `inquiries`, sends staff email (with a link to the admin inquiry), sends auto-reply to customer
 - Resume upload appears in Storage, linked in staff email
 - Bot submissions blocked by captcha
+- Subscribing creates a pending subscriber + confirm email; clicking confirm activates; the unsubscribe link deactivates the subscriber and is present in every newsletter footer
 
 ---
 

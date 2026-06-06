@@ -690,13 +690,26 @@ export type NewMerchProductRow = InferInsertModel<typeof merchProducts>;
 
 // ─── subscribers ──────────────────────────────────────────────────────────────
 //
-// Newsletter subscriber list. Soft-unsubscribe via unsubscribed_at (null = active).
+// Newsletter subscriber list with double opt-in.
+//
+// State model:
+//   pending      — confirmed_at IS NULL  AND unsubscribed_at IS NULL
+//                  Row was just inserted (public form); confirmation email sent.
+//                  Must NOT be exported or included in broadcast sends.
+//   confirmed    — confirmed_at IS NOT NULL AND unsubscribed_at IS NULL
+//                  User clicked the confirmation link. The canonical "active" state.
+//   unsubscribed — unsubscribed_at IS NOT NULL
+//                  Soft-deleted via unsubscribe link or admin action.
+//
+// Token lifecycle:
+//   confirm_token     — set on insert, nulled once confirmed (or on unsub).
+//   unsubscribe_token — permanent per-row; never changes after insert.
+//
 // Email stored lowercased and enforced by DB check + zod validator.
-// No created_by — public anonymous inserts via anon policy.
+// No created_by — public anonymous inserts via anon policy (RLS).
 // updated_by → auth.users(id) on delete set null (hand-written FK in RLS
 // migration — Drizzle cannot cross-reference the auth schema).
 // source is a free-text provenance label: 'public_form', 'manual', etc.
-// Phase 7 will wire the public form; the anon INSERT policy is already set up.
 
 export const subscribers = pgTable(
   'subscribers',
@@ -712,12 +725,18 @@ export const subscribers = pgTable(
       .notNull()
       .defaultNow(),
     updatedBy: uuid('updated_by'),
+    // Double opt-in columns (Phase 7)
+    confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+    confirmToken: uuid('confirm_token'),
+    unsubscribeToken: uuid('unsubscribe_token').notNull().defaultRandom(),
   },
   (t) => [
     index('subscribers_subscribed_at_idx').on(t.subscribedAt.desc()),
     index('subscribers_active_idx')
       .on(t.subscribedAt.desc())
-      .where(sql`${t.unsubscribedAt} is null`),
+      .where(sql`${t.confirmedAt} is not null and ${t.unsubscribedAt} is null`),
+    index('subscribers_confirm_token_idx').on(t.confirmToken),
+    index('subscribers_unsubscribe_token_idx').on(t.unsubscribeToken),
     check(
       'subscribers_email_length_check',
       sql`char_length(${t.email}) between 3 and 320`,
