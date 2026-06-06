@@ -693,7 +693,7 @@ export async function saveInstagramConfigAction(
     { action: 'instagram_config_saved' },
   );
 
-  revalidateTag('instagram');
+  revalidateTag('instagram', 'max');
   revalidatePath('/');
   revalidatePath('/admin/integrations');
   return { ok: true };
