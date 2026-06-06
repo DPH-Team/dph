@@ -358,6 +358,96 @@ export async function updateInstagramConfig(
   return row;
 }
 
+// ─── Untappd featured brewery (jsonb — not encrypted) ────────────────────────
+
+/**
+ * Read `config.featured_brewery` from the `untappd` integration row.
+ *
+ * Returns the brewery string when set, or null when unset / row absent / DB
+ * error. Uses the service-role admin client so it is safe to call from the
+ * public Taps page (anonymous visitors, no active session).
+ *
+ * Never throws — callers on the public path must not surface DB errors.
+ */
+export async function getUntappdFeaturedBrewery(): Promise<string | null> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from('integrations')
+      .select('config')
+      .eq('name', 'untappd')
+      .single();
+
+    if (error || !data) return null;
+
+    const config =
+      data.config &&
+      typeof data.config === 'object' &&
+      !Array.isArray(data.config)
+        ? (data.config as Record<string, unknown>)
+        : {};
+
+    const val = config['featured_brewery'];
+    return typeof val === 'string' && val.trim() !== '' ? val.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persist (or clear) the featured brewery in `config.featured_brewery` on the
+ * `untappd` integration row.
+ *
+ * Merges into the existing config so other keys (e.g. future Untappd config
+ * fields) are preserved. Pass null or an empty string to clear the takeover.
+ *
+ * Uses the user-session Drizzle client so RLS applies (admin-only update).
+ * Stamps `updatedBy` and `updatedAt`.
+ */
+export async function updateUntappdFeaturedBrewery(
+  brewery: string | null,
+  actorId: string,
+): Promise<Integration> {
+  // Read current config to merge into it.
+  const current = await getIntegration('untappd');
+  if (!current) {
+    throw new Error('updateUntappdFeaturedBrewery: untappd integration row not found');
+  }
+
+  const existingConfig =
+    current.config &&
+    typeof current.config === 'object' &&
+    !Array.isArray(current.config)
+      ? (current.config as Record<string, unknown>)
+      : {};
+
+  const trimmed = typeof brewery === 'string' ? brewery.trim() : null;
+
+  // Build the merged config — set or remove featured_brewery.
+  const newConfig: Record<string, unknown> = { ...existingConfig };
+  if (trimmed && trimmed !== '') {
+    newConfig['featured_brewery'] = trimmed;
+  } else {
+    delete newConfig['featured_brewery'];
+  }
+
+  const rows = await db
+    .update(integrations)
+    .set({
+      config: newConfig as unknown as Record<string, unknown>,
+      updatedBy: actorId,
+      updatedAt: new Date(),
+    })
+    .where(eq(integrations.name, 'untappd'))
+    .returning();
+
+  const row = rows[0];
+  if (!row) {
+    throw new Error('updateUntappdFeaturedBrewery: update returned no row');
+  }
+  return row;
+}
+
 // ─── Decrypt credentials ──────────────────────────────────────────────────────
 
 /**

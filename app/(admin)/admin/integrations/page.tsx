@@ -1,10 +1,12 @@
 import { Plug } from 'lucide-react';
 import { requireAdmin } from '@/lib/auth';
-import { listIntegrations } from '@/lib/db/queries/integrations';
+import { listIntegrations, getUntappdFeaturedBrewery } from '@/lib/db/queries/integrations';
+import { fetchTaps } from '@/lib/untappd';
 import { IntegrationCard, type IntegrationView } from './IntegrationCard';
 import { PlausibleCard } from './PlausibleCard';
 import { ResendCard } from './ResendCard';
 import { InstagramCard } from './InstagramCard';
+import { TapTakeoverCard } from './TapTakeoverCard';
 import type { Integration } from '@/lib/db/schema';
 import type { IntegrationName } from '@/lib/validators/integrations';
 
@@ -69,6 +71,26 @@ export default async function IntegrationsPage() {
       ? (instagramRow.config as Record<string, unknown>)
       : {};
 
+  // Tap Takeover — derive the current brewery list from fetchTaps() and read the
+  // current selection from the DB.  Both calls are non-fatal: a failed fetchTaps
+  // yields an empty brewery list (card still renders with a helpful empty state),
+  // and a failed getUntappdFeaturedBrewery yields null (no active takeover shown).
+  const [tapResult, currentFeaturedBrewery] = await Promise.all([
+    fetchTaps().catch(() => ({ data: [], stale: true })),
+    getUntappdFeaturedBrewery().catch(() => null),
+  ]);
+
+  // Extract distinct, non-empty brewery names from the current tap list, sorted
+  // alphabetically.  The result is passed to TapTakeoverCard so the select only
+  // offers breweries that are actually on tap right now.
+  const tapBreweries: string[] = Array.from(
+    new Set(
+      tapResult.data
+        .map((t) => t.brewery.trim())
+        .filter((b) => b !== ''),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+
   return (
     <div className="space-y-6">
       {/* Page header */}
@@ -122,6 +144,13 @@ export default async function IntegrationsPage() {
           feedId={typeof instagramConfig.feed_id === 'string' ? instagramConfig.feed_id : ''}
         />
       )}
+
+      {/* Tap Takeover card — placed near the Untappd card; uses the same
+          untappd integration row's config jsonb (no migration needed). */}
+      <TapTakeoverCard
+        breweries={tapBreweries}
+        currentBrewery={currentFeaturedBrewery}
+      />
     </div>
   );
 }

@@ -176,6 +176,21 @@ export const instagramConfigSaveSchema = z.object({
 export type InstagramConfig = z.infer<typeof instagramConfigSchema>;
 export type InstagramConfigSave = z.infer<typeof instagramConfigSaveSchema>;
 
+// ─── Untappd tap takeover ─────────────────────────────────────────────────────
+//
+// featured_brewery is stored in the `config` jsonb column of the `untappd` row.
+// Empty string or null means "no takeover active"; a non-empty string designates
+// the brewery (matched case-insensitively against tap.brewery at render time).
+
+export const tapTakeoverSchema = z.object({
+  featured_brewery: z
+    .string()
+    .trim()
+    .max(200, 'Brewery name must be 200 characters or fewer'),
+});
+
+export type TapTakeoverInput = z.infer<typeof tapTakeoverSchema>;
+
 // ─── Mode / enabled toggle ────────────────────────────────────────────────────
 
 export const integrationTogglesSchema = z.object({
