@@ -44,10 +44,6 @@ function InstagramConfigForm({
   const [feedIdValue, setFeedIdValue] = useState(feedId);
 
   useEffect(() => {
-    setFeedIdValue(feedId);
-  }, [feedId]);
-
-  useEffect(() => {
     if (!state || state === prevRef.current) return;
     prevRef.current = state;
     if (state.ok) {
@@ -234,7 +230,7 @@ export function InstagramCard({ enabled, feedId }: InstagramCardProps) {
         <hr className="border-border" />
 
         {/* Config form (includes enabled toggle + feed ID) */}
-        <InstagramConfigForm enabled={enabled} feedId={feedId} />
+        <InstagramConfigForm key={feedId} enabled={enabled} feedId={feedId} />
       </CardContent>
     </Card>
   );

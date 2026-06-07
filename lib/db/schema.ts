@@ -11,7 +11,6 @@ import {
   customType,
   check,
   index,
-  unique,
   date,
   time,
 } from 'drizzle-orm/pg-core';

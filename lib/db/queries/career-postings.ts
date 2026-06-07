@@ -1,6 +1,6 @@
 import 'server-only';
 
-import { eq, ilike, or, and, sql, desc, asc } from 'drizzle-orm';
+import { eq, ilike, or, and, sql, asc } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { careerPostings } from '@/lib/db/schema';
 import type { CareerPosting, NewCareerPosting } from '@/lib/db/schema';

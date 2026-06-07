@@ -138,6 +138,9 @@ export function HomeHeroForm({ initialValue, action }: HomeHeroFormProps) {
   });
 
   // Watch the media fields so we can pass them into MediaUploadInput.
+  // react-hook-form's watch() is flagged by the React Compiler as an incompatible library;
+  // this is a known RHF/React-Compiler interaction with no pure-code workaround.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const mediaUrl = watch('mediaUrl') ?? null;
   const mediaType = watch('mediaType') ?? null;
 

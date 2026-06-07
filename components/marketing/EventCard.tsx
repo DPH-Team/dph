@@ -3,27 +3,13 @@ import Image from "next/image"
 import { Calendar, Tag } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { BLUR_CHARCOAL } from "@/lib/blur"
-import { isTodayInVenue, isPastVenueDay } from "@/lib/datetime"
+import { isTodayInVenue, isPastVenueDay, formatEventDateTime } from "@/lib/datetime"
 import type { Event } from "@/lib/fixtures/types"
 
 export type EventCardProps = {
   event: Event
   variant?: "default" | "featured" | "compact"
   className?: string
-}
-
-function formatEventDate(startsAt: string): string {
-  const start = new Date(startsAt)
-  const dateStr = start.toLocaleDateString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-  })
-  const timeStr = start.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  })
-  return `${dateStr} · ${timeStr}`
 }
 
 export function EventCard({ event, variant = "default", className }: EventCardProps) {
@@ -46,7 +32,7 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
             {event.title}
           </span>
           <span className="text-xs text-muted-foreground">
-            {formatEventDate(event.startsAt)}
+            {formatEventDateTime(new Date(event.startsAt))}
           </span>
         </div>
         <div className="shrink-0 flex items-center gap-1.5">
@@ -132,7 +118,7 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
           </Link>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Calendar size={14} aria-hidden="true" />
-            <time dateTime={event.startsAt}>{formatEventDate(event.startsAt)}</time>
+            <time dateTime={event.startsAt}>{formatEventDateTime(new Date(event.startsAt))}</time>
           </div>
           <p className="text-sm text-muted-foreground line-clamp-2">{event.description}</p>
           <div className="flex items-center justify-between mt-1">
@@ -216,7 +202,7 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
         </Link>
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Calendar size={12} aria-hidden="true" />
-          <time dateTime={event.startsAt}>{formatEventDate(event.startsAt)}</time>
+          <time dateTime={event.startsAt}>{formatEventDateTime(new Date(event.startsAt))}</time>
         </div>
         <p className="text-sm text-muted-foreground line-clamp-2">{event.description}</p>
         {event.tags.length > 0 && (
