@@ -121,16 +121,10 @@ function PulseDot({ reduced, live }: { reduced: boolean; live: boolean }) {
  * Uses KICKER_PHRASES when live (open), CLOSED_KICKER_PHRASES when closed.
  * Under reduced motion: renders the first phrase of the active set, static.
  */
-function RotatingKicker({ reduced, live }: { reduced: boolean; live: boolean }) {
+function RotatingKickerInner({ reduced, live }: { reduced: boolean; live: boolean }) {
   const [idx, setIdx] = useState(0)
   const phrases = live ? KICKER_PHRASES : CLOSED_KICKER_PHRASES
   const textColor = live ? "text-primary" : "text-muted-foreground"
-
-  useEffect(() => {
-    if (reduced) return
-    // Reset index when switching between open/closed phrase sets
-    setIdx(0)
-  }, [live, reduced])
 
   useEffect(() => {
     if (reduced) return
@@ -163,6 +157,20 @@ function RotatingKicker({ reduced, live }: { reduced: boolean; live: boolean }) 
         </AnimatePresence>
       )}
     </span>
+  )
+}
+
+/**
+ * Resets the rotation to idx 0 whenever `live` or `reduced` toggles by remounting
+ * the inner component via `key`. This avoids a synchronous setState-in-effect.
+ */
+function RotatingKicker({ reduced, live }: { reduced: boolean; live: boolean }) {
+  return (
+    <RotatingKickerInner
+      key={`${live ? "open" : "closed"}-${reduced ? "reduced" : "full"}`}
+      reduced={reduced}
+      live={live}
+    />
   )
 }
 

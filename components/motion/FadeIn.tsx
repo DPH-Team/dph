@@ -1,7 +1,7 @@
 "use client"
 
 import { motion, useReducedMotion } from "framer-motion"
-import type { ComponentPropsWithoutRef, ElementType } from "react"
+import type { ComponentPropsWithoutRef } from "react"
 
 const EASE_OUT_WARM = [0.22, 1, 0.36, 1] as const
 

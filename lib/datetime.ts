@@ -84,6 +84,52 @@ export function formatEventRange(starts: Date, ends?: Date | null): string {
 }
 
 /**
+ * Format a date range with full long-form date for the event detail page.
+ * If endsAt is null/undefined, returns a single timestamp.
+ * Collapses the timezone suffix to appear only once at the end.
+ *
+ * Examples:
+ *   'Monday, June 15, 2026 · 5:00 PM – 9:00 PM CDT'
+ *   'Monday, June 15, 2026 · 5:00 PM CDT'
+ */
+export function formatEventRangeLong(starts: Date, ends?: Date | null): string {
+  const datePart = new Intl.DateTimeFormat('en-US', {
+    timeZone: VENUE_TZ,
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  }).format(starts);
+
+  if (!ends) {
+    const timePart = new Intl.DateTimeFormat('en-US', {
+      timeZone: VENUE_TZ,
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZoneName: 'short',
+    }).format(starts);
+    return `${datePart} · ${timePart}`;
+  }
+
+  const startFmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: VENUE_TZ,
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  const endFmt = new Intl.DateTimeFormat('en-US', {
+    timeZone: VENUE_TZ,
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  });
+
+  const startStr = startFmt.format(starts);
+  const endStr = endFmt.format(ends);
+
+  return `${datePart} · ${startStr} – ${endStr}`;
+}
+
+/**
  * Format a date-only string for table cells.
  * Example: 'Jun 15, 2026'
  */

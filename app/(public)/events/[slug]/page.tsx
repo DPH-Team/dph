@@ -4,7 +4,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { Calendar, MapPin, ExternalLink, Clock, CalendarDays } from "lucide-react"
 import { pageMetadata, eventJsonLd } from "@/lib/seo"
-import { isTodayInVenue, isPastVenueDay } from "@/lib/datetime"
+import { isTodayInVenue, isPastVenueDay, formatEventRangeLong } from "@/lib/datetime"
 import { BLUR_CHARCOAL } from "@/lib/blur"
 import type { Location } from "@/lib/fixtures/types"
 import {
@@ -44,25 +44,6 @@ export async function generateMetadata({
     path: `/events/${event.slug}`,
     ogImage: event.imageUrl || undefined,
   })
-}
-
-function formatDate(startsAt: string, endsAt: string | null): string {
-  const start = new Date(startsAt)
-  const opts: Intl.DateTimeFormatOptions = {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  }
-  const dateStr = start.toLocaleDateString("en-US", opts)
-  const timeStr = start.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-  })
-  if (!endsAt) return `${dateStr} · ${timeStr}`
-  const end = new Date(endsAt)
-  const endStr = end.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
-  return `${dateStr} · ${timeStr} – ${endStr}`
 }
 
 function buildCalendarLinks(
@@ -187,7 +168,7 @@ export default async function EventDetailPage({
               <span className="flex items-center gap-2">
                 <Calendar size={15} className="text-primary" aria-hidden="true" />
                 <time dateTime={event.startsAt}>
-                  {formatDate(event.startsAt, event.endsAt)}
+                  {formatEventRangeLong(new Date(event.startsAt), event.endsAt ? new Date(event.endsAt) : null)}
                 </time>
               </span>
               <span className="flex items-center gap-2">
@@ -282,7 +263,7 @@ export default async function EventDetailPage({
                     <span className="flex items-start gap-2.5">
                       <Calendar size={15} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
                       <time dateTime={event.startsAt}>
-                        {formatDate(event.startsAt, event.endsAt)}
+                        {formatEventRangeLong(new Date(event.startsAt), event.endsAt ? new Date(event.endsAt) : null)}
                       </time>
                     </span>
                     <span className="flex items-start gap-2.5">
