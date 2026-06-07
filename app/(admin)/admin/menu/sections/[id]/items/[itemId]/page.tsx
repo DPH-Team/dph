@@ -9,6 +9,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { ItemForm } from '@/app/(admin)/admin/menu/sections/[id]/items/ItemForm';
 import { DeleteItemButton } from '@/app/(admin)/admin/menu/sections/[id]/items/[itemId]/DeleteItemButton';
+import { BreadcrumbLabel } from '@/components/admin/BreadcrumbLabels';
 
 interface PageProps {
   params: Promise<{ id: string; itemId: string }>;
@@ -36,6 +37,10 @@ export default async function MenuItemDetailPage({ params }: PageProps) {
 
   return (
     <div className="space-y-8 max-w-2xl">
+      {/* Register UUIDs → friendly names for the breadcrumb topbar */}
+      <BreadcrumbLabel segment={sectionId} label={section.name} />
+      <BreadcrumbLabel segment={itemId} label={item.name} />
+
       {/* Breadcrumb + header */}
       <header>
         <p className="text-xs text-muted-foreground mb-1">

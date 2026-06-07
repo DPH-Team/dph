@@ -158,6 +158,7 @@ export const menuSections = pgTable(
     sortOrder: integer('sort_order').notNull().default(0),
     available: boolean('available').notNull().default(true),
     showPrices: boolean('show_prices').notNull().default(true),
+    showOnHomepage: boolean('show_on_homepage').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true })
       .notNull()
       .defaultNow(),

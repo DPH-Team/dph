@@ -40,6 +40,7 @@ export function SectionForm(props: SectionFormProps) {
     sortOrder: section?.sortOrder ?? 0,
     available: section?.available ?? true,
     showPrices: section?.showPrices ?? true,
+    showOnHomepage: section?.showOnHomepage ?? false,
   };
 
   return (
@@ -121,6 +122,18 @@ export function SectionForm(props: SectionFormProps) {
             name="showPrices"
             label="Show prices"
             description="When off, prices are hidden for all items in this section on the public menu."
+          />
+        </ResourceForm.Field>
+
+        <ResourceForm.Field
+          name="showOnHomepage"
+          label="Show on homepage"
+          description={`When on, this section's items can appear in the homepage "From the Kitchen" block (top 6 items across all selected sections).`}
+        >
+          <ResourceForm.Switch
+            name="showOnHomepage"
+            label="Feature on homepage"
+            description="Multiple sections can be featured at once; the homepage shows up to 6 items combined."
           />
         </ResourceForm.Field>
       </ResourceForm.Section>

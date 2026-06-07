@@ -5,6 +5,7 @@ import {
   useForm,
   FormProvider,
   useFormContext,
+  useController,
   type FieldValues,
   type DefaultValues,
   type FieldError,
@@ -193,21 +194,21 @@ interface TextInputProps extends Omit<React.ComponentProps<'input'>, 'name'> {
 }
 
 function TextInput({ name, id, ...rest }: TextInputProps) {
-  const {
-    register,
-    formState: { errors },
-  } = useFormContext();
-  const fieldError = name.split('.').reduce<unknown>(
-    (acc, key) => (acc as Record<string, unknown>)?.[key],
-    errors,
-  ) as FieldError | undefined;
+  const { control } = useFormContext();
+  const { field, fieldState } = useController({ name, control });
+  const { name: fieldName, ref, value, onChange, onBlur } = field;
+  const hasError = Boolean(fieldState.error);
 
   return (
     <Input
       id={id}
-      {...register(name)}
-      aria-invalid={Boolean(fieldError)}
       {...rest}
+      name={fieldName}
+      ref={ref}
+      value={value ?? ''}
+      onChange={onChange}
+      onBlur={onBlur}
+      aria-invalid={hasError}
     />
   );
 }
@@ -219,21 +220,21 @@ interface TextareaInputProps extends Omit<React.ComponentProps<'textarea'>, 'nam
 }
 
 function TextareaInput({ name, id, ...rest }: TextareaInputProps) {
-  const {
-    register,
-    formState: { errors },
-  } = useFormContext();
-  const fieldError = name.split('.').reduce<unknown>(
-    (acc, key) => (acc as Record<string, unknown>)?.[key],
-    errors,
-  ) as FieldError | undefined;
+  const { control } = useFormContext();
+  const { field, fieldState } = useController({ name, control });
+  const { name: fieldName, ref, value, onChange, onBlur } = field;
+  const hasError = Boolean(fieldState.error);
 
   return (
     <Textarea
       id={id}
-      {...register(name)}
-      aria-invalid={Boolean(fieldError)}
       {...rest}
+      name={fieldName}
+      ref={ref}
+      value={value ?? ''}
+      onChange={onChange}
+      onBlur={onBlur}
+      aria-invalid={hasError}
     />
   );
 }
@@ -246,23 +247,23 @@ interface DateTimeInputProps
 }
 
 function DateTimeInput({ name, id, ...rest }: DateTimeInputProps) {
-  const {
-    register,
-    formState: { errors },
-  } = useFormContext();
-  const fieldError = name.split('.').reduce<unknown>(
-    (acc, key) => (acc as Record<string, unknown>)?.[key],
-    errors,
-  ) as FieldError | undefined;
+  const { control } = useFormContext();
+  const { field, fieldState } = useController({ name, control });
+  const { name: fieldName, ref, value, onChange, onBlur } = field;
+  const hasError = Boolean(fieldState.error);
 
   return (
     <Input
       id={id}
       type="datetime-local"
-      {...register(name)}
-      aria-invalid={Boolean(fieldError)}
       className="w-auto"
       {...rest}
+      name={fieldName}
+      ref={ref}
+      value={value ?? ''}
+      onChange={onChange}
+      onBlur={onBlur}
+      aria-invalid={hasError}
     />
   );
 }
@@ -275,23 +276,23 @@ interface UrlInputProps
 }
 
 function UrlInput({ name, id, ...rest }: UrlInputProps) {
-  const {
-    register,
-    formState: { errors },
-  } = useFormContext();
-  const fieldError = name.split('.').reduce<unknown>(
-    (acc, key) => (acc as Record<string, unknown>)?.[key],
-    errors,
-  ) as FieldError | undefined;
+  const { control } = useFormContext();
+  const { field, fieldState } = useController({ name, control });
+  const { name: fieldName, ref, value, onChange, onBlur } = field;
+  const hasError = Boolean(fieldState.error);
 
   return (
     <Input
       id={id}
       type="url"
-      {...register(name)}
-      aria-invalid={Boolean(fieldError)}
       placeholder="https://"
       {...rest}
+      name={fieldName}
+      ref={ref}
+      value={value ?? ''}
+      onChange={onChange}
+      onBlur={onBlur}
+      aria-invalid={hasError}
     />
   );
 }

@@ -60,6 +60,7 @@ export const createMenuSectionSchema = z.object({
     .default(0),
   available: z.boolean().default(true),
   showPrices: z.boolean().default(true),
+  showOnHomepage: z.boolean().default(false),
 });
 
 export const updateMenuSectionSchema = createMenuSectionSchema;
@@ -111,3 +112,16 @@ export const updateMenuItemSchema = createMenuItemSchema;
 
 export type CreateMenuItemInput = z.infer<typeof createMenuItemSchema>;
 export type UpdateMenuItemInput = z.infer<typeof updateMenuItemSchema>;
+
+// ─── Reorder schemas ──────────────────────────────────────────────────────────
+
+export const menuSectionReorderSchema = z.object({
+  orderedIds: z.array(z.string().uuid()).min(1, 'At least one ID is required'),
+});
+export type MenuSectionReorderInput = z.infer<typeof menuSectionReorderSchema>;
+
+export const menuItemReorderSchema = z.object({
+  sectionId: z.string().uuid({ message: 'A valid section ID is required' }),
+  orderedIds: z.array(z.string().uuid()).min(1, 'At least one ID is required'),
+});
+export type MenuItemReorderInput = z.infer<typeof menuItemReorderSchema>;

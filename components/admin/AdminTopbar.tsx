@@ -14,6 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { RoleBadge } from './RoleBadge';
 import { AdminMobileSheet } from './AdminMobileSheet';
+import { useBreadcrumbLabels } from './BreadcrumbLabels';
 import type { UserProfile } from '@/lib/auth';
 
 interface AdminTopbarProps {
@@ -30,6 +31,7 @@ function formatSegment(segment: string): string {
 
 function Breadcrumbs() {
   const pathname = usePathname();
+  const labels = useBreadcrumbLabels();
 
   // Strip leading slash and split
   const segments = pathname.replace(/^\//, '').split('/');
@@ -40,12 +42,14 @@ function Breadcrumbs() {
   ];
 
   // Build up the rest: /admin/events/123 → ["events", "123"]
+  // For each segment, prefer a registered label (e.g. a UUID → friendly name)
+  // over the default title-cased formatting.
   let accumulated = '/admin';
   for (let i = 1; i < segments.length; i++) {
     const seg = segments[i];
     if (!seg) continue;
     accumulated += `/${seg}`;
-    crumbs.push({ label: formatSegment(seg), href: accumulated });
+    crumbs.push({ label: labels[seg] ?? formatSegment(seg), href: accumulated });
   }
 
   return (

@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { SectionForm } from '@/app/(admin)/admin/menu/sections/SectionForm';
 import { DeleteSectionButton } from '@/app/(admin)/admin/menu/sections/[id]/DeleteSectionButton';
 import { ItemsTable } from '@/app/(admin)/admin/menu/sections/[id]/ItemsTable';
+import { BreadcrumbLabel } from '@/components/admin/BreadcrumbLabels';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -37,6 +38,9 @@ export default async function MenuSectionDetailPage({ params }: PageProps) {
 
   return (
     <div className="space-y-8 max-w-4xl">
+      {/* Register UUID → friendly name for the breadcrumb topbar */}
+      <BreadcrumbLabel segment={sectionId} label={section.name} />
+
       {/* Breadcrumb + header */}
       <header>
         <p className="text-xs text-muted-foreground mb-1">

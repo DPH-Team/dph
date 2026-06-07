@@ -30,6 +30,7 @@ export type MenuSection = {
   description: string | null
   sortOrder: number
   showPrices: boolean
+  showOnHomepage: boolean
   items: MenuItem[]
 }
 

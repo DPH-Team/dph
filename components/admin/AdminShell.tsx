@@ -1,5 +1,6 @@
 import { AdminSidebar } from './AdminSidebar';
 import { AdminTopbar } from './AdminTopbar';
+import { BreadcrumbLabelProvider } from './BreadcrumbLabels';
 import type { UserProfile } from '@/lib/auth';
 
 interface AdminShellProps {
@@ -12,6 +13,10 @@ interface AdminShellProps {
  *
  * Sidebar is hidden on mobile; AdminTopbar includes a sheet trigger for
  * narrow viewports.
+ *
+ * BreadcrumbLabelProvider wraps the right-hand column so both AdminTopbar
+ * (which reads labels) and page children (which set labels) share the same
+ * context instance.
  */
 export function AdminShell({ profile, children }: AdminShellProps) {
   return (
@@ -21,16 +26,18 @@ export function AdminShell({ profile, children }: AdminShellProps) {
         <AdminSidebar role={profile.role} />
       </aside>
 
-      {/* Main column */}
-      <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
-        <AdminTopbar profile={profile} />
-        <main
-          id="admin-main"
-          className="flex-1 overflow-y-auto p-4 lg:p-6 xl:p-8"
-        >
-          {children}
-        </main>
-      </div>
+      {/* Main column — provider spans topbar + content so both share context */}
+      <BreadcrumbLabelProvider>
+        <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
+          <AdminTopbar profile={profile} />
+          <main
+            id="admin-main"
+            className="flex-1 overflow-y-auto p-4 lg:p-6 xl:p-8"
+          >
+            {children}
+          </main>
+        </div>
+      </BreadcrumbLabelProvider>
     </div>
   );
 }

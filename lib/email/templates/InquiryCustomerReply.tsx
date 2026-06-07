@@ -101,7 +101,7 @@ export function InquiryCustomerReply({ name, type, siteUrl }: InquiryCustomerRep
 
             <Text style={bodyTextStyle}>
               While you wait, pull up a stool. Take a peek at what&apos;s pouring or see what
-              we&apos;ve got coming up. We&apos;d love to see you at the haus.
+              we&apos;ve got coming up. We&apos;d love to see you at the Haus.
             </Text>
           </Section>
 

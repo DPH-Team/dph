@@ -162,6 +162,7 @@ const _getPublicMenuCached = unstable_cache(
       description: section.description ?? null,
       sortOrder: section.sortOrder,
       showPrices: section.showPrices,
+      showOnHomepage: section.showOnHomepage,
       items,
     }));
   },
