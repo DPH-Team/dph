@@ -29,7 +29,7 @@ export function SiteFooter({ location }: SiteFooterProps) {
         <Container>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 [padding-block:clamp(3rem,7vw,5rem)]">
             <div className="flex flex-col gap-3 lg:col-span-1">
-              <Wordmark size="md" tone="gold" asLink={false} />
+              <Wordmark size="md" asLink={false} glow={false} />
               <p className="text-sm text-cream/90 font-medium">
                 Our Haus is Your Haus
               </p>
@@ -117,7 +117,7 @@ export function SiteFooter({ location }: SiteFooterProps) {
           </p>
 
           <div className="flex items-center gap-3">
-            <Wordmark size="sm" tone="gold" asLink={false} className="hidden md:block" />
+            <Wordmark size="sm" asLink={false} glow={false} className="hidden md:block" />
             <span className="hidden md:block text-xs text-cream/70">Est. Wisconsin</span>
           </div>
 

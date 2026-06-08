@@ -58,7 +58,7 @@ function SuccessState() {
     >
       <Container size="sm">
         <div className="flex flex-col items-center gap-8">
-          <Wordmark size="lg" tone="gold" asLink />
+          <Wordmark size="lg" asLink />
 
           <div
             className="w-16 h-16 rounded-full bg-neutral-800/60 flex items-center justify-center"
@@ -117,7 +117,7 @@ function InvalidState() {
     >
       <Container size="sm">
         <div className="flex flex-col items-center gap-8">
-          <Wordmark size="lg" tone="gold" asLink />
+          <Wordmark size="lg" asLink />
 
           <div
             className="w-16 h-16 rounded-full bg-neutral-800/60 flex items-center justify-center"

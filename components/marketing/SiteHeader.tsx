@@ -61,7 +61,9 @@ export function SiteHeader({ hours, overrides, location }: SiteHeaderProps) {
       >
         <div className="mx-auto w-full max-w-[80rem] px-4 sm:px-6 lg:px-8 flex items-center gap-4">
           <div className="flex items-center gap-3 flex-1 lg:flex-none">
-            <Wordmark size="md" tone="gold" />
+            <span className="inline-block animate-rock-once">
+              <Wordmark size="md" />
+            </span>
             <OpenStatusPill
               hours={hours}
               overrides={overrides}

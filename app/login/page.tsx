@@ -32,7 +32,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-8 shadow-lg">
         {/* Logo */}
         <div className="mb-8 flex flex-col items-center gap-1">
-          <Wordmark size="lg" tone="gold" asLink={false} />
+          <Wordmark size="lg" asLink={false} />
           <p className="text-xs text-muted-foreground">Admin Portal</p>
         </div>
 

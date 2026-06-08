@@ -189,4 +189,27 @@
   .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
+
+  /* Gentle pendulum rock — used on the 404 wordmark */
+  @keyframes rock {
+    0%, 100% { transform: rotate(-3deg); }
+    50%      { transform: rotate(3deg); }
+  }
+  .animate-rock {
+    animation: rock 2.8s ease-in-out infinite;
+    transform-origin: center bottom;
+  }
+
+  /* One-shot rock — header wordmark on first landing */
+  @keyframes rock-once {
+    0%   { transform: rotate(0); }
+    25%  { transform: rotate(-4deg); }
+    55%  { transform: rotate(3deg); }
+    80%  { transform: rotate(-1.5deg); }
+    100% { transform: rotate(0); }
+  }
+  .animate-rock-once {
+    animation: rock-once 0.8s ease-in-out 1;
+    transform-origin: center bottom;
+  }
 }

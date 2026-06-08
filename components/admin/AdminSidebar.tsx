@@ -18,7 +18,7 @@ export function AdminSidebar({ role, onNavClick }: AdminSidebarProps) {
     <div className="flex h-full flex-col bg-card">
       {/* Wordmark */}
       <div className="flex h-14 items-center px-4">
-        <Wordmark size="sm" tone="gold" asLink={false} />
+        <Wordmark size="sm" asLink={false} />
       </div>
 
       <Separator />

@@ -11,8 +11,10 @@ export default function NotFound() {
         aria-labelledby="not-found-title"
       >
         <div className="flex flex-col items-center gap-8 max-w-md">
-          {/* Gold wordmark */}
-          <Wordmark size="lg" tone="gold" asLink={false} />
+          {/* Gold wordmark — header-sized, rocking */}
+          <div className="animate-rock">
+            <Wordmark size="md" glow={false} />
+          </div>
 
           {/* 404 numeral */}
           <p
