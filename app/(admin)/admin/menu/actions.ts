@@ -8,6 +8,8 @@ import {
   updateMenuSectionSchema,
   createMenuItemSchema,
   updateMenuItemSchema,
+  menuSectionReorderSchema,
+  menuItemReorderSchema,
 } from '@/lib/validators/menu';
 import { slugify } from '@/lib/slugify';
 import {
@@ -20,6 +22,10 @@ import {
   updateItem,
   deleteItem,
   MenuSectionHasItemsError,
+  reorderSections,
+  reorderItems,
+  getSectionIds,
+  getItemIdsBySection,
 } from '@/lib/db/queries/menu';
 import { auditCreate, auditUpdate, auditDelete } from '@/lib/audit';
 import { deleteObject } from '@/lib/supabase/storage';
@@ -30,6 +36,7 @@ import type { ActionState } from '@/lib/types/action-state';
 function revalidateMenuPublic() {
   revalidateTag('menu', 'max');
   revalidatePath('/menu');
+  revalidatePath('/');
 }
 
 function revalidateSectionAdmin(sectionId: string) {
@@ -55,6 +62,7 @@ export async function createMenuSectionAction(
     sortOrder: Number(formData.get('sortOrder') ?? 0),
     available: formData.get('available') === 'true',
     showPrices: formData.get('showPrices') === 'true',
+    showOnHomepage: formData.get('showOnHomepage') === 'true',
   };
 
   const result = createMenuSectionSchema.safeParse(raw);
@@ -80,6 +88,7 @@ export async function createMenuSectionAction(
       sortOrder: data.sortOrder,
       available: data.available,
       showPrices: data.showPrices,
+      showOnHomepage: data.showOnHomepage,
       actorId: profile.id,
     });
   } catch (err) {
@@ -129,6 +138,7 @@ export async function updateMenuSectionAction(
     sortOrder: Number(formData.get('sortOrder') ?? 0),
     available: formData.get('available') === 'true',
     showPrices: formData.get('showPrices') === 'true',
+    showOnHomepage: formData.get('showOnHomepage') === 'true',
   };
 
   const result = updateMenuSectionSchema.safeParse(raw);
@@ -152,6 +162,7 @@ export async function updateMenuSectionAction(
       sortOrder: data.sortOrder,
       available: data.available,
       showPrices: data.showPrices,
+      showOnHomepage: data.showOnHomepage,
       actorId: profile.id,
     });
   } catch (err) {
@@ -425,4 +436,100 @@ export async function deleteMenuItemAction(
   revalidateSectionAdmin(sectionId);
 
   redirect(`/admin/menu/sections/${sectionId}`);
+}
+
+// ─── Reorder actions ──────────────────────────────────────────────────────────
+
+/**
+ * Reorder menu sections by persisting a new sort_order for each id in the
+ * provided array. Writes ONE audit-log row capturing the before/after id order.
+ */
+export async function reorderMenuSectionsAction(
+  orderedIds: string[],
+): Promise<ActionState> {
+  const profile = await requireStaff();
+
+  const result = menuSectionReorderSchema.safeParse({ orderedIds });
+  if (!result.success) {
+    return {
+      ok: false,
+      error: 'Invalid reorder payload.',
+      fieldErrors: result.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  // Capture current order for the audit log
+  const before = await getSectionIds();
+
+  try {
+    await reorderSections(result.data.orderedIds, profile.id);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    return { ok: false, error: `Failed to reorder menu sections: ${msg}` };
+  }
+
+  await auditCreate(
+    'menu_section',
+    'reorder',
+    {},
+    {
+      action: 'menu_section.reorder',
+      before,
+      after: result.data.orderedIds,
+    },
+  );
+
+  revalidateMenuPublic();
+  revalidatePath('/admin/menu');
+
+  return { ok: true };
+}
+
+/**
+ * Reorder menu items within a section by persisting a new sort_order for each
+ * id in the provided array. Writes ONE audit-log row capturing the before/after
+ * id order. The sectionId is validated so items can only be reordered within
+ * their own section.
+ */
+export async function reorderMenuItemsAction(
+  sectionId: string,
+  orderedIds: string[],
+): Promise<ActionState> {
+  const profile = await requireStaff();
+
+  const result = menuItemReorderSchema.safeParse({ sectionId, orderedIds });
+  if (!result.success) {
+    return {
+      ok: false,
+      error: 'Invalid reorder payload.',
+      fieldErrors: result.error.flatten().fieldErrors as Record<string, string[]>,
+    };
+  }
+
+  // Capture current order for the audit log
+  const before = await getItemIdsBySection(result.data.sectionId);
+
+  try {
+    await reorderItems(result.data.sectionId, result.data.orderedIds, profile.id);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Unknown error';
+    return { ok: false, error: `Failed to reorder menu items: ${msg}` };
+  }
+
+  await auditCreate(
+    'menu_item',
+    'reorder',
+    {},
+    {
+      action: 'menu_item.reorder',
+      sectionId: result.data.sectionId,
+      before,
+      after: result.data.orderedIds,
+    },
+  );
+
+  revalidateMenuPublic();
+  revalidateSectionAdmin(result.data.sectionId);
+
+  return { ok: true };
 }

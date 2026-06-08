@@ -75,7 +75,7 @@ export function NewsletterConfirm({ confirmUrl, unsubscribeUrl, siteUrl }: Newsl
 
             <Text style={leadStyle}>
               You signed up to hear from District Pour Haus — tap rotations, upcoming
-              events, and whatever else is happening at the haus. We just need you to
+              events, and whatever else is happening at the Haus. We just need you to
               confirm your email before we add you to the list.
             </Text>
 

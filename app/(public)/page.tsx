@@ -8,7 +8,6 @@ import { fetchCheckins } from "@/lib/untappd"
 import { getLocation } from "@/app/__fixtures__/location"
 import { HomeHero } from "@/components/marketing/HomeHero"
 import { EventCard } from "@/components/marketing/EventCard"
-import { MenuItem } from "@/components/marketing/MenuItem"
 import { HoursCard } from "@/components/marketing/HoursCard"
 import { MapBlock } from "@/components/marketing/MapBlock"
 import { InstagramSlot } from "@/components/marketing/InstagramSlot"
@@ -17,6 +16,7 @@ import { NewsletterCTA } from "@/components/marketing/NewsletterCTA"
 import { SectionHeading } from "@/components/marketing/SectionHeading"
 import { Section } from "@/components/marketing/layout/Section"
 import { Container } from "@/components/marketing/layout/Container"
+import { FeaturedMenuTabs } from "@/components/marketing/FeaturedMenuTabs"
 import { ScrollReveal } from "@/components/motion/ScrollReveal"
 import { Stagger, StaggerItem } from "@/components/motion/Stagger"
 
@@ -34,7 +34,6 @@ export const metadata: Metadata = {
   },
 }
 
-const FEATURED_ITEM_COUNT = 4
 
 export default async function HomePage() {
   const [hero, callouts, sections, hours, overrides, events, igPostsResult, checkinsResult, loc] =
@@ -55,10 +54,8 @@ export default async function HomePage() {
 
   const upcomingThree = events.data.slice(0, 3)
 
-  // No featured flag in schema — take the first N available items across all sections.
-  const featuredItems = sections
-    .flatMap((s) => s.items)
-    .slice(0, FEATURED_ITEM_COUNT)
+  // Featured menu sections (admin-flagged show_on_homepage), rendered as tabs on the homepage.
+  const featuredSections = sections.filter((s) => s.showOnHomepage)
 
   const calloutsArray = callouts
 
@@ -112,33 +109,29 @@ export default async function HomePage() {
         </Container>
       </Section>
 
-      {/* Featured menu */}
-      <Section padding="md" bg="card">
-        <Container>
-          <ScrollReveal>
-            <SectionHeading eyebrow="What's Cookin'" className="mb-8">
-              From the Kitchen
-            </SectionHeading>
-          </ScrollReveal>
+      {/* Featured menu — only rendered when at least one section is flagged showOnHomepage */}
+      {featuredSections.length > 0 && (
+        <Section padding="md" bg="card">
+          <Container>
+            <ScrollReveal>
+              <SectionHeading eyebrow="What's Cookin'" className="mb-8">
+                From the Kitchen
+              </SectionHeading>
+            </ScrollReveal>
 
-          <Stagger className="grid sm:grid-cols-2 gap-4">
-            {featuredItems.map((item) => (
-              <StaggerItem key={item.id}>
-                <MenuItem item={item} variant="featured" />
-              </StaggerItem>
-            ))}
-          </Stagger>
+            <FeaturedMenuTabs sections={featuredSections} />
 
-          <div className="mt-8">
-            <Link
-              href="/menu"
-              className="text-sm font-medium text-primary hover:text-copper-hover transition-colors underline underline-offset-4"
-            >
-              See full menu →
-            </Link>
-          </div>
-        </Container>
-      </Section>
+            <div className="mt-8">
+              <Link
+                href="/menu"
+                className="text-sm font-medium text-primary hover:text-copper-hover transition-colors underline underline-offset-4"
+              >
+                See full menu →
+              </Link>
+            </div>
+          </Container>
+        </Section>
+      )}
 
       {/* Home callouts — rendered only when the admin has saved at least one callout */}
       {calloutsArray.length > 0 && (

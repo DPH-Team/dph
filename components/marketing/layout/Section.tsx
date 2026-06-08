@@ -5,9 +5,9 @@ type Padding = "sm" | "md" | "lg"
 type Bg = "default" | "muted" | "card"
 
 const paddingClasses: Record<Padding, string> = {
-  sm: "[padding-block:clamp(2.5rem,6vw,4rem)]",
-  md: "[padding-block:clamp(4rem,9vw,7rem)]",
-  lg: "[padding-block:clamp(6rem,12vw,10rem)]",
+  sm: "[padding-block:clamp(1.5rem,3vw,2rem)]",
+  md: "[padding-block:clamp(2rem,4.5vw,3.5rem)]",
+  lg: "[padding-block:clamp(3rem,6vw,5rem)]",
 }
 
 const bgClasses: Record<Bg, string> = {

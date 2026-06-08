@@ -221,6 +221,85 @@ export async function deleteItem(id: string): Promise<void> {
   await db.delete(menuItems).where(eq(menuItems.id, id));
 }
 
+// ─── Reorder ──────────────────────────────────────────────────────────────────
+
+/**
+ * Bulk-reindex menu sections according to the provided ordered ID array.
+ * Each section's sort_order is set to its index (0-based) in the array.
+ * Runs in a transaction; writes updated_at and updated_by on every touched row.
+ */
+export async function reorderSections(
+  orderedIds: string[],
+  actorId: string,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await tx
+        .update(menuSections)
+        .set({
+          sortOrder: i,
+          updatedBy: actorId,
+          updatedAt: new Date(),
+        })
+        .where(eq(menuSections.id, orderedIds[i]!));
+    }
+  });
+}
+
+/**
+ * Bulk-reindex menu items within a section according to the provided ordered ID
+ * array. Each item's sort_order is set to its index (0-based) in the array.
+ * The sectionId constraint ensures items can only be reordered within their own
+ * section. Runs in a transaction; writes updated_at and updated_by on every
+ * touched row.
+ */
+export async function reorderItems(
+  sectionId: string,
+  orderedIds: string[],
+  actorId: string,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    for (let i = 0; i < orderedIds.length; i++) {
+      await tx
+        .update(menuItems)
+        .set({
+          sortOrder: i,
+          updatedBy: actorId,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(menuItems.id, orderedIds[i]!), eq(menuItems.sectionId, sectionId)));
+    }
+  });
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Return the current ordered list of menu section IDs (sort_order ASC, name ASC).
+ * Used by the reorder action to capture the "before" snapshot for the audit log.
+ */
+export async function getSectionIds(): Promise<string[]> {
+  const rows = await db
+    .select({ id: menuSections.id })
+    .from(menuSections)
+    .orderBy(asc(menuSections.sortOrder), asc(menuSections.name));
+  return rows.map((r) => r.id);
+}
+
+/**
+ * Return the current ordered list of item IDs within a section
+ * (sort_order ASC, name ASC).
+ * Used by the reorder action to capture the "before" snapshot for the audit log.
+ */
+export async function getItemIdsBySection(sectionId: string): Promise<string[]> {
+  const rows = await db
+    .select({ id: menuItems.id })
+    .from(menuItems)
+    .where(eq(menuItems.sectionId, sectionId))
+    .orderBy(asc(menuItems.sortOrder), asc(menuItems.name));
+  return rows.map((r) => r.id);
+}
+
 // ─── Joined view (Phase 5 public menu page) ───────────────────────────────────
 
 export interface ItemWithSection extends MenuItem {

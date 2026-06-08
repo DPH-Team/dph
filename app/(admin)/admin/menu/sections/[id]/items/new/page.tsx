@@ -4,6 +4,7 @@ import { requireStaff } from '@/lib/auth';
 import { getSectionById } from '@/lib/db/queries/menu';
 import { createMenuItemAction } from '@/app/(admin)/admin/menu/actions';
 import { ItemForm } from '@/app/(admin)/admin/menu/sections/[id]/items/ItemForm';
+import { BreadcrumbLabel } from '@/components/admin/BreadcrumbLabels';
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -21,6 +22,9 @@ export default async function NewMenuItemPage({ params }: PageProps) {
 
   return (
     <div className="space-y-6 max-w-2xl">
+      {/* Register UUID → section name so the breadcrumb doesn't show a raw UUID */}
+      <BreadcrumbLabel segment={sectionId} label={section.name} />
+
       <header>
         <p className="text-xs text-muted-foreground mb-1">
           <Link href="/admin/menu" className="hover:text-foreground transition-colors">

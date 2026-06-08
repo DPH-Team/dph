@@ -92,7 +92,7 @@ export function CareerCustomerReply({
 
             <Text style={bodyTextStyle}>
               If it feels like a fit, we&apos;ll reach out about next steps. Either way,
-              the door&apos;s open — swing by, grab a pour, and see what working the haus
+              the door&apos;s open — swing by, grab a pour, and see what working the Haus
               is all about.
             </Text>
           </Section>
