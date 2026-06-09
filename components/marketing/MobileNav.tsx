@@ -45,7 +45,7 @@ export function MobileNav({ open, onOpenChange, hours, overrides, location }: Mo
         showCloseButton={false}
       >
         <SheetHeader className="flex flex-row items-center justify-between p-4 border-b border-border">
-          <Wordmark size="md" tone="gold" />
+          <Wordmark size="sm" />
           <Button
             variant="ghost"
             size="icon-sm"

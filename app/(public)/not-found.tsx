@@ -11,7 +11,9 @@ export default function PublicNotFound() {
       aria-labelledby="not-found-title"
     >
       <div className="flex flex-col items-center gap-8 max-w-md">
-        <Wordmark size="lg" tone="gold" asLink={false} />
+        <div className="animate-rock">
+          <Wordmark size="md" glow={false} />
+        </div>
 
         <p
           className="font-display font-medium text-[clamp(6rem,15vw,12rem)] leading-none text-packers-gold opacity-20 tabular-nums select-none"
