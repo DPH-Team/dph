@@ -1,5 +1,6 @@
 'use server';
 
+import { randomBytes } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { requireAdmin } from '@/lib/auth';
@@ -12,8 +13,23 @@ import {
   updateRoleSchema,
   setStatusSchema,
 } from '@/lib/validators/users';
-import { auditCreate, auditUpdate, audit } from '@/lib/audit';
+import { auditCreate, auditUpdate, audit, auditDelete } from '@/lib/audit';
+import { sendAdminPasswordResetEmail } from '@/lib/email/password-reset';
+import { siteUrl } from '@/lib/site-url';
 import type { ActionState } from '@/lib/types/action-state';
+
+// ─── Temp-password generator ──────────────────────────────────────────────────
+
+/** Characters that cannot be confused visually (no 0/O/1/l/I). */
+const TEMP_PW_ALPHABET =
+  'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+
+function generateTempPassword(len = 16): string {
+  const bytes = randomBytes(len);
+  let out = '';
+  for (let i = 0; i < len; i++) out += TEMP_PW_ALPHABET[bytes[i] % TEMP_PW_ALPHABET.length];
+  return out;
+}
 
 // ─── Ban duration constants ────────────────────────────────────────────────────
 
@@ -23,8 +39,18 @@ const BAN_DURATION_NONE = 'none';
 
 // ─── Revalidation helper ──────────────────────────────────────────────────────
 
+/**
+ * Invalidates the /admin/users route.
+ *
+ * We pass 'layout' so that Next.js 16 marks the entire route segment (layout
+ * + page) as stale in the client-side router cache. Without this, server
+ * actions invoked programmatically (not via a <form> action attribute) may
+ * not trigger a client-side re-fetch of the RSC payload because dynamically-
+ * rendered pages have no server-side Full Route Cache to bust — making the
+ * default 'page' type a no-op for forcing a client re-render.
+ */
 function revalidateUsers() {
-  revalidatePath('/admin/users');
+  revalidatePath('/admin/users', 'layout');
 }
 
 // ─── Create user ──────────────────────────────────────────────────────────────
@@ -286,6 +312,132 @@ export async function setUserStatusAction(
     id,
     { email },
   );
+
+  revalidateUsers();
+
+  return { ok: true };
+}
+
+// ─── Reset user password ──────────────────────────────────────────────────────
+
+/**
+ * Generate a temporary password for another user and force them to change it
+ * on next login.
+ *
+ * Guards:
+ *  - Cannot reset your own password via this action (use Account → Password).
+ *
+ * The temporary password is returned to the caller for one-time display and
+ * is NEVER written to the audit log or console.
+ */
+export async function resetUserPasswordAction(
+  id: string,
+): Promise<ActionState & { tempPassword?: string }> {
+  const actor = await requireAdmin();
+
+  if (id === actor.id) {
+    return {
+      ok: false,
+      error: 'To change your own password, use Account → Password.',
+    };
+  }
+
+  const tempPassword = generateTempPassword();
+
+  const adminClient = createAdminClient();
+
+  const { error } = await adminClient.auth.admin.updateUserById(id, {
+    password: tempPassword,
+    app_metadata: { must_change_password: true },
+  });
+
+  if (error) {
+    return { ok: false, error: error.message ?? 'Failed to reset password.' };
+  }
+
+  // Fetch target's email for the notification and audit log.
+  const targetRows = await db
+    .select({ email: profiles.email })
+    .from(profiles)
+    .where(eq(profiles.id, id))
+    .limit(1);
+
+  const email = targetRows[0]?.email ?? undefined;
+
+  // Fire-and-forget — the sender never throws.
+  if (email) {
+    void sendAdminPasswordResetEmail({
+      to: email,
+      tempPassword,
+      loginUrl: `${siteUrl()}/login`,
+    });
+  }
+
+  // NEVER include tempPassword in the audit payload.
+  await audit('profile.password_reset', 'profile', id, { email });
+
+  revalidateUsers();
+
+  return { ok: true, tempPassword };
+}
+
+// ─── Delete user ──────────────────────────────────────────────────────────────
+
+/**
+ * Permanently delete a user account from Supabase Auth.
+ *
+ * The `profiles` row is removed automatically via the ON DELETE CASCADE FK
+ * from `profiles.id` → `auth.users.id`; we do not delete it manually.
+ *
+ * Guards:
+ *  - Cannot delete your own account.
+ *  - Cannot delete the last admin account.
+ */
+export async function deleteUserAction(id: string): Promise<ActionState> {
+  const actor = await requireAdmin();
+
+  if (id === actor.id) {
+    return { ok: false, error: 'You cannot delete your own account.' };
+  }
+
+  // Fetch target's role + email for guard checks and audit.
+  const targetRows = await db
+    .select({ role: profiles.role, email: profiles.email })
+    .from(profiles)
+    .where(eq(profiles.id, id))
+    .limit(1);
+
+  if (!targetRows[0]) {
+    return { ok: false, error: 'User not found.' };
+  }
+
+  const { role, email } = targetRows[0];
+
+  // Guard: cannot delete the last admin.
+  if (role === 'admin') {
+    const [{ value: adminCount }] = await db
+      .select({ value: count() })
+      .from(profiles)
+      .where(eq(profiles.role, 'admin'));
+
+    if ((adminCount ?? 0) <= 1) {
+      return {
+        ok: false,
+        error:
+          'Cannot delete the last admin account. Promote another user to admin first.',
+      };
+    }
+  }
+
+  const adminClient = createAdminClient();
+
+  const { error } = await adminClient.auth.admin.deleteUser(id);
+
+  if (error) {
+    return { ok: false, error: error.message ?? 'Failed to delete user.' };
+  }
+
+  await auditDelete('profile', id, { email, role });
 
   revalidateUsers();
 

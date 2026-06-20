@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { MoreHorizontal, ShieldCheck, UserRound } from 'lucide-react';
+import { Ban, CircleCheck, KeyRound, MoreHorizontal, ShieldCheck, Trash2, UserRound } from 'lucide-react';
 import { RoleBadge } from '@/components/admin/RoleBadge';
 import { ResourceTable, type Column } from '@/components/admin/ResourceTable';
 import {
@@ -25,7 +25,13 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { updateUserRoleAction, setUserStatusAction } from './actions';
+import { Input } from '@/components/ui/input';
+import {
+  updateUserRoleAction,
+  setUserStatusAction,
+  resetUserPasswordAction,
+  deleteUserAction,
+} from './actions';
 import type { UserViewModel } from '@/lib/db/queries/users';
 
 // ─── Formatting helpers ───────────────────────────────────────────────────────
@@ -200,6 +206,176 @@ function RoleConfirmDialog({
   );
 }
 
+// ─── Temp-password reveal dialog ─────────────────────────────────────────────
+
+interface TempPasswordDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  email: string;
+  tempPassword: string | null;
+}
+
+function TempPasswordDialog({
+  open,
+  onOpenChange,
+  email,
+  tempPassword,
+}: TempPasswordDialogProps) {
+  function handleCopy() {
+    if (!tempPassword) return;
+    navigator.clipboard.writeText(tempPassword).then(
+      () => toast.success('Copied'),
+      () => toast.error('Failed to copy'),
+    );
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>Temporary password generated</DialogTitle>
+          <DialogDescription>
+            Share this temporary password with{' '}
+            <span className="font-medium text-foreground">{email}</span>. They will be
+            required to change it on next login. This is the only time it is shown.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="my-2 flex items-center gap-2">
+          <code className="flex-1 select-all rounded-md border border-border bg-[oklch(0.18_0.004_286)] px-3 py-2 font-mono text-sm tracking-wider text-foreground">
+            {tempPassword ?? ''}
+          </code>
+          <Button variant="outline" size="sm" onClick={handleCopy}>
+            Copy
+          </Button>
+        </div>
+
+        <DialogFooter>
+          <DialogClose render={<Button variant="default" />}>Done</DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Reset-password confirm dialog ────────────────────────────────────────────
+
+interface ResetPasswordConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: UserViewModel;
+  onConfirm: () => void;
+  isPending: boolean;
+}
+
+function ResetPasswordConfirmDialog({
+  open,
+  onOpenChange,
+  user,
+  onConfirm,
+  isPending,
+}: ResetPasswordConfirmDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>Reset password for {user.email}?</DialogTitle>
+          <DialogDescription>
+            A temporary password will be generated and emailed to them. They
+            must change it on next login.
+          </DialogDescription>
+        </DialogHeader>
+
+        <DialogFooter>
+          <DialogClose
+            render={<Button variant="outline" />}
+            disabled={isPending}
+          >
+            Cancel
+          </DialogClose>
+          <Button disabled={isPending} onClick={onConfirm}>
+            {isPending ? 'Resetting…' : 'Yes, reset password'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Delete confirm dialog ────────────────────────────────────────────────────
+
+interface DeleteConfirmDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: UserViewModel;
+  onConfirm: () => void;
+  isPending: boolean;
+}
+
+function DeleteConfirmDialog({
+  open,
+  onOpenChange,
+  user,
+  onConfirm,
+  isPending,
+}: DeleteConfirmDialogProps) {
+  const [confirmText, setConfirmText] = useState('');
+  const canConfirm = confirmText === 'DELETE';
+
+  // Reset the input whenever the dialog closes.
+  function handleOpenChange(nextOpen: boolean) {
+    if (!nextOpen) setConfirmText('');
+    onOpenChange(nextOpen);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent showCloseButton={false}>
+        <DialogHeader>
+          <DialogTitle>Delete {user.email}?</DialogTitle>
+          <DialogDescription>
+            This permanently removes the account and cannot be undone. Their
+            profile and all admin access will be deleted immediately.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-1.5">
+          <label
+            htmlFor={`delete-confirm-${user.id}`}
+            className="text-sm text-muted-foreground"
+          >
+            Type <span className="font-mono font-semibold text-foreground">DELETE</span> to confirm
+          </label>
+          <Input
+            id={`delete-confirm-${user.id}`}
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="DELETE"
+            autoComplete="off"
+            disabled={isPending}
+          />
+        </div>
+
+        <DialogFooter>
+          <DialogClose
+            render={<Button variant="outline" />}
+            disabled={isPending}
+          >
+            Cancel
+          </DialogClose>
+          <Button
+            variant="destructive"
+            disabled={!canConfirm || isPending}
+            onClick={onConfirm}
+          >
+            {isPending ? 'Deleting…' : 'Delete account'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Row actions ──────────────────────────────────────────────────────────────
 
 interface RowActionsProps {
@@ -211,6 +387,9 @@ function RowActions({ user, currentUserId }: RowActionsProps) {
   const [isPending, startTransition] = useTransition();
   const [statusDialog, setStatusDialog] = useState<'disable' | 'enable' | null>(null);
   const [roleDialog, setRoleDialog] = useState<'admin' | 'staff' | null>(null);
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
+  const [revealedPassword, setRevealedPassword] = useState<string | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const isSelf = user.id === currentUserId;
 
@@ -243,6 +422,30 @@ function RowActions({ user, currentUserId }: RowActionsProps) {
         toast.success(`Role updated to ${newRole}.`);
       }
       setRoleDialog(null);
+    });
+  }
+
+  function handleResetPasswordConfirm() {
+    startTransition(async () => {
+      const result = await resetUserPasswordAction(user.id);
+      if (!result.ok) {
+        toast.error(result.error ?? 'Failed to reset password.');
+      } else if (result.tempPassword) {
+        setResetPasswordOpen(false);
+        setRevealedPassword(result.tempPassword);
+      }
+    });
+  }
+
+  function handleDeleteConfirm() {
+    startTransition(async () => {
+      const result = await deleteUserAction(user.id);
+      if (!result.ok) {
+        toast.error(result.error ?? 'Failed to delete user.');
+      } else {
+        toast.success(`${user.email} has been deleted.`);
+        setDeleteOpen(false);
+      }
     });
   }
 
@@ -287,7 +490,18 @@ function RowActions({ user, currentUserId }: RowActionsProps) {
             </>
           )}
 
-          {/* Status toggle */}
+          {/* Reset password */}
+          {!isSelf && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => setResetPasswordOpen(true)}>
+                <KeyRound className="size-4" aria-hidden="true" />
+                Reset password
+              </DropdownMenuItem>
+            </>
+          )}
+
+          {/* Destructive group: status toggle + delete */}
           {!isSelf && (
             <>
               <DropdownMenuSeparator />
@@ -296,13 +510,22 @@ function RowActions({ user, currentUserId }: RowActionsProps) {
                   variant="destructive"
                   onSelect={() => setStatusDialog('disable')}
                 >
+                  <Ban className="size-4" aria-hidden="true" />
                   Disable access
                 </DropdownMenuItem>
               ) : (
                 <DropdownMenuItem onSelect={() => setStatusDialog('enable')}>
+                  <CircleCheck className="size-4" aria-hidden="true" />
                   Re-enable access
                 </DropdownMenuItem>
               )}
+              <DropdownMenuItem
+                variant="destructive"
+                onSelect={() => setDeleteOpen(true)}
+              >
+                <Trash2 className="size-4" aria-hidden="true" />
+                Delete account
+              </DropdownMenuItem>
             </>
           )}
 
@@ -352,6 +575,32 @@ function RowActions({ user, currentUserId }: RowActionsProps) {
         user={user}
         newRole="staff"
         onConfirm={handleRoleConfirm}
+        isPending={isPending}
+      />
+
+      {/* Reset-password confirm — always rendered so close animation plays */}
+      <ResetPasswordConfirmDialog
+        open={resetPasswordOpen}
+        onOpenChange={(open) => !open && setResetPasswordOpen(false)}
+        user={user}
+        onConfirm={handleResetPasswordConfirm}
+        isPending={isPending}
+      />
+
+      {/* Temp-password reveal — always rendered so close animation plays */}
+      <TempPasswordDialog
+        open={revealedPassword !== null}
+        onOpenChange={(open) => !open && setRevealedPassword(null)}
+        email={user.email}
+        tempPassword={revealedPassword}
+      />
+
+      {/* Delete confirm — always rendered so close animation plays */}
+      <DeleteConfirmDialog
+        open={deleteOpen}
+        onOpenChange={(open) => !open && setDeleteOpen(false)}
+        user={user}
+        onConfirm={handleDeleteConfirm}
         isPending={isPending}
       />
     </>
