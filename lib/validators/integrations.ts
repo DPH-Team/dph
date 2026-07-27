@@ -150,31 +150,21 @@ export const resendConfigSaveSchema = z.object({
 export type ResendConfig = z.infer<typeof resendConfigSchema>;
 export type ResendConfigSave = z.infer<typeof resendConfigSaveSchema>;
 
-// ─── Instagram config ─────────────────────────────────────────────────────────
+// ─── Instagram credentials ────────────────────────────────────────────────────
 //
-// Behold feed_id is a NON-secret public identifier stored in the `config` jsonb
-// column (NOT the encrypted credentials column). The empty string is intentional
-// in the seed row; instagramConfigSaveSchema enforces a non-empty value on save.
+// The Meta Graph API long-lived access token is a SECRET stored in the encrypted
+// `credentials` bytea column (same path as Untappd/Printify/Resend).
+// Token metadata (obtained_at, expires_at) lives in the `config` jsonb column.
 
-/** Lenient schema — allows empty string (matches the seed row default). */
-export const instagramConfigSchema = z.object({
-  feed_id: z
+export const instagramCredentialsSchema = z.object({
+  access_token: z
     .string()
     .trim()
-    .max(120, 'Behold feed ID must be 120 characters or fewer'),
+    .min(1, 'Access token is required')
+    .max(512, 'Token must be 512 characters or fewer'),
 });
 
-/** Strict schema — used when the admin explicitly saves the config; feed_id must be non-empty. */
-export const instagramConfigSaveSchema = z.object({
-  feed_id: z
-    .string()
-    .trim()
-    .min(1, 'Behold feed ID is required')
-    .max(120, 'Behold feed ID must be 120 characters or fewer'),
-});
-
-export type InstagramConfig = z.infer<typeof instagramConfigSchema>;
-export type InstagramConfigSave = z.infer<typeof instagramConfigSaveSchema>;
+export type InstagramCredentials = z.infer<typeof instagramCredentialsSchema>;
 
 // ─── Untappd tap takeover ─────────────────────────────────────────────────────
 //
@@ -205,8 +195,9 @@ export type IntegrationTogglesInput = z.infer<typeof integrationTogglesSchema>;
 /**
  * Return the credentials schema for the given integration name.
  * Switch on name — safe to call from a server action.
- * Plausible and instagram have no credentials (config is stored in jsonb, not encrypted bytea).
- * Resend stores api_key as encrypted credentials.
+ * Plausible has no credentials (config stored in jsonb, not encrypted bytea).
+ * Instagram uses a dedicated saveInstagramTokenAction — not the generic path.
+ * Resend, Untappd, and Printify store secrets in the encrypted credentials column.
  */
 export function getCredentialsSchema(
   name: Exclude<IntegrationName, 'plausible' | 'instagram'>,

@@ -7,7 +7,7 @@ import {
   integrationTogglesSchema,
   plausibleConfigSchema,
   resendConfigSaveSchema,
-  instagramConfigSaveSchema,
+  instagramCredentialsSchema,
 } from '@/lib/validators/integrations';
 import type { IntegrationName } from '@/lib/validators/integrations';
 import {
@@ -16,7 +16,7 @@ import {
   updateIntegrationToggles,
   updatePlausibleConfig,
   updateResendConfig,
-  updateInstagramConfig,
+  saveInstagramToken,
   decryptCredentials,
   recordTestResult,
 } from '@/lib/db/queries/integrations';
@@ -76,7 +76,7 @@ export async function saveCredentialsAction(
   }
 
   if (name === 'instagram') {
-    return { ok: false, error: 'Instagram does not use credentials. Use saveInstagramConfigAction instead.' };
+    return { ok: false, error: 'Instagram uses a dedicated token action. Use saveInstagramTokenAction instead.' };
   }
 
   const schema = getCredentialsSchema(name as Exclude<IntegrationName, 'plausible' | 'instagram'>);
@@ -230,7 +230,7 @@ export async function testConnectionAction(
   if (name === 'instagram') {
     return {
       ok: false,
-      error: 'Instagram does not support connection testing — it uses a public Behold feed ID with no server-side credentials.',
+      error: 'Instagram does not support generic connection testing — use the token save flow in the Instagram card which probes the Graph API.',
     };
   }
 
@@ -634,55 +634,118 @@ export async function updatePlausibleEnabledAction(
   return { ok: true };
 }
 
-// ─── Instagram: save config ───────────────────────────────────────────────────
+// ─── Instagram: save token ────────────────────────────────────────────────────
 
 /**
- * Persist Instagram (Behold) feed_id + enabled into the `config` jsonb column.
- * The feed_id is a non-secret public identifier — it is NOT stored in the
- * encrypted credentials column. The enabled toggle is saved in the same call.
+ * saveInstagramTokenAction — persist a new Meta Graph API access token (or keep
+ * existing) and update the enabled toggle.
  *
- * Validates with instagramConfigSaveSchema (requires non-empty feed_id).
- * Writes to audit_log — mandatory per project rules.
+ * Blank token + existing creds  → keep token, update enabled/mode only.
+ * Blank token + no creds        → validation error (nothing to enable).
+ * Non-blank token               → validate length, probe Graph API, then persist.
+ *
+ * Probes `https://graph.instagram.com/me?fields=id&access_token=<token>` to
+ * verify the token before saving. On probe failure, returns an error and does
+ * NOT persist anything.
+ *
+ * Token is NEVER written to audit_log, console, or any client response.
  */
-export async function saveInstagramConfigAction(
+export async function saveInstagramTokenAction(
   _prev: ActionState | null,
   formData: FormData,
 ): Promise<ActionState> {
   const profile = await requireAdmin();
 
-  const raw = {
-    feed_id: formData.get('feed_id') ?? '',
-    enabled: formData.get('enabled') === 'true',
-  };
-
-  const result = instagramConfigSaveSchema.safeParse({ feed_id: raw.feed_id });
-  if (!result.success) {
-    return {
-      ok: false,
-      error: 'Validation failed.',
-      fieldErrors: result.error.flatten().fieldErrors as Record<string, string[]>,
-    };
-  }
+  const rawToken = (formData.get('access_token') as string | null) ?? '';
+  const enabled = formData.get('enabled') === 'true';
+  const tokenPresent = rawToken.trim().length > 0;
 
   const before = await getIntegration('instagram');
   if (!before) {
     return { ok: false, error: "Integration 'instagram' not found." };
   }
 
-  const feedId = result.data.feed_id.trim();
-  const mode: 'live' | 'mock' = raw.enabled && feedId !== '' ? 'live' : 'mock';
+  // Determine whether existing credentials are already stored.
+  const hasExistingCreds =
+    before.credentials !== null &&
+    Buffer.isBuffer(before.credentials) &&
+    before.credentials.length > 0;
+
+  // Blank token + no existing creds = nothing to enable.
+  if (!tokenPresent && !hasExistingCreds) {
+    return {
+      ok: false,
+      error: 'An access token is required — no token is currently stored.',
+      fieldErrors: { access_token: ['Access token is required'] },
+    };
+  }
+
+  let accessToken: string | null = null;
+  let tokenObtainedAt: string | undefined;
+  let tokenExpiresAt: string | undefined;
+
+  if (tokenPresent) {
+    // Validate the token string.
+    const validationResult = instagramCredentialsSchema.safeParse({
+      access_token: rawToken.trim(),
+    });
+    if (!validationResult.success) {
+      return {
+        ok: false,
+        error: 'Validation failed.',
+        fieldErrors: validationResult.error.flatten().fieldErrors as Record<string, string[]>,
+      };
+    }
+
+    const candidateToken = validationResult.data.access_token;
+
+    // Probe the Graph API to verify the token before persisting.
+    const probeUrl =
+      `https://graph.instagram.com/me?fields=id&access_token=${encodeURIComponent(candidateToken)}`;
+    try {
+      const probeRes = await fetch(probeUrl, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (!probeRes.ok) {
+        return {
+          ok: false,
+          error: 'Token rejected by Instagram — verify the token is valid and has instagram_business_basic scope.',
+        };
+      }
+    } catch {
+      return {
+        ok: false,
+        error: 'Token verification failed — could not reach the Instagram Graph API. Check your network or try again.',
+      };
+    }
+
+    accessToken = candidateToken;
+    const now = new Date();
+    tokenObtainedAt = now.toISOString();
+    // Long-lived tokens are valid for 60 days.
+    tokenExpiresAt = new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000).toISOString();
+  }
+
+  // mode = live iff enabled AND a token will be present after this save.
+  const tokenWillBePresent = tokenPresent || hasExistingCreds;
+  const mode: 'live' | 'mock' = enabled && tokenWillBePresent ? 'live' : 'mock';
 
   let after: Integration;
   try {
-    after = await updateInstagramConfig(
-      { feed_id: result.data.feed_id },
-      raw.enabled,
+    after = await saveInstagramToken({
+      accessToken,
+      tokenObtainedAt,
+      tokenExpiresAt,
+      enabled,
       mode,
-      profile.id,
-    );
+      actorId: profile.id,
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
-    return { ok: false, error: `Failed to save Instagram config: ${msg}` };
+    return { ok: false, error: `Failed to save Instagram token: ${msg}` };
   }
 
   await auditUpdate(
@@ -690,7 +753,7 @@ export async function saveInstagramConfigAction(
     'instagram',
     sanitizeRow(before),
     sanitizeRow(after),
-    { action: 'instagram_config_saved' },
+    { action: 'instagram_token_saved' },
   );
 
   revalidateTag('instagram', 'max');
@@ -698,4 +761,32 @@ export async function saveInstagramConfigAction(
   revalidatePath('/admin/integrations');
   return { ok: true };
 }
+
+// ─── Instagram: refresh feed now ──────────────────────────────────────────────
+
+/**
+ * refreshInstagramFeedAction — bust the Next Data Cache for the Instagram feed.
+ *
+ * Pure cache-bust: revalidateTag + audit. The live fetch will repopulate the
+ * cache on the next public page render. No upstream verification fetch.
+ */
+export async function refreshInstagramFeedAction(): Promise<SyncActionState> {
+  await requireAdmin();
+
+  // Bust the cache unconditionally.
+  revalidateTag('instagram', 'max');
+  revalidatePath('/');
+  revalidatePath('/admin/integrations');
+
+  // Audit — non-fatal.
+  await audit(
+    'integration.instagram_feed_refreshed',
+    'integration',
+    'instagram',
+    {},
+  );
+
+  return { ok: true, message: 'Instagram feed cache cleared — fresh posts will load on the next page visit.' };
+}
+
 

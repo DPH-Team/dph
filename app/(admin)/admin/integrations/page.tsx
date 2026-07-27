@@ -60,7 +60,8 @@ export default async function IntegrationsPage() {
       ? (resendRow.config as Record<string, unknown>)
       : {};
 
-  // Instagram config (Behold feed_id) from the `config` jsonb column.
+  // Instagram token metadata from the `config` jsonb column.
+  // token_obtained_at / token_expires_at are ISO strings written by saveInstagramToken.
   const instagramRow = byName.get('instagram');
   const instagramConfig =
     instagramRow?.config &&
@@ -119,7 +120,17 @@ export default async function IntegrationsPage() {
       {instagramRow && (
         <InstagramCard
           enabled={instagramRow.enabled}
-          feedId={typeof instagramConfig.feed_id === 'string' ? instagramConfig.feed_id : ''}
+          hasToken={instagramRow.hasCredentials}
+          tokenObtainedAt={
+            typeof instagramConfig.token_obtained_at === 'string'
+              ? instagramConfig.token_obtained_at
+              : null
+          }
+          tokenExpiresAt={
+            typeof instagramConfig.token_expires_at === 'string'
+              ? instagramConfig.token_expires_at
+              : null
+          }
         />
       )}
     </div>

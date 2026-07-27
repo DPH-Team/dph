@@ -67,6 +67,10 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "pfy-prod-products-mockup-media.s3.us-east-2.amazonaws.com", pathname: "/**" },
       { protocol: "https", hostname: "**.s3.us-east-2.amazonaws.com", pathname: "/**" },
       { protocol: "https", hostname: "api.mapbox.com", pathname: "/**" },
+      // Instagram Graph API CDN hosts (future-proofing for next/image migration).
+      { protocol: "https", hostname: "**.cdninstagram.com", pathname: "/**" },
+      { protocol: "https", hostname: "scontent.cdninstagram.com", pathname: "/**" },
+      { protocol: "https", hostname: "**.fbcdn.net", pathname: "/**" },
       // Fallback wildcard: covers prod even when the env var is absent at build time.
       { protocol: "https", hostname: "**.supabase.co", pathname: "/storage/v1/object/public/**" },
       // Derived pattern: resolves to the actual host/port/protocol from the env

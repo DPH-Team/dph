@@ -1,6 +1,7 @@
 {
   "crons": [
     { "path": "/api/cron/sync-events", "schedule": "*/5 * * * *" },
-    { "path": "/api/cron/sync-merch", "schedule": "0 9 * * *" }
+    { "path": "/api/cron/sync-merch", "schedule": "0 9 * * *" },
+    { "path": "/api/cron/refresh-instagram-token", "schedule": "0 8 * * *" }
   ]
 }

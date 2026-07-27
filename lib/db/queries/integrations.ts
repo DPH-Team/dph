@@ -324,28 +324,67 @@ export async function updateResendConfig(
   return row;
 }
 
-// ─── Instagram config (jsonb — not encrypted) ─────────────────────────────────
+// ─── Instagram token (encrypted credentials + config metadata) ────────────────
 
 /**
- * Persist Instagram feed_id into the `config` jsonb column and update `enabled`
- * and `mode`. Behold feed_id is a non-secret public identifier — no encryption
- * needed. The `mode` column must be set here (not derived later) so that
- * resolveInstagramMode() can gate the live fetch on `row.mode === 'live'`.
- * Uses the user-session Drizzle client so RLS applies (admin-only update).
+ * Persist Instagram Graph API access token + enabled/mode.
+ *
+ * If accessToken is non-null, it is encrypted via setIntegrationCredentials and
+ * config is stamped with token_obtained_at / token_expires_at.
+ * If accessToken is null ("keep existing"), only enabled/mode are updated.
+ *
+ * actorId may be null when called by the automated refresh cron path.
  */
-export async function updateInstagramConfig(
-  config: { feed_id: string },
-  enabled: boolean,
-  mode: 'live' | 'mock',
-  actorId: string,
-): Promise<Integration> {
+export async function saveInstagramToken({
+  accessToken,
+  tokenObtainedAt,
+  tokenExpiresAt,
+  enabled,
+  mode,
+  actorId,
+}: {
+  accessToken: string | null;
+  tokenObtainedAt?: string;
+  tokenExpiresAt?: string;
+  enabled: boolean;
+  mode: 'live' | 'mock';
+  actorId: string | null;
+}): Promise<Integration> {
+  // Encrypt + store the new token when provided.
+  if (accessToken !== null) {
+    const key = process.env.INTEGRATIONS_ENCRYPTION_KEY;
+    if (!key) {
+      throw new Error(
+        'Missing env var: INTEGRATIONS_ENCRYPTION_KEY. ' +
+          'Generate one with: openssl rand -base64 32',
+      );
+    }
+    const admin = createAdminClient();
+    const { error: rpcError } = await admin.rpc('set_integration_credentials', {
+      p_name: 'instagram',
+      p_plaintext: { access_token: accessToken },
+      p_key: key,
+    });
+    if (rpcError) {
+      throw new Error(`set_integration_credentials RPC failed: ${rpcError.message}`);
+    }
+  }
+
+  // Build the config update: stamp token metadata only when a token was written.
+  const configUpdate: Record<string, unknown> =
+    accessToken !== null && tokenObtainedAt !== undefined && tokenExpiresAt !== undefined
+      ? { token_obtained_at: tokenObtainedAt, token_expires_at: tokenExpiresAt }
+      : {};
+
   const rows = await db
     .update(integrations)
     .set({
-      config: config as unknown as Record<string, unknown>,
+      ...(Object.keys(configUpdate).length > 0
+        ? { config: configUpdate as unknown as Record<string, unknown> }
+        : {}),
       enabled,
       mode,
-      updatedBy: actorId,
+      ...(actorId !== null ? { updatedBy: actorId } : {}),
       updatedAt: new Date(),
     })
     .where(eq(integrations.name, 'instagram'))
@@ -353,9 +392,96 @@ export async function updateInstagramConfig(
 
   const row = rows[0];
   if (!row) {
-    throw new Error('updateInstagramConfig: instagram integration row not found');
+    throw new Error('saveInstagramToken: instagram integration row not found');
   }
   return row;
+}
+
+/**
+ * Read token metadata (obtained_at / expires_at) from the `config` jsonb column.
+ * Uses the service-role admin client — safe to call from cron routes without a
+ * user session. Never throws; returns nulls on any failure.
+ */
+export async function getInstagramTokenMeta(): Promise<{
+  tokenObtainedAt: string | null;
+  tokenExpiresAt: string | null;
+}> {
+  try {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from('integrations')
+      .select('config')
+      .eq('name', 'instagram')
+      .single();
+
+    if (error || !data) return { tokenObtainedAt: null, tokenExpiresAt: null };
+
+    const config =
+      data.config &&
+      typeof data.config === 'object' &&
+      !Array.isArray(data.config)
+        ? (data.config as Record<string, unknown>)
+        : {};
+
+    return {
+      tokenObtainedAt:
+        typeof config['token_obtained_at'] === 'string' ? config['token_obtained_at'] : null,
+      tokenExpiresAt:
+        typeof config['token_expires_at'] === 'string' ? config['token_expires_at'] : null,
+    };
+  } catch {
+    return { tokenObtainedAt: null, tokenExpiresAt: null };
+  }
+}
+
+/**
+ * Persist a refreshed Instagram token after a successful /refresh_access_token
+ * call. Stamps config.token_obtained_at = now and config.token_expires_at =
+ * newExpiresAt. actorId is nullable (cron runs without a session).
+ */
+export async function updateInstagramTokenAfterRefresh(
+  newToken: string,
+  newExpiresAt: string,
+  // actorId is null — cron path has no active session. Kept for API symmetry
+  // with sibling helpers; prefixed _ to satisfy the unused-vars lint rule.
+  _actorId: null,
+): Promise<void> {
+  // Reference _actorId to silence unused-vars warnings — it is intentionally
+  // a no-op (nullable cron actor has no DB write to stamp).
+  void _actorId;
+  const key = process.env.INTEGRATIONS_ENCRYPTION_KEY;
+  if (!key) {
+    throw new Error(
+      'Missing env var: INTEGRATIONS_ENCRYPTION_KEY. ' +
+        'Generate one with: openssl rand -base64 32',
+    );
+  }
+
+  const admin = createAdminClient();
+
+  // Encrypt the refreshed token.
+  const { error: rpcError } = await admin.rpc('set_integration_credentials', {
+    p_name: 'instagram',
+    p_plaintext: { access_token: newToken },
+    p_key: key,
+  });
+  if (rpcError) {
+    throw new Error(`set_integration_credentials RPC failed: ${rpcError.message}`);
+  }
+
+  // Stamp the new expiry metadata into config.
+  const now = new Date().toISOString();
+  const { error: updateError } = await admin
+    .from('integrations')
+    .update({
+      config: { token_obtained_at: now, token_expires_at: newExpiresAt },
+      updated_at: now,
+    })
+    .eq('name', 'instagram');
+
+  if (updateError) {
+    throw new Error(`updateInstagramTokenAfterRefresh: update failed — ${updateError.message}`);
+  }
 }
 
 // ─── Untappd featured brewery (jsonb — not encrypted) ────────────────────────

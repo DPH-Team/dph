@@ -1,50 +1,39 @@
 /**
- * lib/instagram.ts — Server-only Behold.so Instagram feed fetcher.
+ * lib/instagram.ts — Server-only Meta Graph API Instagram feed fetcher.
  *
  * Exports:
  *   fetchIgPosts()  Promise<{ data: IgPost[]; stale: boolean }>
  *
- * Mock/live precedence (first match → mock):
- *   1. integration row absent, disabled, or mode !== 'live'  → mock
- *   2. mode === 'live' but config.feed_id empty              → mock + warn
- *   3. feed_id present                                       → live fetch
- *   4. live fetch throws / non-2xx / timeout                 → graceful fallback (stale:true)
+ * Mock/live precedence (first match wins):
+ *   1. Integration row absent, disabled, or mode !== 'live'    → mock
+ *   2. mode === 'live' but decrypted access_token is empty     → mock + warn
+ *   3. access_token present                                    → live fetch
+ *   4. Live fetch throws / non-2xx / timeout                   → graceful fallback (stale:true)
  *
- * Behold.so public feed URL: https://feeds.behold.so/{feed_id}
+ * Graph API endpoint:
+ *   GET https://graph.instagram.com/me/media
+ *     ?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp
+ *     &limit=6
+ *     &access_token=<token>
  *
- * Behold feed JSON shape (documented + defensive):
- *   [
- *     {
- *       id:           string,
- *       mediaType:    "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM",
- *       mediaUrl:     string,
- *       thumbnailUrl: string | null,   // present for VIDEO and CAROUSEL_ALBUM
- *       permalink:    string,           // direct link to the IG post
- *       caption:      string | null,
- *       sizes: {
- *         medium?: { mediaUrl: string },
- *         small?:  { mediaUrl: string },
- *         // ...
- *       } | null,
- *       timestamp:    string,           // ISO-8601
- *     }
- *   ]
- *
- * The feed may be a top-level array OR wrapped in { posts: [...] }; we handle
- * both defensively. Limit to the 6 most recent (newest-first order preserved).
+ * Graph API envelope: { data: [...] }
+ * Field names are snake_case: media_type, media_url, thumbnail_url.
  *
  * imageUrl strategy:
- *   - VIDEO posts: use thumbnailUrl (first frame), fall back to mediaUrl.
- *   - IMAGE/CAROUSEL posts: prefer sizes.medium.mediaUrl, then sizes.small.mediaUrl,
- *     then mediaUrl.
+ *   - VIDEO           → thumbnail_url ?? media_url
+ *   - IMAGE / CAROUSEL → media_url
  *
  * alt: first line of caption (before "\n"), trimmed; generic fallback if absent.
+ *
+ * Data cache: 600-second revalidation, tagged ['instagram'].
+ * Token is NEVER logged or sent to the client.
  */
 
 import 'server-only';
 
 import { unstable_cache } from 'next/cache';
 import { getIntegration } from '@/lib/db/queries/integrations';
+import { decryptCredentials } from '@/lib/db/queries/integrations';
 import { igPosts as mockPosts, INSTAGRAM_PROFILE_URL } from '@/app/__fixtures__/instagram';
 import type { IgPost } from '@/lib/fixtures/types';
 
@@ -52,17 +41,15 @@ import type { IgPost } from '@/lib/fixtures/types';
 
 type InstagramMode =
   | { mode: 'mock' }
-  | { mode: 'live'; feedId: string };
+  | { mode: 'live'; accessToken: string };
 
 /**
  * resolveInstagramMode — decision logic for fetchIgPosts.
  *
- * Instagram (Behold) has no encrypted credentials — only a public feed_id
- * stored in the `config` jsonb column.
+ * Live mode requires: row enabled, row.mode === 'live', and a non-empty
+ * decrypted access_token from the encrypted credentials column.
  *
- * Returns mock mode whenever:
- *   - the integration row is absent, disabled, or mode !== 'live'
- *   - config.feed_id is absent or empty
+ * Returns mock mode whenever any condition is not met.
  */
 async function resolveInstagramMode(): Promise<InstagramMode> {
   let row: Awaited<ReturnType<typeof getIntegration>>;
@@ -77,43 +64,50 @@ async function resolveInstagramMode(): Promise<InstagramMode> {
     return { mode: 'mock' };
   }
 
-  // feed_id lives in the config jsonb column — not encrypted.
-  const config =
-    row.config && typeof row.config === 'object' && !Array.isArray(row.config)
-      ? (row.config as Record<string, unknown>)
-      : {};
-
-  const feedId = typeof config['feed_id'] === 'string' ? config['feed_id'].trim() : '';
-
-  if (!feedId) {
-    console.warn('[instagram] mode=live but config.feed_id is empty — falling back to mock');
+  // Decrypt the access_token from the encrypted credentials column.
+  let creds: Record<string, unknown> | null;
+  try {
+    creds = await decryptCredentials('instagram');
+  } catch {
     return { mode: 'mock' };
   }
 
-  return { mode: 'live', feedId };
+  const accessToken =
+    creds && typeof creds['access_token'] === 'string'
+      ? creds['access_token'].trim()
+      : '';
+
+  if (!accessToken) {
+    console.warn('[instagram] mode=live but access_token is empty — falling back to mock');
+    return { mode: 'mock' };
+  }
+
+  return { mode: 'live', accessToken };
 }
 
 // ─── Post normalisation ───────────────────────────────────────────────────────
 
 /**
- * normalizePosts — maps Behold feed JSON to IgPost[].
+ * normalizePosts — maps Graph API media response to IgPost[].
  *
- * Handles both top-level array and { posts: [...] } envelope defensively.
- * Limits to the 6 most recent (Behold returns newest-first).
+ * Handles Graph API envelope { data: [...] } and also top-level arrays
+ * defensively. Limits to the 6 most recent (Graph returns newest-first when
+ * limit=6 is specified).
  */
 function normalizePosts(raw: unknown): IgPost[] {
   if (!raw) return [];
 
-  // Resolve the posts array — either top-level array or { posts: [...] }.
+  // Resolve the posts array — Graph envelope is { data: [...] } but we also
+  // accept a bare top-level array for resilience.
   let items: unknown[];
   if (Array.isArray(raw)) {
     items = raw;
   } else if (
     raw !== null &&
     typeof raw === 'object' &&
-    Array.isArray((raw as Record<string, unknown>)['posts'])
+    Array.isArray((raw as Record<string, unknown>)['data'])
   ) {
-    items = (raw as Record<string, unknown>)['posts'] as unknown[];
+    items = (raw as Record<string, unknown>)['data'] as unknown[];
   } else {
     return [];
   }
@@ -133,31 +127,19 @@ function normalizePosts(raw: unknown): IgPost[] {
     const str = (v: unknown): string | null =>
       typeof v === 'string' && v.length > 0 ? v : null;
 
-    const mediaType = str(p['mediaType']) ?? 'IMAGE';
-    const mediaUrl = str(p['mediaUrl']) ?? '';
-    const thumbnailUrl = str(p['thumbnailUrl']);
-
-    // sizes sub-object — may be null or absent.
-    const sizes =
-      p['sizes'] && typeof p['sizes'] === 'object' && !Array.isArray(p['sizes'])
-        ? (p['sizes'] as Record<string, unknown>)
-        : null;
-
-    function sizedUrl(key: string): string | null {
-      if (!sizes) return null;
-      const entry = sizes[key];
-      if (!entry || typeof entry !== 'object') return null;
-      return str((entry as Record<string, unknown>)['mediaUrl']);
-    }
+    // Graph API field names are snake_case.
+    const mediaType = str(p['media_type']) ?? 'IMAGE';
+    const mediaUrl = str(p['media_url']) ?? '';
+    const thumbnailUrl = str(p['thumbnail_url']);
 
     // imageUrl strategy:
-    //   VIDEO → thumbnailUrl first (first-frame preview), else mediaUrl
-    //   IMAGE / CAROUSEL → sizes.medium, sizes.small, then mediaUrl
+    //   VIDEO           → thumbnail_url first (first-frame preview), else media_url
+    //   IMAGE / CAROUSEL → media_url
     let imageUrl: string;
     if (mediaType === 'VIDEO') {
       imageUrl = thumbnailUrl ?? mediaUrl;
     } else {
-      imageUrl = sizedUrl('medium') ?? sizedUrl('small') ?? mediaUrl;
+      imageUrl = mediaUrl;
     }
 
     // alt: first non-empty line of caption; generic fallback.
@@ -186,36 +168,54 @@ function normalizePosts(raw: unknown): IgPost[] {
 // ─── Cached live fetch ─────────────────────────────────────────────────────────
 
 /**
- * getCachedIgPostsRaw — Next Data Cache wrapper around the live Behold feed fetch.
+ * getCachedIgPostsRaw — Next Data Cache wrapper around the live Graph API fetch.
  *
  * Throws on failure so failed responses are never cached.
- * Tagged ['instagram'] with 3600-second (1-hour) revalidation.
+ * Tagged ['instagram'] with 600-second revalidation.
+ *
+ * The access token is embedded in the URL — Next.js caches the result value,
+ * not the URL, so the token is not persisted to the cache store.
+ * Token is NOT logged under any circumstances.
  */
 const getCachedIgPostsRaw = unstable_cache(
-  async (feedId: string): Promise<IgPost[]> => {
-    const url = `https://feeds.behold.so/${encodeURIComponent(feedId)}`;
+  async (accessToken: string): Promise<IgPost[]> => {
+    const url =
+      `https://graph.instagram.com/me/media` +
+      `?fields=id,caption,media_type,media_url,thumbnail_url,permalink,timestamp` +
+      `&limit=6` +
+      `&access_token=${encodeURIComponent(accessToken)}`;
 
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(5_000),
-    });
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store', // caching is handled by unstable_cache wrapper
+        signal: AbortSignal.timeout(5_000),
+      });
+    } catch (err) {
+      // Scrub token from any error message before re-throwing.
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`[instagram] fetch failed: ${msg.replace(accessToken, '[REDACTED]')}`);
+    }
 
     if (!res.ok) {
-      throw new Error(`[instagram] Behold feed returned HTTP ${res.status}`);
+      // Graph returns HTTP 400 { error: {...} } for dead tokens — treat as throw
+      // so the cache entry is not poisoned with an error object.
+      throw new Error(`[instagram] Graph API returned HTTP ${res.status}`);
     }
 
     const json: unknown = await res.json();
     return normalizePosts(json);
   },
   ['instagram-ig-posts-raw'],
-  { tags: ['instagram'], revalidate: 3600 },
+  { tags: ['instagram'], revalidate: 600 },
 );
 
 // ─── Public export ────────────────────────────────────────────────────────────
 
 /**
- * fetchIgPosts — returns the 6 most recent Instagram posts via Behold.so.
+ * fetchIgPosts — returns the 6 most recent Instagram posts via Meta Graph API.
  *
  * Returns:
  *   { data: IgPost[]; stale: boolean }
@@ -223,7 +223,7 @@ const getCachedIgPostsRaw = unstable_cache(
  *   stale=true  → live fetch failed; mock fixture is served instead
  *
  * The caller (home page Instagram slot) should degrade gracefully on stale=true.
- * No credentials are ever exposed to the client — feed_id is a public identifier.
+ * The access token is never exposed to the client.
  */
 export async function fetchIgPosts(): Promise<{ data: IgPost[]; stale: boolean }> {
   const modeResult = await resolveInstagramMode();
@@ -232,13 +232,16 @@ export async function fetchIgPosts(): Promise<{ data: IgPost[]; stale: boolean }
     return { data: mockPosts, stale: false };
   }
 
-  const { feedId } = modeResult;
+  const { accessToken } = modeResult;
 
   try {
-    const data = await getCachedIgPostsRaw(feedId);
+    const data = await getCachedIgPostsRaw(accessToken);
     return { data, stale: false };
   } catch (err) {
-    console.error('[instagram] fetchIgPosts live fetch failed — returning mock fallback:', err);
+    // Scrub the token from the logged error message.
+    const raw = err instanceof Error ? err.message : String(err);
+    const scrubbed = raw.replace(accessToken, '[REDACTED]');
+    console.error('[instagram] fetchIgPosts live fetch failed — returning mock fallback:', scrubbed);
     return { data: mockPosts, stale: true };
   }
 }

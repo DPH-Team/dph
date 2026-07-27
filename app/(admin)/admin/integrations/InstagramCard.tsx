@@ -3,7 +3,7 @@
 import React, { useActionState, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Loader2, Camera } from 'lucide-react';
+import { Loader2, Camera, RefreshCw, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Card,
@@ -15,40 +15,104 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import type { ActionState } from '@/lib/types/action-state';
-import { saveInstagramConfigAction } from './actions';
+import type { SyncActionState } from './actions';
+import { saveInstagramTokenAction, refreshInstagramFeedAction } from './actions';
 
-// ─── View type ────────────────────────────────────────────────────────────────
+// ─── Props ─────────────────────────────────────────────────────────────────────
 
 export interface InstagramCardProps {
   enabled: boolean;
-  feedId: string;
+  hasToken: boolean;
+  tokenObtainedAt: string | null;
+  tokenExpiresAt: string | null;
+}
+
+// ─── Token status helpers ─────────────────────────────────────────────────────
+
+type TokenStatus =
+  | { level: 'none' }
+  | { level: 'healthy'; daysLeft: number }
+  | { level: 'warning'; daysLeft: number }
+  | { level: 'error'; daysLeft: number };
+
+function getTokenStatus(
+  hasToken: boolean,
+  tokenExpiresAt: string | null,
+): TokenStatus {
+  if (!hasToken || !tokenExpiresAt) return { level: 'none' };
+  const msLeft = new Date(tokenExpiresAt).getTime() - Date.now();
+  const daysLeft = Math.floor(msLeft / (1000 * 60 * 60 * 24));
+  if (daysLeft > 21) return { level: 'healthy', daysLeft };
+  if (daysLeft >= 7) return { level: 'warning', daysLeft };
+  return { level: 'error', daysLeft };
+}
+
+function TokenStatusBadge({
+  hasToken,
+  tokenExpiresAt,
+}: {
+  hasToken: boolean;
+  tokenExpiresAt: string | null;
+}) {
+  const status = getTokenStatus(hasToken, tokenExpiresAt);
+
+  if (status.level === 'none') {
+    return (
+      <span className="inline-flex items-center rounded-full border border-border bg-[oklch(0.235_0.004_286)] px-2.5 py-1 text-xs font-semibold text-muted-foreground">
+        Not connected
+      </span>
+    );
+  }
+
+  if (status.level === 'healthy') {
+    return (
+      <span className="inline-flex items-center rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-400">
+        Token healthy &mdash; {status.daysLeft} days left
+      </span>
+    );
+  }
+
+  if (status.level === 'warning') {
+    return (
+      <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/5 px-2.5 py-1 text-xs font-semibold text-amber-400">
+        Token expiring soon &mdash; will refresh automatically
+      </span>
+    );
+  }
+
+  // error level
+  return (
+    <span className="inline-flex items-center rounded-full border border-destructive/30 bg-destructive/10 px-2.5 py-1 text-xs font-semibold text-destructive">
+      Token expired or expiring &mdash; paste a fresh 60-day token from the Meta dashboard
+    </span>
+  );
 }
 
 // ─── Config + enabled form ────────────────────────────────────────────────────
 
-function InstagramConfigForm({
+function InstagramTokenForm({
   enabled,
-  feedId,
+  hasToken,
 }: {
   enabled: boolean;
-  feedId: string;
+  hasToken: boolean;
 }) {
   const router = useRouter();
   const [state, formAction, isPending] = useActionState<ActionState | null, FormData>(
-    saveInstagramConfigAction,
+    saveInstagramTokenAction,
     null,
   );
   const prevRef = useRef<ActionState | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [localEnabled, setLocalEnabled] = useState(enabled);
-  const [feedIdValue, setFeedIdValue] = useState(feedId);
 
   useEffect(() => {
     if (!state || state === prevRef.current) return;
     prevRef.current = state;
     if (state.ok) {
+      formRef.current?.reset();
       router.refresh();
-      toast.success('Instagram config saved.');
+      toast.success('Instagram token saved.');
     } else if (state.error) {
       toast.error(state.error);
     }
@@ -68,8 +132,8 @@ function InstagramConfigForm({
       <div className="space-y-2">
         <h3 className="text-sm font-medium text-foreground">Settings</h3>
         <p className="text-xs text-muted-foreground">
-          When enabled and a Behold feed ID is set, the homepage Instagram slot
-          will load live posts from your feed.
+          When enabled and a token is set, the homepage Instagram slot will load
+          live posts directly from the Instagram Graph API.
         </p>
         <label className="inline-flex items-center gap-2 cursor-pointer select-none">
           <button
@@ -98,50 +162,54 @@ function InstagramConfigForm({
 
       <hr className="border-border" />
 
-      {/* Behold feed ID field */}
+      {/* Access token field */}
       <div className="space-y-3">
-        <h3 className="text-sm font-medium text-foreground">Configuration</h3>
+        <h3 className="text-sm font-medium text-foreground">Access Token</h3>
         <div className="space-y-1.5">
           <label
-            htmlFor="instagram-feed_id"
+            htmlFor="instagram-access_token"
             className="text-xs font-medium text-muted-foreground uppercase tracking-wide"
           >
-            Behold Feed ID
+            Instagram Access Token
           </label>
           <Input
-            id="instagram-feed_id"
-            name="feed_id"
-            type="text"
-            maxLength={120}
+            id="instagram-access_token"
+            name="access_token"
+            type="password"
             autoComplete="off"
-            value={feedIdValue}
-            onChange={(e) => setFeedIdValue(e.target.value)}
-            placeholder="e.g. aBcDeFgH1234"
+            placeholder={
+              hasToken
+                ? `${'•'.repeat(8)} (set — leave blank to keep)`
+                : 'Paste your long-lived access token here'
+            }
             aria-describedby={
-              fieldErrors.feed_id?.length ? 'instagram-feed_id-error' : 'instagram-feed_id-hint'
+              fieldErrors.access_token?.length
+                ? 'instagram-access_token-error'
+                : 'instagram-access_token-hint'
             }
           />
-          {fieldErrors.feed_id?.length ? (
+          {fieldErrors.access_token?.length ? (
             <p
-              id="instagram-feed_id-error"
+              id="instagram-access_token-error"
               role="alert"
               className="text-xs text-destructive"
             >
-              {fieldErrors.feed_id[0]}
+              {fieldErrors.access_token[0]}
             </p>
           ) : (
-            <p id="instagram-feed_id-hint" className="text-xs text-muted-foreground">
-              Create a feed at{' '}
+            <p id="instagram-access_token-hint" className="text-xs text-muted-foreground">
+              Generate a long-lived token at{' '}
               <a
-                href="https://behold.so"
+                href="https://developers.facebook.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline underline-offset-2 hover:text-foreground"
               >
-                behold.so
-              </a>
-              , connect your Instagram account, then paste the Feed ID here. The
-              Feed ID appears in your Behold dashboard under each feed.
+                developers.facebook.com
+              </a>{' '}
+              under your app &rarr; Instagram &rarr; Generate token. Tokens are
+              valid for 60 days and refresh automatically via daily cron.
+              {hasToken && ' Leave blank to keep the existing token.'}
             </p>
           )}
         </div>
@@ -152,10 +220,12 @@ function InstagramConfigForm({
           {isPending && (
             <Loader2 className="size-4 animate-spin mr-1.5" aria-hidden="true" />
           )}
-          {isPending ? 'Saving…' : 'Save config'}
+          {isPending ? 'Saving…' : 'Save token'}
         </Button>
         <p className="text-xs text-muted-foreground">
-          The feed ID is not a secret — it appears in the public feed URL.
+          {hasToken
+            ? 'Leave blank to keep the existing token.'
+            : 'Token is encrypted at rest.'}
         </p>
       </div>
 
@@ -168,9 +238,111 @@ function InstagramConfigForm({
   );
 }
 
+// ─── Refresh feed button ──────────────────────────────────────────────────────
+
+/**
+ * RefreshFeedButton — calls refreshInstagramFeedAction() directly (not via
+ * useActionState, since there is no form). Clears the site's 10-minute cache
+ * so the next public page render fetches fresh posts from the Graph API.
+ */
+function RefreshFeedButton({
+  canRefresh,
+}: {
+  canRefresh: boolean;
+}) {
+  const router = useRouter();
+  const [isPending, setIsPending] = useState(false);
+  const [lastResult, setLastResult] = useState<SyncActionState | null>(null);
+
+  async function handleRefresh() {
+    setIsPending(true);
+    try {
+      const result = await refreshInstagramFeedAction();
+      setLastResult(result);
+      router.refresh();
+      if (result.ok) {
+        toast.success(result.message);
+      } else {
+        toast.error(result.error);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setLastResult({ ok: false, error: msg });
+      router.refresh();
+      toast.error(msg);
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  const disabledTitle = !canRefresh
+    ? 'Enable the integration and set a token first'
+    : undefined;
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        disabled={isPending || !canRefresh}
+        onClick={handleRefresh}
+        title={disabledTitle}
+      >
+        {isPending ? (
+          <>
+            <Loader2 className="size-4 animate-spin mr-1.5" aria-hidden="true" />
+            Refreshing&hellip;
+          </>
+        ) : (
+          <>
+            <RefreshCw className="size-4 mr-1.5" aria-hidden="true" />
+            Refresh feed now
+          </>
+        )}
+      </Button>
+
+      {!canRefresh && (
+        <span className="text-xs text-muted-foreground">
+          Enable the integration and set an access token to refresh the feed.
+        </span>
+      )}
+
+      {lastResult && (
+        <span
+          className={cn(
+            'text-xs',
+            lastResult.ok ? 'text-emerald-400' : 'text-destructive',
+          )}
+          role="status"
+        >
+          {lastResult.ok ? (
+            <>
+              <CheckCircle2 className="inline size-3.5 mr-1" aria-hidden="true" />
+              {lastResult.message}
+            </>
+          ) : (
+            <>
+              <XCircle className="inline size-3.5 mr-1" aria-hidden="true" />
+              {lastResult.error}
+            </>
+          )}
+        </span>
+      )}
+    </div>
+  );
+}
+
 // ─── Main card ────────────────────────────────────────────────────────────────
 
-export function InstagramCard({ enabled, feedId }: InstagramCardProps) {
+export function InstagramCard({
+  enabled,
+  hasToken,
+  tokenObtainedAt,
+  tokenExpiresAt,
+}: InstagramCardProps) {
+  const canRefresh = enabled && hasToken;
+
   return (
     <Card>
       {/* Header */}
@@ -182,17 +354,10 @@ export function InstagramCard({ enabled, feedId }: InstagramCardProps) {
           <div>
             <CardTitle>Instagram</CardTitle>
             <CardDescription>
-              Display your latest Instagram posts on the homepage via{' '}
-              <a
-                href="https://behold.so"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline underline-offset-2 hover:text-foreground"
-              >
-                Behold.so
-              </a>
-              . No Instagram API credentials are stored here — Behold handles
-              the Instagram OAuth connection securely on their platform.
+              Posts load directly from the Instagram Graph API. Paste a
+              long-lived 60-day access token from your Meta app dashboard
+              (developers.facebook.com &rarr; your app &rarr; Instagram &rarr;
+              Generate token). The token refreshes automatically via daily cron.
             </CardDescription>
           </div>
         </div>
@@ -211,17 +376,17 @@ export function InstagramCard({ enabled, feedId }: InstagramCardProps) {
           >
             {enabled ? 'Enabled' : 'Disabled'}
           </span>
-          {enabled && !feedId && (
-            <span className="inline-flex items-center rounded-full border border-amber-500/30 bg-amber-500/5 px-2.5 py-1 text-xs font-semibold text-amber-400">
-              No feed ID set — Instagram slot will show placeholder posts
-            </span>
-          )}
-          {enabled && feedId && (
+
+          <TokenStatusBadge hasToken={hasToken} tokenExpiresAt={tokenExpiresAt} />
+
+          {hasToken && tokenObtainedAt && (
             <span className="text-xs text-muted-foreground">
-              Feed ID:{' '}
-              <code className="rounded bg-muted px-1 py-0.5 text-xs text-foreground">
-                {feedId}
-              </code>
+              Token set{' '}
+              {new Date(tokenObtainedAt).toLocaleDateString(undefined, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+              })}
             </span>
           )}
         </div>
@@ -229,8 +394,21 @@ export function InstagramCard({ enabled, feedId }: InstagramCardProps) {
         {/* Divider */}
         <hr className="border-border" />
 
-        {/* Config form (includes enabled toggle + feed ID) */}
-        <InstagramConfigForm key={feedId} enabled={enabled} feedId={feedId} />
+        {/* Token form (includes enabled toggle + masked access token) */}
+        <InstagramTokenForm enabled={enabled} hasToken={hasToken} />
+
+        <hr className="border-border" />
+
+        {/* Manual feed refresh */}
+        <div className="space-y-2">
+          <h3 className="text-sm font-medium text-foreground">Cache</h3>
+          <p className="text-xs text-muted-foreground">
+            Posts are cached for 10 minutes. Use this button to clear the cache
+            immediately and reload the latest posts from Instagram. Useful after
+            publishing new content and wanting it visible on the site right away.
+          </p>
+          <RefreshFeedButton canRefresh={canRefresh} />
+        </div>
       </CardContent>
     </Card>
   );

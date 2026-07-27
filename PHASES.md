@@ -172,6 +172,7 @@ Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with
 - Admin `/admin/events` link-out card surfaces the latest `synced_at` from `events_cache` and a count of upcoming events. No manual sync button — the cron owns refresh entirely.
 - Admin integrations panel populates the credentials; toggle to switch between mock/live
 - Loading + empty states for taps, events, and merch pages
+- **Instagram via Meta Graph API (replaces Behold.so).** `lib/instagram.ts` fetches the 6 most recent posts directly from `graph.instagram.com/me/media` ("Instagram API with Instagram Login", scope `instagram_business_basic`). The long-lived 60-day access token is stored in the encrypted `credentials` column (same `set_integration_credentials` RPC as Untappd/Printify) with token metadata (`token_obtained_at`, `token_expires_at`) in the `config` jsonb. A daily `refresh-instagram-token` Vercel Cron route refreshes the token via `/refresh_access_token` whenever < 21 days of validity remain, persisting the new token + expiry and writing an audit row. Admin Instagram card: paste-token connect flow, live token-expiry status (green/amber/red), "Refresh feed now" cache-bust button retained, mock/live toggle retained. Public behavior unchanged: `fetchIgPosts()` keeps the same return shape, 10-min data cache, `instagram` tag, and graceful mock fallback when the token is missing/expired or the fetch fails.
 
 **Agents:** `dph-integrations`, `dph-backend`, `dph-frontend`
 **Skills:** `dph-migration` (for `events_cache` and `merch_products`)
@@ -183,6 +184,7 @@ Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with
 - An event saved in the Untappd dashboard appears on `/events` within ~5 minutes via the scheduled sync — no admin action required
 - Removing an event in Untappd flags the matching row `deleted_at` on the next sync; it disappears from `/events`
 - Outage simulation: pausing the cron (or removing creds) does NOT blank the page — `/events` continues to serve the last-known cache; admin card surfaces the stale `synced_at` so staleness is visible
+- With no Instagram token stored, homepage Instagram slot renders mock fixture; with a valid token, it renders live Graph API posts within 10 minutes of an IG post (or instantly via "Refresh feed now"); an expired/revoked token degrades to mock without blanking the page and the admin card shows the red token state
 
 ---
 
