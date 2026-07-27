@@ -1,6 +1,8 @@
 import type { IgPost } from "@/lib/fixtures/types"
 
 export const INSTAGRAM_PROFILE_URL = "https://instagram.com/districtpourhaus"
+export const FACEBOOK_PROFILE_URL =
+  "https://www.facebook.com/profile.php?id=61583277426555"
 
 export const igPosts: IgPost[] = [
   {

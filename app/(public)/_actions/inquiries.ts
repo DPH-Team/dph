@@ -102,8 +102,8 @@ export async function submitInquiry(
       fieldErrors.partySize = ["Party size is required for reservations"]
     } else {
       const size = parseInt(data.partySize, 10)
-      if (isNaN(size) || size < 1 || size > 200) {
-        fieldErrors.partySize = ["Party size must be between 1 and 200"]
+      if (isNaN(size) || size < 1 || size > 150) {
+        fieldErrors.partySize = ["Party size must be between 1 and 150"]
       }
     }
     if (!data.seatingPreference || data.seatingPreference.trim() === "") {

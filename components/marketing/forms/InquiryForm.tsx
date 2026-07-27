@@ -200,11 +200,11 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             name="partySize"
             type="number"
             min={1}
-            max={200}
+            max={150}
             aria-required={requiresBooking ? "true" : undefined}
             aria-invalid={fieldError("partySize") ? "true" : undefined}
             aria-describedby={fieldError("partySize") ? "inquiry-party-size-error" : undefined}
-            placeholder="1–200 guests"
+            placeholder="1–150 guests"
             className={cn(
               "w-full h-10 px-3 rounded-[var(--radius-md)] border border-border bg-input",
               "text-sm text-foreground placeholder:text-muted-foreground",

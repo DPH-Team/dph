@@ -43,6 +43,7 @@ export function MobileNav({ open, onOpenChange, hours, overrides, location }: Mo
         side="right"
         className="w-80 max-w-[80vw] flex flex-col gap-0 p-0"
         showCloseButton={false}
+        initialFocus={(openType) => openType === "keyboard"}
       >
         <SheetHeader className="flex flex-row items-center justify-between p-4 border-b border-border">
           <Wordmark size="sm" />

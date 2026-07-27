@@ -1,6 +1,6 @@
 import Link from "next/link"
 import Image from "next/image"
-import { Calendar, Tag } from "lucide-react"
+import { ArrowUpRight, Calendar, Tag } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { BLUR_CHARCOAL } from "@/lib/blur"
 import { isTodayInVenue, isPastVenueDay, formatEventDateTime } from "@/lib/datetime"
@@ -133,9 +133,10 @@ export function EventCard({ event, variant = "default", className }: EventCardPr
                 href={event.ticketUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                Get tickets ↗
+                Get tickets
+                <ArrowUpRight className="size-[14px]" aria-hidden="true" />
               </a>
             )}
           </div>

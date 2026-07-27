@@ -1,6 +1,7 @@
 import Link from "next/link"
+import { ArrowUpRight } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { INSTAGRAM_PROFILE_URL } from "@/app/__fixtures__/instagram"
+import { INSTAGRAM_PROFILE_URL, FACEBOOK_PROFILE_URL } from "@/app/__fixtures__/instagram"
 import type { IgPost } from "@/lib/fixtures/types"
 
 export type InstagramSlotProps = {
@@ -24,6 +25,24 @@ function IgIcon({ className }: { className?: string }) {
       <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
       <circle cx="12" cy="12" r="4" />
       <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+function FbIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={className}
+    >
+      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z" />
     </svg>
   )
 }
@@ -96,7 +115,7 @@ export function InstagramSlot({ posts, className }: InstagramSlotProps) {
         })}
       </div>
 
-      <div className="flex justify-center">
+      <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
         <Link
           href={INSTAGRAM_PROFILE_URL}
           target="_blank"
@@ -104,7 +123,18 @@ export function InstagramSlot({ posts, className }: InstagramSlotProps) {
           className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-copper-hover transition-colors underline underline-offset-4"
         >
           <IgIcon className="size-4" />
-          Open on Instagram ↗
+          Open on Instagram
+          <ArrowUpRight className="size-[14px]" aria-hidden="true" />
+        </Link>
+        <Link
+          href={FACEBOOK_PROFILE_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:text-copper-hover transition-colors underline underline-offset-4"
+        >
+          <FbIcon className="size-4" />
+          Open on Facebook
+          <ArrowUpRight className="size-[14px]" aria-hidden="true" />
         </Link>
       </div>
     </div>

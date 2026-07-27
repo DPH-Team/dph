@@ -473,7 +473,7 @@ export const inquiries = pgTable(
     ),
     check(
       'inquiries_party_size_check',
-      sql`${t.partySize} is null or (${t.partySize} >= 1 and ${t.partySize} <= 200)`,
+      sql`${t.partySize} is null or (${t.partySize} >= 1 and ${t.partySize} <= 150)`,
     ),
     check(
       'inquiries_internal_notes_length_check',
