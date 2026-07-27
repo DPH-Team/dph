@@ -1,6 +1,7 @@
 "use server"
 
 import { headers } from "next/headers"
+import { after } from "next/server"
 import { subscribeNewsletterSchema } from "@/lib/validators/newsletter"
 import { verifyTurnstile } from "@/lib/security/turnstile"
 import { sendEmail } from "@/lib/email/send"
@@ -35,12 +36,16 @@ function sendConfirm(
   const unsubscribeUrl = `${siteUrl}/newsletter/unsubscribe?token=${unsubscribeToken}`
 
   // Fire-and-forget. sendEmail never throws; failure must not roll back the DB
-  // row or flip the action to an error state.
-  void sendEmail({
-    to: email,
-    subject: "Confirm your subscription to District Pour Haus",
-    react: React.createElement(NewsletterConfirm, { confirmUrl, unsubscribeUrl, siteUrl }),
-    template: "newsletter-confirm",
+  // row or flip the action to an error state. Sent via after() so the send
+  // completes even though Vercel freezes the serverless function immediately
+  // after the response is returned.
+  after(async () => {
+    await sendEmail({
+      to: email,
+      subject: "Confirm your subscription to District Pour Haus",
+      react: React.createElement(NewsletterConfirm, { confirmUrl, unsubscribeUrl, siteUrl }),
+      template: "newsletter-confirm",
+    })
   })
 }
 

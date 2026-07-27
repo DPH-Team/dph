@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState, useRef, useState } from "react"
+import { useActionState, useEffect, useRef, useState } from "react"
 import { Loader2, CheckCircle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { submitInquiry } from "@/app/(public)/_actions/inquiries"
@@ -20,11 +20,58 @@ export type InquiryFormProps = {
   defaultType?: InquiryType
 }
 
+type FormValues = {
+  type: InquiryType
+  name: string
+  email: string
+  phone: string
+  partySize: string
+  seatingPreference: string
+  preferredDate: string
+  preferredTime: string
+  message: string
+}
+
+// Field order matches visual layout, used to focus/scroll to the first
+// invalid field after a failed submit.
+const FIELD_ORDER: { name: keyof FormValues; id: string }[] = [
+  { name: "type", id: "inquiry-type" },
+  { name: "name", id: "inquiry-name" },
+  { name: "email", id: "inquiry-email" },
+  { name: "phone", id: "inquiry-phone" },
+  { name: "partySize", id: "inquiry-party-size" },
+  { name: "seatingPreference", id: "inquiry-seating" },
+  { name: "preferredDate", id: "inquiry-date" },
+  { name: "preferredTime", id: "inquiry-time" },
+  { name: "message", id: "inquiry-message" },
+]
+
 export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
   const [state, formAction, isPending] = useActionState(submitInquiry, null)
   const turnstileRef = useRef<TurnstileHandle | null>(null)
-  const [type, setType] = useState(defaultType)
-  const requiresBooking = type === "reservation" || type === "private-event"
+
+  // Values are held in React state (controlled inputs) rather than relying on
+  // the DOM/defaultValue. React 19 automatically resets uncontrolled <form>
+  // fields once a form action settles — including on a *failed* submit — so
+  // uncontrolled fields would wipe user input on every validation error.
+  // Controlled fields are exempt from that automatic reset.
+  const [values, setValues] = useState<FormValues>({
+    type: defaultType,
+    name: "",
+    email: "",
+    phone: "",
+    partySize: "",
+    seatingPreference: "",
+    preferredDate: "",
+    preferredTime: "",
+    message: "",
+  })
+
+  const requiresBooking = values.type === "reservation" || values.type === "private-event"
+
+  const setField = <K extends keyof FormValues>(field: K, value: FormValues[K]) => {
+    setValues((prev) => ({ ...prev, [field]: value }))
+  }
 
   const fieldError = (field: string) => {
     if (!state || state.ok) return undefined
@@ -35,6 +82,19 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
     turnstileRef.current?.reset()
     return formAction(formData)
   }
+
+  // After a failed submit, move focus to (and scroll to) the first invalid
+  // field so the user immediately sees what needs attention.
+  useEffect(() => {
+    if (!state || state.ok || !state.fieldErrors) return
+    const firstInvalid = FIELD_ORDER.find(({ name }) => state.fieldErrors?.[name]?.length)
+    if (!firstInvalid) return
+    const el = document.getElementById(firstInvalid.id)
+    if (!el) return
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    el.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth", block: "center" })
+    el.focus({ preventScroll: true })
+  }, [state])
 
   if (state?.ok) {
     return (
@@ -67,8 +127,8 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             <select
               id="inquiry-type"
               name="type"
-              defaultValue={defaultType}
-              onChange={(e) => setType(e.target.value as InquiryType)}
+              value={values.type}
+              onChange={(e) => setField("type", e.target.value as InquiryType)}
               required
               aria-required="true"
               aria-invalid={fieldError("type") ? "true" : undefined}
@@ -106,6 +166,8 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             id="inquiry-name"
             name="name"
             type="text"
+            value={values.name}
+            onChange={(e) => setField("name", e.target.value)}
             required
             aria-required="true"
             aria-invalid={fieldError("name") ? "true" : undefined}
@@ -135,6 +197,8 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             id="inquiry-email"
             name="email"
             type="email"
+            value={values.email}
+            onChange={(e) => setField("email", e.target.value)}
             required
             aria-required="true"
             aria-invalid={fieldError("email") ? "true" : undefined}
@@ -163,6 +227,8 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             id="inquiry-phone"
             name="phone"
             type="tel"
+            value={values.phone}
+            onChange={(e) => setField("phone", e.target.value)}
             required
             aria-required="true"
             aria-invalid={fieldError("phone") ? "true" : undefined}
@@ -201,6 +267,8 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
             type="number"
             min={1}
             max={150}
+            value={values.partySize}
+            onChange={(e) => setField("partySize", e.target.value)}
             aria-required={requiresBooking ? "true" : undefined}
             aria-invalid={fieldError("partySize") ? "true" : undefined}
             aria-describedby={fieldError("partySize") ? "inquiry-party-size-error" : undefined}
@@ -225,22 +293,22 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
           )}
         </div>
 
-        {/* Seating preference (reservations & private events) */}
+        {/* Seating preference (reservations & private events) — "No preference"
+            is a valid default; this field is never actually required. */}
         <div className={cn("flex flex-col gap-1.5")}>
           <label
             htmlFor="inquiry-seating"
             className="text-sm font-medium text-foreground flex items-center gap-1"
           >
             Seating preference
-            {requiresBooking && <span className="text-primary" aria-hidden="true">*</span>}
             <span className="text-xs text-muted-foreground font-normal">(reservations &amp; private events)</span>
           </label>
           <div className="relative">
             <select
               id="inquiry-seating"
               name="seatingPreference"
-              defaultValue=""
-              aria-required={requiresBooking ? "true" : undefined}
+              value={values.seatingPreference}
+              onChange={(e) => setField("seatingPreference", e.target.value)}
               aria-invalid={fieldError("seatingPreference") ? "true" : undefined}
               aria-describedby={fieldError("seatingPreference") ? "inquiry-seating-error" : undefined}
               className={cn(
@@ -290,12 +358,19 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
               id="inquiry-date"
               name="preferredDate"
               type="date"
+              value={values.preferredDate}
+              onChange={(e) => setField("preferredDate", e.target.value)}
               aria-required={requiresBooking ? "true" : undefined}
               aria-invalid={fieldError("preferredDate") ? "true" : undefined}
               aria-describedby={fieldError("preferredDate") ? "inquiry-date-error" : undefined}
               className={cn(
                 "w-full h-10 px-3 rounded-[var(--radius-md)] border border-border bg-input",
-                "text-sm text-foreground",
+                "text-sm",
+                // Empty date/time inputs render their mm/dd/yyyy placeholder
+                // text using the input's `color`, so without this it reads
+                // identically to a real selected value. Dim it until a value
+                // is actually chosen.
+                values.preferredDate ? "text-foreground" : "text-muted-foreground",
                 "hover:border-[oklch(0.400_0.006_80)] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35",
                 "outline-none transition-colors",
                 "[color-scheme:dark]",
@@ -314,12 +389,15 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
               id="inquiry-time"
               name="preferredTime"
               type="time"
+              value={values.preferredTime}
+              onChange={(e) => setField("preferredTime", e.target.value)}
               aria-required={requiresBooking ? "true" : undefined}
               aria-invalid={fieldError("preferredTime") ? "true" : undefined}
               aria-describedby={fieldError("preferredTime") ? "inquiry-time-error" : undefined}
               className={cn(
                 "w-full h-10 px-3 rounded-[var(--radius-md)] border border-border bg-input",
-                "text-sm text-foreground",
+                "text-sm",
+                values.preferredTime ? "text-foreground" : "text-muted-foreground",
                 "hover:border-[oklch(0.400_0.006_80)] focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/35",
                 "outline-none transition-colors",
                 "[color-scheme:dark]",
@@ -339,6 +417,8 @@ export function InquiryForm({ defaultType = "reservation" }: InquiryFormProps) {
           <textarea
             id="inquiry-message"
             name="message"
+            value={values.message}
+            onChange={(e) => setField("message", e.target.value)}
             required
             aria-required="true"
             aria-invalid={fieldError("message") ? "true" : undefined}
