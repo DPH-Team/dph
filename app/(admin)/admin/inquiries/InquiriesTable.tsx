@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ResourceTable, type Column } from '@/components/admin/ResourceTable';
 import type { Inquiry } from '@/lib/db/schema';
+import { formatPreferredTime } from '@/lib/datetime';
 import { cn } from '@/lib/utils';
 
 // ─── Formatting helpers ───────────────────────────────────────────────────────
@@ -135,10 +136,7 @@ const columns: Column<Inquiry>[] = [
       if (!row.preferredDate) return <span className="text-muted-foreground">&mdash;</span>;
       const parts = [row.preferredDate];
       if (row.preferredTime) {
-        const [h, m] = row.preferredTime.split(':').map(Number);
-        const ampm = h >= 12 ? 'PM' : 'AM';
-        const hour = h % 12 || 12;
-        parts.push(`${hour}:${String(m).padStart(2, '0')} ${ampm}`);
+        parts.push(formatPreferredTime(row.preferredTime));
       }
       return <span className="tabular-nums text-foreground">{parts.join(' ')}</span>;
     },

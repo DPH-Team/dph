@@ -10,11 +10,11 @@ export const metadata: Metadata = {
 };
 
 interface LoginPageProps {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; reset?: string }>;
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { next: rawNext } = await searchParams;
+  const { next: rawNext, reset } = await searchParams;
 
   // Validate the next URL — only accept /admin* paths to prevent open-redirect
   const safeNext =
@@ -35,6 +35,16 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           <Wordmark size="lg" asLink={false} />
           <p className="text-xs text-muted-foreground">Admin Portal</p>
         </div>
+
+        {/* Password reset success banner */}
+        {reset === 'success' && (
+          <p
+            role="status"
+            className="mb-6 rounded-md border border-green-600/30 bg-green-600/10 px-4 py-3 text-sm text-green-500"
+          >
+            Your password was reset — sign in with your new password.
+          </p>
+        )}
 
         {/* Heading */}
         <h1 className="mb-6 text-center text-xl font-display font-semibold text-foreground">

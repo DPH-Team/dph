@@ -9,89 +9,42 @@ import {
   Html,
   Img,
   Preview,
-  Row,
-  Column,
   Section,
   Text,
 } from 'react-email';
 import * as React from 'react';
 import { BRAND_ADDRESS, BRAND_EMAIL, BRAND_PHONE } from '../branding';
-import { formatPreferredTime } from '@/lib/datetime';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface InquiryStaffNotificationProps {
-  name: string;
-  email: string;
-  phone?: string | null;
-  type: string;
-  partySize?: number | null;
-  preferredDate?: string | null;
-  preferredTime?: string | null;
-  message: string;
-  /** Deep link to the inquiry detail page in the admin panel. */
-  adminUrl: string;
+export interface AdminPasswordResetProps {
+  /** Temporary password to display prominently. */
+  tempPassword: string;
+  /** URL of the admin login page. */
+  loginUrl: string;
+  /** Base URL of the public site (no trailing slash). */
+  siteUrl: string;
 }
 
 // ─── Tokens ───────────────────────────────────────────────────────────────────
 
 const base = '#0E0E0F';
-const surface = '#161617';
 const copper = '#C97B4A';
 const cream = '#F5EFE6';
 const muted = '#8A8A8A';
 const hairline = '#2A2A2B';
 const page = '#F8F5F0';
 
-const serif = 'Fraunces, Georgia, "Times New Roman", serif';
+const serif = 'Georgia, "Times New Roman", serif';
 const sans = 'Inter, Helvetica, Arial, sans-serif';
-
-const typeLabels: Record<string, string> = {
-  reservation: 'Reservation',
-  private_event: 'Private Event',
-  press: 'Press',
-  general: 'General',
-};
+const mono = '"Courier New", Courier, "Lucida Console", monospace';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function InquiryStaffNotification({
-  name,
-  email,
-  phone,
-  type,
-  partySize,
-  preferredDate,
-  preferredTime,
-  message,
-  adminUrl,
-}: InquiryStaffNotificationProps) {
-  const typeLabel = typeLabels[type] ?? type;
-  const firstName = name.split(' ')[0] ?? name;
-
-  const details: { label: string; value: string }[] = [
-    { label: 'Name', value: name },
-    { label: 'Email', value: email },
-    ...(phone ? [{ label: 'Phone', value: phone }] : []),
-    { label: 'Type', value: typeLabel },
-    ...(partySize != null ? [{ label: 'Party Size', value: String(partySize) }] : []),
-    ...(preferredDate ? [{ label: 'Preferred Date', value: preferredDate }] : []),
-    ...(preferredTime ? [{ label: 'Preferred Time', value: formatPreferredTime(preferredTime) }] : []),
-  ];
-
+export function AdminPasswordReset({ tempPassword, loginUrl, siteUrl }: AdminPasswordResetProps) {
   return (
     <Html lang="en">
       <Head>
-        <Font
-          fontFamily="Fraunces"
-          fallbackFontFamily={['Georgia', 'Times New Roman', 'serif']}
-          webFont={{
-            url: 'https://fonts.gstatic.com/s/fraunces/v31/6NUh8FyLNQOQZAnv9bYEvDiIdE9Ea92uemAk_WBq8U_9thS9zKlA.woff2',
-            format: 'woff2',
-          }}
-          fontWeight={400}
-          fontStyle="normal"
-        />
         <Font
           fontFamily="Inter"
           fallbackFontFamily={['Helvetica', 'Arial', 'sans-serif']}
@@ -103,7 +56,7 @@ export function InquiryStaffNotification({
           fontStyle="normal"
         />
       </Head>
-      <Preview>New {typeLabel} inquiry from {name}</Preview>
+      <Preview>Your District Pour Haus password has been reset — sign in with your temporary password.</Preview>
       <Body style={bodyStyle}>
         <Container style={containerStyle}>
           {/* Copper top-accent bar */}
@@ -111,50 +64,53 @@ export function InquiryStaffNotification({
             <Text style={{ margin: '0', fontSize: '1px', lineHeight: '4px' }}>&nbsp;</Text>
           </Section>
 
-          <BrandHeader tagline={`New ${typeLabel} Inquiry`} />
+          <BrandHeader tagline="Our Haus is Your Haus" siteUrl={siteUrl} />
 
           {/* Body */}
-          <Section style={{ padding: '34px 40px 8px' }}>
-            <Text style={eyebrowStyle}>Inbound</Text>
+          <Section style={{ padding: '36px 40px 8px' }}>
+            <Text style={eyebrowStyle}>Account update</Text>
+
             <Heading as="h2" style={displayHeadingStyle}>
-              {name} sent a {typeLabel.toLowerCase()} inquiry.
+              Your password has been reset.
             </Heading>
+
+            <Text style={leadStyle}>
+              An administrator reset your District Pour Haus password. Here&apos;s your temporary
+              password — you&apos;ll be asked to set a new one the next time you sign in.
+            </Text>
           </Section>
 
-          {/* Detail block */}
-          <Section style={{ padding: '0 40px' }}>
-            <Section style={detailCardStyle}>
-              {details.map((d, i) => (
-                <DetailRow
-                  key={d.label}
-                  label={d.label}
-                  value={d.value}
-                  last={i === details.length - 1}
-                />
-              ))}
-            </Section>
-          </Section>
-
-          {/* Message */}
-          <Section style={{ padding: '26px 40px 0' }}>
-            <Text style={sectionLabelStyle}>Message</Text>
-            <Section style={messageCardStyle}>
-              <Text style={messageTextStyle}>{message}</Text>
-            </Section>
+          {/* Temporary password display */}
+          <Section style={{ padding: '0 40px 28px' }}>
+            <table
+              role="presentation"
+              cellPadding={0}
+              cellSpacing={0}
+              border={0}
+              style={{ width: '100%', borderCollapse: 'separate' }}
+            >
+              <tbody>
+                <tr>
+                  <td style={passwordBoxStyle}>
+                    <Text style={passwordLabelStyle}>Temporary password</Text>
+                    <Text style={passwordValueStyle}>{tempPassword}</Text>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </Section>
 
           {/* CTA */}
-          <Section style={{ padding: '28px 40px 8px', textAlign: 'center' }}>
-            <Button href={adminUrl} style={primaryButtonStyle}>
-              View inquiry in admin →
+          <Section style={{ padding: '0 40px 28px' }}>
+            <Button href={loginUrl} style={primaryButtonStyle}>
+              Sign in
             </Button>
           </Section>
 
-          {/* Reply note */}
-          <Section style={{ padding: '20px 40px 0' }}>
-            <Hr style={hrStyle} />
-            <Text style={replyNoteStyle}>
-              Need to respond? Just reply to this email — it goes straight to {firstName}.
+          {/* Security note */}
+          <Section style={{ padding: '0 40px 12px' }}>
+            <Text style={ignoreTextStyle}>
+              If you weren&apos;t expecting this, contact your administrator right away.
             </Text>
           </Section>
 
@@ -165,23 +121,10 @@ export function InquiryStaffNotification({
   );
 }
 
-function DetailRow({ label, value, last }: { label: string; value: string; last?: boolean }) {
-  return (
-    <Row>
-      <Column style={{ width: '128px', verticalAlign: 'top', padding: last ? '0' : '0 0 12px' }}>
-        <Text style={detailLabelStyle}>{label}</Text>
-      </Column>
-      <Column style={{ verticalAlign: 'top', padding: last ? '0' : '0 0 12px' }}>
-        <Text style={detailValueStyle}>{value}</Text>
-      </Column>
-    </Row>
-  );
-}
+// ─── Shared partials ──────────────────────────────────────────────────────────
 
-// ─── Shared partials ────────────────────────────────────────────────────────
-
-function BrandHeader({ tagline }: { tagline: string }) {
-  const logoUrl = `${(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://districtpourhaus.com').replace(/\/$/, '')}/brand/logo.png`;
+function BrandHeader({ tagline, siteUrl }: { tagline: string; siteUrl: string }) {
+  const logoUrl = `${siteUrl}/brand/logo.png`;
 
   return (
     <Section style={{ padding: '34px 40px 22px', textAlign: 'center' }}>
@@ -217,7 +160,9 @@ function BrandFooter() {
       <Text style={footerBrandStyle}>District Pour Haus</Text>
       <Text style={footerTextStyle}>{BRAND_ADDRESS}</Text>
       <Text style={footerTextStyle}>{BRAND_PHONE} · {BRAND_EMAIL}</Text>
-      <Text style={footerMutedStyle}>Our Haus is Your Haus</Text>
+      <Text style={footerMutedStyle}>
+        You&apos;re receiving this because an administrator made a change to your account.
+      </Text>
     </Section>
   );
 }
@@ -267,94 +212,81 @@ const eyebrowStyle: React.CSSProperties = {
   fontWeight: 600,
   letterSpacing: '0.2em',
   textTransform: 'uppercase',
-  margin: '0 0 12px',
+  margin: '0 0 14px',
 };
 
 const displayHeadingStyle: React.CSSProperties = {
   color: cream,
   fontFamily: serif,
-  fontSize: '25px',
-  lineHeight: '1.3',
+  fontSize: '27px',
+  lineHeight: '1.25',
   fontWeight: 500,
-  margin: '0',
+  margin: '0 0 18px',
 };
 
-const detailCardStyle: React.CSSProperties = {
-  backgroundColor: surface,
-  border: `1px solid ${hairline}`,
-  borderRadius: '10px',
-  padding: '20px 22px',
-};
-
-const detailLabelStyle: React.CSSProperties = {
-  color: muted,
-  fontFamily: sans,
-  fontSize: '11px',
-  fontWeight: 600,
-  margin: '0',
-  textTransform: 'uppercase',
-  letterSpacing: '0.1em',
-};
-
-const detailValueStyle: React.CSSProperties = {
+const leadStyle: React.CSSProperties = {
   color: cream,
   fontFamily: sans,
-  fontSize: '15px',
-  lineHeight: '1.4',
-  margin: '0',
-};
-
-const sectionLabelStyle: React.CSSProperties = {
-  color: muted,
-  fontFamily: sans,
-  fontSize: '11px',
-  fontWeight: 600,
-  margin: '0 0 10px',
-  textTransform: 'uppercase',
-  letterSpacing: '0.16em',
-};
-
-const messageCardStyle: React.CSSProperties = {
-  backgroundColor: surface,
-  border: `1px solid ${hairline}`,
-  borderRadius: '10px',
-  padding: '20px 22px',
-};
-
-const messageTextStyle: React.CSSProperties = {
-  color: cream,
-  fontFamily: sans,
-  fontSize: '15px',
+  fontSize: '16px',
   lineHeight: '1.7',
+  margin: '0 0 16px',
+};
+
+const passwordBoxStyle: React.CSSProperties = {
+  backgroundColor: '#1A1A1B',
+  border: `1px solid ${hairline}`,
+  borderRadius: '10px',
+  padding: '20px 24px',
+  textAlign: 'center',
+};
+
+const passwordLabelStyle: React.CSSProperties = {
+  color: muted,
+  fontFamily: sans,
+  fontSize: '11px',
+  fontWeight: 600,
+  letterSpacing: '0.18em',
+  textTransform: 'uppercase',
+  margin: '0 0 10px',
+};
+
+const passwordValueStyle: React.CSSProperties = {
+  color: cream,
+  fontFamily: mono,
+  fontSize: '22px',
+  fontWeight: 700,
+  letterSpacing: '0.12em',
   margin: '0',
-  whiteSpace: 'pre-wrap',
+  userSelect: 'all',
 };
 
 const primaryButtonStyle: React.CSSProperties = {
   backgroundColor: copper,
   color: '#1A1208',
   borderRadius: '8px',
-  padding: '14px 30px',
+  padding: '14px 28px',
   fontFamily: sans,
   fontSize: '15px',
   fontWeight: 600,
   textDecoration: 'none',
-  display: 'inline-block',
+  textAlign: 'center',
+  display: 'block',
+  width: '100%',
+  boxSizing: 'border-box',
 };
 
-const hrStyle: React.CSSProperties = {
-  borderColor: hairline,
-  borderTopWidth: '1px',
-  margin: '0 0 18px',
-};
-
-const replyNoteStyle: React.CSSProperties = {
+const ignoreTextStyle: React.CSSProperties = {
   color: muted,
   fontFamily: sans,
   fontSize: '13px',
   lineHeight: '1.6',
   margin: '0',
-  textAlign: 'center',
+};
+
+const hrStyle: React.CSSProperties = {
+  borderColor: hairline,
+  borderTopWidth: '1px',
+  margin: '0 0 22px',
 };
 
 const footerBrandStyle: React.CSSProperties = {
@@ -375,12 +307,11 @@ const footerTextStyle: React.CSSProperties = {
 };
 
 const footerMutedStyle: React.CSSProperties = {
-  color: copper,
+  color: muted,
   fontFamily: sans,
-  fontSize: '11px',
-  letterSpacing: '0.18em',
-  textTransform: 'uppercase',
+  fontSize: '13px',
+  lineHeight: '1.6',
   margin: '0',
 };
 
-export default InquiryStaffNotification;
+export default AdminPasswordReset;

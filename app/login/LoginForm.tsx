@@ -1,6 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { signIn, type SignInState } from './_actions';
@@ -85,6 +86,15 @@ export function LoginForm({ next }: LoginFormProps) {
             {state.error}
           </p>
         )}
+      </div>
+
+      <div className="flex justify-end">
+        <Link
+          href="/forgot-password"
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Forgot password?
+        </Link>
       </div>
 
       <Button type="submit" disabled={pending} className="w-full" size="lg">

@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { requireStaff } from '@/lib/auth';
+import { formatPreferredTime } from '@/lib/datetime';
 import { getInquiryById } from '@/lib/db/queries/inquiries';
 import {
   updateInquiryStatusAction,
@@ -49,13 +50,6 @@ function relativeTime(date: Date): string {
   if (hours < 24) return `${hours}h ago`;
   if (days < 30) return `${days}d ago`;
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function formatPreferredTime(time: string): string {
-  const [h, m] = time.split(':').map(Number);
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const hour = h % 12 || 12;
-  return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
 // ─── Detail row ────────────────────────────────────────────────────────────────

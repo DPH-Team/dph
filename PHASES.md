@@ -97,6 +97,9 @@ Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with
 - `lib/audit.ts` helper: records every create/update/delete with diff, user_id, ip, ua, timestamp
 - Login event tracking (every successful + failed login → audit log)
 - Activity log viewer route (read-only, filter by user / entity / date range)
+- Admin-initiated password reset: admin resets another user's password from the user table; system generates a strong temp password (shown once to the admin, emailed to the user via Resend), user must change it on next login
+- Admin account deletion: admin deletes a user account behind a type-`DELETE` confirmation; removes the auth user + cascades the profile row; audited (cannot delete self or the last admin)
+- Public "Forgot password?" flow: request page → branded Resend email with a recovery link → server-verified `/auth/confirm` route → set-new-password page; reset email sent via Resend (not Supabase SMTP); generic response prevents user enumeration
 
 **Agents:** `dph-backend` (auth + RLS), `dph-admin` (shell)
 **Skills:** `dph-migration`
@@ -106,6 +109,13 @@ Full rebuild of districtpourhaus.com as a Next.js 15 + Supabase application with
 - Two test accounts (one admin, one staff) created via Supabase dashboard, both can log in
 - Login event appears in `audit_log` table
 - Staff account cannot reach `/admin/integrations` or `/admin/users`
+- Disable/enable access works end-to-end: a disabled user cannot sign in and shows `Disabled` in the table; re-enable restores access
+- Admin reset: temp password shown once in a dialog, emailed to the target user, and the user is forced to change it on next login; admins cannot reset their own password here (directed to Account)
+- Admin delete: requires typing `DELETE`; removes the auth user + profile; cannot delete self or the last admin; writes a `profile.delete` audit row
+- Forgot-password request returns identical generic success whether or not the email exists; no temp password or token ever appears in `audit_log`
+- Public reset link verifies via `/auth/confirm`, establishes a recovery session, and lets the user set a new password; expired links fail gracefully
+- New audit actions present: `auth.password_reset_request`, `profile.password_reset`, `profile.password_reset_self`, `profile.delete`
+- Supabase Redirect URLs allowlist includes `/auth/confirm` for staging + prod
 
 ---
 

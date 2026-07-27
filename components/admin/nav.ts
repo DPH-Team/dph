@@ -1,3 +1,20 @@
+import {
+  LayoutDashboard,
+  Calendar,
+  UtensilsCrossed,
+  Clock,
+  FileText,
+  Image,
+  Inbox,
+  Briefcase,
+  Mail,
+  ScrollText,
+  Plug,
+  Users,
+  UserRound,
+  type LucideIcon,
+} from 'lucide-react';
+
 export type IconKey =
   | 'dashboard'
   | 'calendar'
@@ -13,11 +30,28 @@ export type IconKey =
   | 'users'
   | 'team';
 
+export const NAV_ICONS: Record<IconKey, LucideIcon> = {
+  dashboard: LayoutDashboard,
+  calendar: Calendar,
+  utensils: UtensilsCrossed,
+  clock: Clock,
+  file: FileText,
+  image: Image,
+  inbox: Inbox,
+  briefcase: Briefcase,
+  mail: Mail,
+  scroll: ScrollText,
+  plug: Plug,
+  users: Users,
+  team: UserRound,
+};
+
 export type NavItem = {
   href: string;
   label: string;
   icon: IconKey;
   adminOnly?: boolean;
+  description?: string;
 };
 
 export const adminNav: NavItem[] = [

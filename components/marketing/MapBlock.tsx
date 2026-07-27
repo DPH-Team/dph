@@ -1,6 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
-import { MapPin } from "lucide-react"
+import { ArrowUpRight, MapPin } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { BLUR_CHARCOAL } from "@/lib/blur"
 
@@ -138,7 +138,8 @@ export function MapBlock({
               className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-copper-hover transition-colors underline underline-offset-4 w-fit"
               aria-label={`Open ${address} in Google Maps`}
             >
-              Open in Google Maps ↗
+              Open in Google Maps
+              <ArrowUpRight className="size-[14px]" aria-hidden="true" />
             </Link>
           </div>
         </div>
@@ -197,9 +198,10 @@ export function MapBlock({
           href={mapsUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm text-primary hover:text-copper-hover transition-colors underline underline-offset-4 w-fit"
+          className="inline-flex items-center gap-1 text-sm text-primary hover:text-copper-hover transition-colors underline underline-offset-4 w-fit"
         >
-          Open in maps ↗
+          Open in maps
+          <ArrowUpRight className="size-[14px]" aria-hidden="true" />
         </Link>
       </div>
     </div>

@@ -13,13 +13,15 @@ const FEATURED_ITEM_COUNT = 6
 export function FeaturedMenuTabs({ sections }: FeaturedMenuTabsProps) {
   return (
     <Tabs defaultValue={sections[0]?.id ?? ""}>
-      <TabsList className="mb-8">
-        {sections.map((section) => (
-          <TabsTrigger key={section.id} value={section.id}>
-            {section.name}
-          </TabsTrigger>
-        ))}
-      </TabsList>
+      <div className="overflow-x-auto no-scrollbar w-full mb-8">
+        <TabsList className="w-max">
+          {sections.map((section) => (
+            <TabsTrigger key={section.id} value={section.id}>
+              {section.name}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </div>
 
       {sections.map((section) => (
         <TabsContent key={section.id} value={section.id}>

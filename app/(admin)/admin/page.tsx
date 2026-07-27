@@ -1,8 +1,11 @@
+import Link from 'next/link';
 import { requireStaff } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LayoutDashboard, Wrench } from 'lucide-react';
+import { LayoutDashboard } from 'lucide-react';
+import { adminNav, NAV_ICONS, type NavItem } from '@/components/admin/nav';
+import type { AppRole } from '@/lib/auth';
 
 // ─── Recent activity mini-list ────────────────────────────────────────────────
 
@@ -60,14 +63,47 @@ async function RecentActivity() {
   );
 }
 
+// ─── Quick-access section tile ────────────────────────────────────────────────
+
+function SectionTile({ item }: { item: NavItem }) {
+  const Icon = NAV_ICONS[item.icon];
+
+  return (
+    <Link
+      href={item.href}
+      className="group flex flex-col gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-[oklch(0.17_0.004_286)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background"
+    >
+      <div className="flex size-9 items-center justify-center rounded-md bg-primary/10 transition-colors group-hover:bg-primary/20">
+        <Icon className="size-4 text-primary" aria-hidden="true" />
+      </div>
+      <div>
+        <p className="text-sm font-medium text-foreground">{item.label}</p>
+        {item.description && (
+          <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
+            {item.description}
+          </p>
+        )}
+      </div>
+    </Link>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default async function AdminDashboardPage() {
   const profile = await requireStaff();
   const displayName = profile.full_name ?? profile.email.split('@')[0];
+  const role = profile.role as AppRole;
+
+  // Exclude the Dashboard item itself and respect admin-only gating for staff.
+  const manageSections = adminNav.filter(
+    (item) =>
+      item.href !== '/admin' &&
+      (role === 'admin' || !item.adminOnly),
+  );
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-5xl space-y-8">
       {/* Welcome banner */}
       <div className="flex items-start gap-4">
         <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 shrink-0">
@@ -81,49 +117,49 @@ export default async function AdminDashboardPage() {
             You&apos;re signed in as{' '}
             <span className="font-medium text-foreground">{profile.email}</span>
             {' '}with the{' '}
-            <Badge variant={profile.role === 'admin' ? 'default' : 'secondary'} className="text-xs align-middle">
-              {profile.role}
+            <Badge variant={role === 'admin' ? 'default' : 'secondary'} className="text-xs align-middle">
+              {role}
             </Badge>{' '}
             role.
           </p>
         </div>
       </div>
 
-      {/* Two-column grid */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        {/* Recent activity card */}
-        <Card className="col-span-full sm:col-span-1 p-5">
+      {/* Manage quick-access grid */}
+      <section aria-labelledby="manage-heading">
+        <h2
+          id="manage-heading"
+          className="mb-3 text-xs font-semibold uppercase tracking-widest text-muted-foreground"
+        >
+          Manage
+        </h2>
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+          {manageSections.map((item) => (
+            <SectionTile key={item.href} item={item} />
+          ))}
+        </div>
+      </section>
+
+      {/* Recent activity card */}
+      <section aria-labelledby="activity-heading">
+        <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-foreground">
+            <h2
+              id="activity-heading"
+              className="text-sm font-semibold text-foreground"
+            >
               Recent activity
             </h2>
-            <a
+            <Link
               href="/admin/activity"
               className="text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
             >
               View all
-            </a>
+            </Link>
           </div>
           <RecentActivity />
         </Card>
-
-        {/* Phase 4 callout card */}
-        <Card className="col-span-full sm:col-span-1 p-5 flex flex-col gap-3">
-          <div className="flex items-center gap-2">
-            <Wrench className="size-4 text-muted-foreground" aria-hidden="true" />
-            <h2 className="text-sm font-semibold text-foreground">
-              Content management
-            </h2>
-          </div>
-          <p className="text-sm text-muted-foreground leading-relaxed">
-            Events, menu, hours, gallery, inquiries, careers, and more are all
-            managed from the sidebar. Full editing tools land in{' '}
-            <strong className="text-foreground">Phase 4</strong> — sections in
-            the nav marked &quot;Coming in Phase 4&quot; will activate as the
-            build advances.
-          </p>
-        </Card>
-      </div>
+      </section>
     </div>
   );
 }

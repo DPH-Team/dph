@@ -2,40 +2,8 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  LayoutDashboard,
-  Calendar,
-  UtensilsCrossed,
-  Clock,
-  FileText,
-  Image,
-  Inbox,
-  Briefcase,
-  Mail,
-  ScrollText,
-  Plug,
-  Users,
-  UserRound,
-  type LucideIcon,
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { IconKey, NavItem } from './nav';
-
-const ICONS: Record<IconKey, LucideIcon> = {
-  dashboard: LayoutDashboard,
-  calendar: Calendar,
-  utensils: UtensilsCrossed,
-  clock: Clock,
-  file: FileText,
-  image: Image,
-  inbox: Inbox,
-  briefcase: Briefcase,
-  mail: Mail,
-  scroll: ScrollText,
-  plug: Plug,
-  users: Users,
-  team: UserRound,
-};
+import { NAV_ICONS, type NavItem } from './nav';
 
 interface NavLinkProps {
   item: NavItem;
@@ -51,7 +19,7 @@ export function NavLink({ item, onClick }: NavLinkProps) {
       ? pathname === '/admin'
       : pathname === item.href || pathname.startsWith(item.href + '/');
 
-  const Icon = ICONS[item.icon];
+  const Icon = NAV_ICONS[item.icon];
 
   return (
     <Link

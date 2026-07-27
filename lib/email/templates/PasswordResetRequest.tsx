@@ -8,7 +8,6 @@ import {
   Hr,
   Html,
   Img,
-  Link,
   Preview,
   Section,
   Text,
@@ -18,11 +17,9 @@ import { BRAND_ADDRESS, BRAND_EMAIL, BRAND_PHONE } from '../branding';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface NewsletterConfirmProps {
-  /** ${siteUrl}/newsletter/confirm?token=${confirmToken} */
-  confirmUrl: string;
-  /** ${siteUrl}/newsletter/unsubscribe?token=${unsubscribeToken} */
-  unsubscribeUrl: string;
+export interface PasswordResetRequestProps {
+  /** Full reset URL including token — expires in 1 hour. */
+  resetUrl: string;
   /** Base URL of the public site (no trailing slash). */
   siteUrl: string;
 }
@@ -41,7 +38,7 @@ const sans = 'Inter, Helvetica, Arial, sans-serif';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function NewsletterConfirm({ confirmUrl, unsubscribeUrl, siteUrl }: NewsletterConfirmProps) {
+export function PasswordResetRequest({ resetUrl, siteUrl }: PasswordResetRequestProps) {
   return (
     <Html lang="en">
       <Head>
@@ -56,7 +53,7 @@ export function NewsletterConfirm({ confirmUrl, unsubscribeUrl, siteUrl }: Newsl
           fontStyle="normal"
         />
       </Head>
-      <Preview>One more tap to pull — confirm your subscription to District Pour Haus.</Preview>
+      <Preview>Reset your District Pour Haus password — link expires in 1 hour.</Preview>
       <Body style={bodyStyle}>
         <Container style={containerStyle}>
           {/* Copper top-accent bar */}
@@ -68,38 +65,36 @@ export function NewsletterConfirm({ confirmUrl, unsubscribeUrl, siteUrl }: Newsl
 
           {/* Body */}
           <Section style={{ padding: '36px 40px 8px' }}>
-            <Text style={eyebrowStyle}>Almost there</Text>
+            <Text style={eyebrowStyle}>Password reset</Text>
 
             <Heading as="h2" style={displayHeadingStyle}>
-              One more tap to pull.
+              Looks like you need a new pour.
             </Heading>
 
             <Text style={leadStyle}>
-              You signed up to hear from District Pour Haus — tap rotations, upcoming
-              events, and whatever else is happening at the Haus. We just need you to
-              confirm your email before we add you to the list.
+              We got a request to reset your District Pour Haus password.
             </Text>
 
             <Text style={bodyTextStyle}>
-              Hit the button below and you&apos;re in. It takes about two seconds.
+              Hit the button below and you&apos;ll be able to set a new one. This link expires in 1 hour.
             </Text>
           </Section>
 
           {/* CTA */}
           <Section style={{ padding: '8px 40px 32px' }}>
-            <Button href={confirmUrl} style={primaryButtonStyle}>
-              Confirm my subscription
+            <Button href={resetUrl} style={primaryButtonStyle}>
+              Reset password
             </Button>
           </Section>
 
-          {/* Ignore note */}
+          {/* Expiry + ignore note */}
           <Section style={{ padding: '0 40px 12px' }}>
             <Text style={ignoreTextStyle}>
-              If you didn&apos;t sign up, just ignore this — you won&apos;t hear from us again.
+              Didn&apos;t ask for this? You can safely ignore this email — your password won&apos;t change.
             </Text>
           </Section>
 
-          <BrandFooter unsubscribeUrl={unsubscribeUrl} />
+          <BrandFooter />
         </Container>
       </Body>
     </Html>
@@ -138,7 +133,7 @@ function BrandHeader({ tagline, siteUrl }: { tagline: string; siteUrl: string })
   );
 }
 
-function BrandFooter({ unsubscribeUrl }: { unsubscribeUrl: string }) {
+function BrandFooter() {
   return (
     <Section style={{ padding: '0 40px 36px' }}>
       <Hr style={hrStyle} />
@@ -146,11 +141,7 @@ function BrandFooter({ unsubscribeUrl }: { unsubscribeUrl: string }) {
       <Text style={footerTextStyle}>{BRAND_ADDRESS}</Text>
       <Text style={footerTextStyle}>{BRAND_PHONE} · {BRAND_EMAIL}</Text>
       <Text style={footerMutedStyle}>
-        You&apos;re receiving this because you signed up at districtpourhaus.com.{' '}
-        <Link href={unsubscribeUrl} style={unsubscribeLinkStyle}>
-          Unsubscribe
-        </Link>
-        .
+        You&apos;re receiving this because a password reset was requested for your account.
       </Text>
     </Section>
   );
@@ -283,9 +274,4 @@ const footerMutedStyle: React.CSSProperties = {
   margin: '0',
 };
 
-const unsubscribeLinkStyle: React.CSSProperties = {
-  color: copper,
-  textDecoration: 'underline',
-};
-
-export default NewsletterConfirm;
+export default PasswordResetRequest;

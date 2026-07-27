@@ -172,6 +172,14 @@
   }
 }
 
+/* ─── Utilities ─────────────────────────────────────────────────────────────── */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* ─── Base layer ────────────────────────────────────────────────────────────── */
 @layer base {
   * {

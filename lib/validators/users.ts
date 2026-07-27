@@ -80,3 +80,33 @@ export const listUsersFilterSchema = z.object({
 });
 
 export type ListUsersFilterInput = z.infer<typeof listUsersFilterSchema>;
+
+// ─── Forgot password schema ────────────────────────────────────────────────────
+
+export const requestPasswordResetSchema = z.object({
+  email: z
+    .string()
+    .email('Please enter a valid email address.')
+    .toLowerCase()
+    .trim()
+    .max(320, 'Email must be 320 characters or fewer.'),
+});
+
+export type RequestPasswordResetInput = z.infer<typeof requestPasswordResetSchema>;
+
+// ─── Reset password schema ────────────────────────────────────────────────────
+
+export const resetPasswordSchema = z
+  .object({
+    password: z
+      .string()
+      .min(10, 'New password must be at least 10 characters.')
+      .max(72, 'Password must be 72 characters or fewer.'),
+    confirmPassword: z.string(),
+  })
+  .refine((d) => d.password === d.confirmPassword, {
+    message: 'Passwords do not match.',
+    path: ['confirmPassword'],
+  });
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
