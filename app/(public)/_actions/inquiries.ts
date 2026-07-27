@@ -2,6 +2,7 @@
 
 import { z } from "zod"
 import { headers } from "next/headers"
+import { after } from "next/server"
 import { db } from "@/lib/db"
 import { inquiries } from "@/lib/db/schema"
 import { formTypeToDbType } from "@/lib/validators/inquiries"
@@ -106,9 +107,8 @@ export async function submitInquiry(
         fieldErrors.partySize = ["Party size must be between 1 and 150"]
       }
     }
-    if (!data.seatingPreference || data.seatingPreference.trim() === "") {
-      fieldErrors.seatingPreference = ["Please choose a seating preference"]
-    }
+    // Seating preference is optional — "No preference" (empty string) is a
+    // valid, submittable choice and must never produce a validation error.
   }
 
   // Validate seating preference value when provided (any type)
@@ -185,33 +185,39 @@ export async function submitInquiry(
   const staffRecipient = await resolveStaffRecipient()
 
   // ── Emails — fire-and-forget, failure cannot fail the submit ─────────────────
-  void sendEmail({
-    to: staffRecipient,
-    subject: `New ${dbType.replace("_", " ")} inquiry from ${data.name}`,
-    react: React.createElement(InquiryStaffNotification, {
-      name: data.name,
-      email: data.email,
-      phone: data.phone?.trim() || null,
-      type: dbType,
-      partySize: data.partySize ? Number(data.partySize) : null,
-      preferredDate: data.preferredDate?.trim() || null,
-      preferredTime: data.preferredTime?.trim() || null,
-      message: data.message,
-      adminUrl,
-    }),
-    replyTo: data.email,
-    template: "inquiry-staff-notification",
+  // Sent via after() so the send completes even though Vercel freezes the
+  // serverless function immediately after the response is returned.
+  after(async () => {
+    await sendEmail({
+      to: staffRecipient,
+      subject: `New ${dbType.replace("_", " ")} inquiry from ${data.name}`,
+      react: React.createElement(InquiryStaffNotification, {
+        name: data.name,
+        email: data.email,
+        phone: data.phone?.trim() || null,
+        type: dbType,
+        partySize: data.partySize ? Number(data.partySize) : null,
+        preferredDate: data.preferredDate?.trim() || null,
+        preferredTime: data.preferredTime?.trim() || null,
+        message: data.message,
+        adminUrl,
+      }),
+      replyTo: data.email,
+      template: "inquiry-staff-notification",
+    })
   })
 
-  void sendEmail({
-    to: data.email,
-    subject: "We received your inquiry — District Pour Haus",
-    react: React.createElement(InquiryCustomerReply, {
-      name: data.name,
-      type: dbType,
-      siteUrl,
-    }),
-    template: "inquiry-customer-reply",
+  after(async () => {
+    await sendEmail({
+      to: data.email,
+      subject: "We received your inquiry — District Pour Haus",
+      react: React.createElement(InquiryCustomerReply, {
+        name: data.name,
+        type: dbType,
+        siteUrl,
+      }),
+      template: "inquiry-customer-reply",
+    })
   })
 
   return {

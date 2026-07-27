@@ -1,6 +1,7 @@
 "use server"
 
 import { headers } from "next/headers"
+import { after } from "next/server"
 import { db } from "@/lib/db"
 import { careerApplications, careerPostings } from "@/lib/db/schema"
 import { eq } from "drizzle-orm"
@@ -159,29 +160,35 @@ export async function submitCareerApplication(
   }
 
   // ── Emails — fire-and-forget, failure cannot fail the submit ─────────────────
-  void sendEmail({
-    to: process.env.RESEND_REPLY_TO ?? process.env.RESEND_FROM_EMAIL ?? "info@districtpourhaus.com",
-    subject: `New application: ${positionTitle} — ${data.name}`,
-    react: React.createElement(CareerStaffNotification, {
-      applicantName: data.name,
-      applicantEmail: data.email,
-      applicantPhone: data.phone?.trim() || null,
-      positionTitle,
-      message: composedMessage,
-      resumeDownloadUrl,
-    }),
-    replyTo: data.email,
-    template: "career-staff-notification",
+  // Sent via after() so the send completes even though Vercel freezes the
+  // serverless function immediately after the response is returned.
+  after(async () => {
+    await sendEmail({
+      to: process.env.RESEND_REPLY_TO ?? process.env.RESEND_FROM_EMAIL ?? "info@districtpourhaus.com",
+      subject: `New application: ${positionTitle} — ${data.name}`,
+      react: React.createElement(CareerStaffNotification, {
+        applicantName: data.name,
+        applicantEmail: data.email,
+        applicantPhone: data.phone?.trim() || null,
+        positionTitle,
+        message: composedMessage,
+        resumeDownloadUrl,
+      }),
+      replyTo: data.email,
+      template: "career-staff-notification",
+    })
   })
 
-  void sendEmail({
-    to: data.email,
-    subject: `Application received — ${positionTitle} at District Pour Haus`,
-    react: React.createElement(CareerCustomerReply, {
-      applicantName: data.name,
-      positionTitle,
-    }),
-    template: "career-customer-reply",
+  after(async () => {
+    await sendEmail({
+      to: data.email,
+      subject: `Application received — ${positionTitle} at District Pour Haus`,
+      react: React.createElement(CareerCustomerReply, {
+        applicantName: data.name,
+        positionTitle,
+      }),
+      template: "career-customer-reply",
+    })
   })
 
   return {

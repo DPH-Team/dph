@@ -477,12 +477,12 @@ function RowActions({ user, currentUserId }: RowActionsProps) {
             <>
               <DropdownMenuSeparator />
               {user.role === 'staff' ? (
-                <DropdownMenuItem onSelect={() => setRoleDialog('admin')}>
+                <DropdownMenuItem onClick={() => setRoleDialog('admin')}>
                   <ShieldCheck className="size-4" aria-hidden="true" />
                   Set as admin
                 </DropdownMenuItem>
               ) : (
-                <DropdownMenuItem onSelect={() => setRoleDialog('staff')}>
+                <DropdownMenuItem onClick={() => setRoleDialog('staff')}>
                   <UserRound className="size-4" aria-hidden="true" />
                   Set as staff
                 </DropdownMenuItem>
@@ -494,7 +494,7 @@ function RowActions({ user, currentUserId }: RowActionsProps) {
           {!isSelf && (
             <>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => setResetPasswordOpen(true)}>
+              <DropdownMenuItem onClick={() => setResetPasswordOpen(true)}>
                 <KeyRound className="size-4" aria-hidden="true" />
                 Reset password
               </DropdownMenuItem>
@@ -508,20 +508,20 @@ function RowActions({ user, currentUserId }: RowActionsProps) {
               {user.status === 'active' ? (
                 <DropdownMenuItem
                   variant="destructive"
-                  onSelect={() => setStatusDialog('disable')}
+                  onClick={() => setStatusDialog('disable')}
                 >
                   <Ban className="size-4" aria-hidden="true" />
                   Disable access
                 </DropdownMenuItem>
               ) : (
-                <DropdownMenuItem onSelect={() => setStatusDialog('enable')}>
+                <DropdownMenuItem onClick={() => setStatusDialog('enable')}>
                   <CircleCheck className="size-4" aria-hidden="true" />
                   Re-enable access
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem
                 variant="destructive"
-                onSelect={() => setDeleteOpen(true)}
+                onClick={() => setDeleteOpen(true)}
               >
                 <Trash2 className="size-4" aria-hidden="true" />
                 Delete account
