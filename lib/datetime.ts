@@ -307,6 +307,19 @@ export function venueDateToDow(
 }
 
 /**
+ * Format a 24-hour 'HH:mm' time string (e.g. an inquiry's preferredTime) as a
+ * 12-hour clock time with meridiem.
+ *
+ * Example: formatPreferredTime('17:30') → '5:30 PM'
+ */
+export function formatPreferredTime(time: string): string {
+  const [h, m] = time.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2, '0')} ${ampm}`;
+}
+
+/**
  * Convert a UTC Date to the 'YYYY-MM-DDTHH:mm' string expected by
  * <input type="datetime-local">, expressed in America/Chicago.
  */

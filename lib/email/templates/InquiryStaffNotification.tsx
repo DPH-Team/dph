@@ -15,6 +15,8 @@ import {
   Text,
 } from 'react-email';
 import * as React from 'react';
+import { BRAND_ADDRESS, BRAND_EMAIL, BRAND_PHONE } from '../branding';
+import { formatPreferredTime } from '@/lib/datetime';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -74,7 +76,7 @@ export function InquiryStaffNotification({
     { label: 'Type', value: typeLabel },
     ...(partySize != null ? [{ label: 'Party Size', value: String(partySize) }] : []),
     ...(preferredDate ? [{ label: 'Preferred Date', value: preferredDate }] : []),
-    ...(preferredTime ? [{ label: 'Preferred Time', value: preferredTime }] : []),
+    ...(preferredTime ? [{ label: 'Preferred Time', value: formatPreferredTime(preferredTime) }] : []),
   ];
 
   return (
@@ -213,7 +215,8 @@ function BrandFooter() {
     <Section style={{ padding: '0 40px 36px' }}>
       <Hr style={hrStyle} />
       <Text style={footerBrandStyle}>District Pour Haus</Text>
-      <Text style={footerTextStyle}>2331 University Blvd W, Wheaton, MD 20902</Text>
+      <Text style={footerTextStyle}>{BRAND_ADDRESS}</Text>
+      <Text style={footerTextStyle}>{BRAND_PHONE} · {BRAND_EMAIL}</Text>
       <Text style={footerMutedStyle}>Our Haus is Your Haus</Text>
     </Section>
   );
