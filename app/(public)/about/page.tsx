@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
 import Link from "next/link"
-import { CreditCard, Beer, Receipt } from "lucide-react"
 import { pageMetadata } from "@/lib/seo"
 import { getPublicContentBlock, getPublicTeam } from "@/lib/db/public"
+import { resolveContentIcon } from "@/lib/content-icons-resolve"
 import { getLocation } from "@/app/__fixtures__/location"
 import { PageHero } from "@/components/marketing/PageHero"
 import { TeamCard } from "@/components/marketing/TeamCard"
@@ -19,12 +19,6 @@ export const metadata: Metadata = pageMetadata({
   description: "How District Pour Haus came to be — Wisconsin roots, RFID self-pour, craft beer first.",
   path: "/about",
 })
-
-const STEP_ICONS = {
-  "credit-card": CreditCard,
-  beer: Beer,
-  receipt: Receipt,
-} as const
 
 export default async function AboutPage() {
   const [aboutBlock, members, loc] = await Promise.all([
@@ -66,8 +60,7 @@ export default async function AboutPage() {
 
           <Stagger className="grid sm:grid-cols-3 gap-8 lg:gap-12">
             {about.rfidSteps.map((step, index) => {
-              const IconComponent =
-                STEP_ICONS[step.icon as keyof typeof STEP_ICONS] ?? CreditCard
+              const IconComponent = resolveContentIcon(step.icon, "credit-card")
               return (
                 <StaggerItem key={step.label} className="flex flex-col gap-4">
                   <div className="flex items-start gap-4">

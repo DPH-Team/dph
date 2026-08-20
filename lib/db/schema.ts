@@ -316,7 +316,7 @@ export type NewWeeklyHourRow = InferInsertModel<typeof weeklyHours>;
 // updated_by references auth.users(id) on delete set null (hand-written FK in
 // the RLS migration — Drizzle cannot cross-reference the auth schema).
 
-export const BLOCK_KEYS = ['home_hero', 'home_callouts', 'about_body'] as const;
+export const BLOCK_KEYS = ['home_hero', 'home_callouts', 'about_body', 'careers_body'] as const;
 
 export const contentBlocks = pgTable(
   'content_blocks',
@@ -331,7 +331,7 @@ export const contentBlocks = pgTable(
   (t) => [
     check(
       'content_blocks_key_check',
-      sql`${t.key} IN ('home_hero', 'home_callouts', 'about_body')`,
+      sql`${t.key} IN ('home_hero', 'home_callouts', 'about_body', 'careers_body')`,
     ),
   ],
 );

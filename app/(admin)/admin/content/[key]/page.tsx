@@ -10,6 +10,7 @@ import { updateContentBlockAction } from '@/app/(admin)/admin/content/actions';
 import { HomeHeroForm } from '@/components/admin/content/HomeHeroForm';
 import { HomeCalloutsForm } from '@/components/admin/content/HomeCalloutsForm';
 import { AboutBodyForm } from '@/components/admin/content/AboutBodyForm';
+import { CareersBodyForm } from '@/components/admin/content/CareersBodyForm';
 
 // ─── Human labels + descriptions per key ──────────────────────────────────────
 
@@ -29,6 +30,11 @@ const BLOCK_META: Record<ContentBlockKey, { label: string; description: string }
       label: 'About body',
       description:
         'The story section on the About page — headline, lead, narrative paragraphs, RFID how-it-works steps, and brand values.',
+    },
+    careers_body: {
+      label: 'Careers body',
+      description:
+        'The Careers page hero copy and the "What we offer" cards — eyebrow, headline, lead, section heading, and why-work-here cards.',
     },
   };
 
@@ -66,10 +72,15 @@ export default async function ContentBlockEditPage({ params }: PageProps) {
     formEl = (
       <HomeCalloutsForm initialValue={block.value} action={boundAction} />
     );
-  } else {
-    // about_body
+  } else if (typedKey === 'about_body') {
     const block = await getContentBlock('about_body');
     formEl = <AboutBodyForm initialValue={block.value} action={boundAction} />;
+  } else {
+    // careers_body
+    const block = await getContentBlock('careers_body');
+    formEl = (
+      <CareersBodyForm initialValue={block.value} action={boundAction} />
+    );
   }
 
   return (

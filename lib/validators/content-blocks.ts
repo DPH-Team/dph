@@ -6,6 +6,7 @@ export const CONTENT_BLOCK_KEYS = [
   'home_hero',
   'home_callouts',
   'about_body',
+  'careers_body',
 ] as const;
 
 export type ContentBlockKey = (typeof CONTENT_BLOCK_KEYS)[number];
@@ -127,6 +128,47 @@ export const AboutBodySchema = z.object({
 
 export type AboutBodyValue = z.infer<typeof AboutBodySchema>;
 
+// ─── CareersBodySchema ────────────────────────────────────────────────────────
+
+export const CareersBodySchema = z.object({
+  eyebrow: z.string().max(80, 'eyebrow must be 80 characters or fewer').trim(),
+  headline: z
+    .string()
+    .min(1, 'headline is required')
+    .max(120, 'headline must be 120 characters or fewer')
+    .trim(),
+  lead: z
+    .string()
+    .min(1, 'lead is required')
+    .max(400, 'lead must be 400 characters or fewer')
+    .trim(),
+  whyEyebrow: z.string().max(80, 'whyEyebrow must be 80 characters or fewer').trim(),
+  whyHeading: z
+    .string()
+    .min(1, 'whyHeading is required')
+    .max(120, 'whyHeading must be 120 characters or fewer')
+    .trim(),
+  whyUs: z
+    .array(
+      z.object({
+        icon: z.string().max(40).trim(),
+        title: z
+          .string()
+          .min(1)
+          .max(80, 'card title must be 80 characters or fewer')
+          .trim(),
+        description: z
+          .string()
+          .max(300, 'card description must be 300 characters or fewer')
+          .trim(),
+      }),
+    )
+    .min(1)
+    .max(6),
+});
+
+export type CareersBodyValue = z.infer<typeof CareersBodySchema>;
+
 // ─── HomeCalloutsSchema ───────────────────────────────────────────────────────
 
 export const HomeCalloutItemSchema = z.object({
@@ -167,4 +209,5 @@ export const CONTENT_BLOCK_SCHEMAS: Record<ContentBlockKey, z.ZodType<any>> = {
   home_hero: HomeHeroSchema,
   home_callouts: HomeCalloutsSchema,
   about_body: AboutBodySchema,
+  careers_body: CareersBodySchema,
 };

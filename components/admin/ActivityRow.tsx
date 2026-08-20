@@ -44,15 +44,23 @@ function formatRelative(date: Date): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
+// Two separate formatters joined by a literal "at" — combining date + time
+// parts in a single toLocaleString/Intl.DateTimeFormat call renders
+// inconsistently across ICU versions ("Jun 10, 2026 at 11:09 AM" vs
+// "Jun 10, 2026, 11:09 AM"), which causes a React hydration mismatch between
+// server and browser. Keeping the two formatters separate is deterministic.
 function formatAbsolute(date: Date): string {
-  return date.toLocaleString('en-US', {
+  const datePart = date.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+  });
+  const timePart = date.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
   });
+  return `${datePart} at ${timePart}`;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────

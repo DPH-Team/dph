@@ -24,6 +24,24 @@ function relativeTime(date: Date): string {
   });
 }
 
+// Two separate formatters joined by a literal "at" — combining date + time
+// parts in a single toLocaleString/Intl.DateTimeFormat call renders
+// inconsistently across ICU versions ("Jun 10, 2026 at 11:09 AM" vs
+// "Jun 10, 2026, 11:09 AM"), which causes a React hydration mismatch.
+// Keeping the two formatters separate is deterministic.
+function formatAbsolute(date: Date): string {
+  const datePart = date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const timePart = date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  return `${datePart} at ${timePart}`;
+}
+
 // ─── Badges ───────────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
@@ -63,13 +81,7 @@ const columns: Column<ApplicationRow>[] = [
       const date = new Date(row.createdAt);
       return (
         <span
-          title={date.toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-          })}
+          title={formatAbsolute(date)}
           className="tabular-nums"
         >
           {relativeTime(date)}
