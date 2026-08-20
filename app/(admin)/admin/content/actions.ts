@@ -79,6 +79,8 @@ export async function updateContentBlockAction(
     revalidatePath('/');
   } else if (key === 'about_body') {
     revalidatePath('/about');
+  } else if (key === 'careers_body') {
+    revalidatePath('/careers');
   }
 
   revalidatePath('/admin/content');

@@ -15,6 +15,7 @@ import { cn } from '@/lib/utils';
 import { AboutBodySchema } from '@/lib/validators/content-blocks';
 import type { AboutBodyValue } from '@/lib/validators/content-blocks';
 import type { ActionState } from '@/lib/types/action-state';
+import { IconPickerField } from '@/components/admin/content/IconPickerField';
 
 // ─── Form shape ───────────────────────────────────────────────────────────────
 // useFieldArray requires arrays of objects. We wrap paragraphs (string[]) as
@@ -267,16 +268,12 @@ function RfidStepsRepeater() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field
                   label="Icon"
-                  htmlFor={`${cardId}-icon`}
-                  description='Lucide icon name, e.g. "credit-card".'
+                  description="Choose the icon shown for this step."
                   error={e?.icon?.message}
                 >
-                  <Input
-                    id={`${cardId}-icon`}
-                    {...register(`rfidSteps.${idx}.icon`)}
-                    aria-invalid={Boolean(e?.icon)}
-                    placeholder="credit-card"
-                    maxLength={40}
+                  <IconPickerField
+                    name={`rfidSteps.${idx}.icon`}
+                    label={`Icon for step ${idx + 1}`}
                   />
                 </Field>
 

@@ -56,6 +56,7 @@ import { getPublicUrl } from '@/lib/supabase/storage';
 import { hero } from '@/lib/fixtures/hero';
 import { homeCallouts } from '@/lib/fixtures/home-callouts';
 import { aboutContent } from '@/lib/fixtures/about';
+import { careersContent } from '@/lib/fixtures/careers';
 import {
   getUpcomingEvents,
   getPastEvents,
@@ -70,6 +71,7 @@ import type {
   HomeHeroValue,
   HomeCalloutsValue,
   AboutBodyValue,
+  CareersBodyValue,
 } from '@/lib/validators/content-blocks';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -389,6 +391,7 @@ const CONTENT_BLOCK_FALLBACKS: {
   home_hero: HomeHeroValue;
   home_callouts: HomeCalloutsValue;
   about_body: AboutBodyValue;
+  careers_body: CareersBodyValue;
 } = {
   home_hero: hero,
   home_callouts: homeCallouts,
@@ -399,6 +402,7 @@ const CONTENT_BLOCK_FALLBACKS: {
     rfidSteps: aboutContent.rfidSteps,
     values: aboutContent.values,
   },
+  careers_body: careersContent,
 };
 
 /**
@@ -408,6 +412,7 @@ type ContentBlockValueMap = {
   home_hero: HomeHeroValue;
   home_callouts: HomeCalloutsValue;
   about_body: AboutBodyValue;
+  careers_body: CareersBodyValue;
 };
 
 /**
@@ -418,7 +423,8 @@ type ContentBlockValueMap = {
  *   const hero = await getHero();
  *
  * Each key gets its own cache entry and tag so revalidation is surgical.
- * Supported tags: 'content:home_hero', 'content:home_callouts', 'content:about_body'
+ * Supported tags: 'content:home_hero', 'content:home_callouts', 'content:about_body',
+ * 'content:careers_body'
  *
  * On DB error, returns the matching fixture value WITHOUT caching it.
  */

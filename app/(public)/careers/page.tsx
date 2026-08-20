@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
-import { DollarSign, TrendingUp, Heart } from "lucide-react"
 import { pageMetadata } from "@/lib/seo"
-import { getPublicCareerPostings } from "@/lib/db/public"
+import { getPublicCareerPostings, getPublicContentBlock } from "@/lib/db/public"
+import { resolveContentIcon } from "@/lib/content-icons-resolve"
 import { PageHero } from "@/components/marketing/PageHero"
 import { Section } from "@/components/marketing/layout/Section"
 import { Container } from "@/components/marketing/layout/Container"
@@ -15,54 +15,39 @@ export const metadata: Metadata = pageMetadata({
   path: "/careers",
 })
 
-const WHY_US = [
-  {
-    icon: DollarSign,
-    title: "Competitive pay",
-    description:
-      "We pay above market for every role — front of house, kitchen, and operations. We review comp annually and give increases based on performance, not tenure alone.",
-  },
-  {
-    icon: TrendingUp,
-    title: "Real tips",
-    description:
-      "Self-pour means higher check averages and happy guests who've chosen exactly what they want. That translates into better tips for the team on the floor.",
-  },
-  {
-    icon: Heart,
-    title: "The vibe is the job",
-    description:
-      "We're a community taproom. Game days, live music, trivia nights — it's a great place to work because it's a great place to be. No drama, no ego, just good beer and good people.",
-  },
-] as const
-
 export default async function CareersPage() {
-  const positions = await getPublicCareerPostings()
+  const [careers, positions] = await Promise.all([
+    getPublicContentBlock('careers_body')(),
+    getPublicCareerPostings(),
+  ])
 
   return (
     <>
       <PageHero
-        eyebrow="Hiring"
-        title="Work With Us"
-        lead="We're hiring people who give a damn. If you care about craft, community, and showing up for your team, this is your place."
+        eyebrow={careers.eyebrow}
+        title={careers.headline}
+        lead={careers.lead}
       />
 
       {/* Why us strip */}
       <Section padding="md" bg="card">
         <Container>
-          <SectionHeading eyebrow="Why DPH">What we offer</SectionHeading>
+          <SectionHeading eyebrow={careers.whyEyebrow}>{careers.whyHeading}</SectionHeading>
           <div className="mt-6 grid sm:grid-cols-3 gap-6">
-            {WHY_US.map(({ icon: Icon, title, description }) => (
-              <ScrollReveal key={title}>
-                <div className="flex flex-col gap-3 p-5 rounded-xl bg-background border border-border">
-                  <div className="flex items-center gap-2">
-                    <Icon size={20} className="text-primary shrink-0" aria-hidden="true" />
-                    <h3 className="font-display font-medium text-base text-foreground">{title}</h3>
+            {careers.whyUs.map(({ icon, title, description }) => {
+              const Icon = resolveContentIcon(icon, "dollar-sign")
+              return (
+                <ScrollReveal key={title}>
+                  <div className="flex flex-col gap-3 p-5 rounded-xl bg-background border border-border">
+                    <div className="flex items-center gap-2">
+                      <Icon size={20} className="text-primary shrink-0" aria-hidden="true" />
+                      <h3 className="font-display font-medium text-base text-foreground">{title}</h3>
+                    </div>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
                   </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
-                </div>
-              </ScrollReveal>
-            ))}
+                </ScrollReveal>
+              )
+            })}
           </div>
         </Container>
       </Section>
