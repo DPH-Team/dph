@@ -26,9 +26,15 @@ export type SiteHeaderProps = {
   hours: WeeklyHours
   overrides: HoursOverride[]
   location: Pick<Location, "address" | "city" | "state" | "phone">
+  /**
+   * When true, the header defers desktop sticky positioning to an ancestor
+   * wrapper (used when a pinned announcement banner sticks together with
+   * the header as one unit). Mobile keeps its own sticky behavior.
+   */
+  pinnedDesktop?: boolean
 }
 
-export function SiteHeader({ hours, overrides, location }: SiteHeaderProps) {
+export function SiteHeader({ hours, overrides, location, pinnedDesktop = false }: SiteHeaderProps) {
   const [scrolled, setScrolled] = useState(false)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const pathname = usePathname()
@@ -43,7 +49,8 @@ export function SiteHeader({ hours, overrides, location }: SiteHeaderProps) {
     <>
       <header
         className={cn(
-          "fixed top-0 inset-x-0 z-50 flex items-center",
+          "sticky top-0 z-50 w-full flex items-center",
+          pinnedDesktop && "lg:static",
           "h-[72px] lg:h-[80px]",
           reduced
             ? scrolled
@@ -140,8 +147,6 @@ export function SiteHeader({ hours, overrides, location }: SiteHeaderProps) {
           location={location}
         />
       </div>
-
-      <div className="h-[72px] lg:h-[80px]" aria-hidden="true" />
     </>
   )
 }

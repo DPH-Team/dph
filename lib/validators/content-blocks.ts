@@ -7,6 +7,7 @@ export const CONTENT_BLOCK_KEYS = [
   'home_callouts',
   'about_body',
   'careers_body',
+  'site_banner',
 ] as const;
 
 export type ContentBlockKey = (typeof CONTENT_BLOCK_KEYS)[number];
@@ -202,6 +203,48 @@ export const HomeCalloutsSchema = z
 
 export type HomeCalloutsValue = z.infer<typeof HomeCalloutsSchema>;
 
+// ─── SiteBannerSchema ─────────────────────────────────────────────────────────
+//
+// Site-wide notification banner rendered in the public layout on every page.
+// title is required only when enabled — a disabled banner may be blank while
+// an admin drafts copy ahead of time. The button renders only when both
+// buttonLabel and buttonHref are present (enforced by the renderer, not here).
+
+export const SiteBannerSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    title: z
+      .string()
+      .max(120, 'title must be 120 characters or fewer')
+      .trim()
+      .default(''),
+    subtext: z
+      .string()
+      .max(300, 'subtext must be 300 characters or fewer')
+      .trim()
+      .default(''),
+    buttonLabel: z
+      .string()
+      .max(40, 'button label must be 40 characters or fewer')
+      .trim()
+      .default(''),
+    buttonHref: hrefSchema.default(''),
+    // Pins the banner + header on desktop viewports; mobile always scrolls
+    // away regardless of this flag.
+    pinned: z.boolean().default(false),
+  })
+  .superRefine((value, ctx) => {
+    if (value.enabled && value.title.length < 1) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'title is required when the banner is enabled',
+        path: ['title'],
+      });
+    }
+  });
+
+export type SiteBannerValue = z.infer<typeof SiteBannerSchema>;
+
 // ─── Schema map ───────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -210,4 +253,5 @@ export const CONTENT_BLOCK_SCHEMAS: Record<ContentBlockKey, z.ZodType<any>> = {
   home_callouts: HomeCalloutsSchema,
   about_body: AboutBodySchema,
   careers_body: CareersBodySchema,
+  site_banner: SiteBannerSchema,
 };

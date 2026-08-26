@@ -22,6 +22,7 @@ const BLOCK_LABELS: Record<string, string> = {
   home_callouts: 'Home callouts',
   about_body: 'About body',
   careers_body: 'Careers body',
+  site_banner: 'Site banner',
 };
 
 function blockLabel(key: string): string {

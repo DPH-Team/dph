@@ -14,11 +14,13 @@ import type {
   AboutBodyValue,
   HomeCalloutsValue,
   CareersBodyValue,
+  SiteBannerValue,
 } from '@/lib/validators/content-blocks';
 import { hero } from '@/lib/fixtures/hero';
 import { homeCallouts } from '@/lib/fixtures/home-callouts';
 import { aboutContent } from '@/lib/fixtures/about';
 import { careersContent } from '@/lib/fixtures/careers';
+import { siteBannerContent } from '@/lib/fixtures/site-banner';
 import { auditUpdate } from '@/lib/audit';
 
 // ─── Fixture fallbacks keyed by block key ─────────────────────────────────────
@@ -29,6 +31,7 @@ const FIXTURE_FALLBACKS: {
   home_callouts: HomeCalloutsValue;
   about_body: AboutBodyValue;
   careers_body: CareersBodyValue;
+  site_banner: SiteBannerValue;
 } = {
   home_hero: hero,
   home_callouts: homeCallouts,
@@ -40,6 +43,7 @@ const FIXTURE_FALLBACKS: {
     values: aboutContent.values,
   },
   careers_body: careersContent,
+  site_banner: siteBannerContent,
 };
 
 // ─── Value type map (narrows return type per key) ─────────────────────────────
@@ -49,6 +53,7 @@ type ContentBlockValueMap = {
   home_callouts: HomeCalloutsValue;
   about_body: AboutBodyValue;
   careers_body: CareersBodyValue;
+  site_banner: SiteBannerValue;
 };
 
 // ─── Return type: row metadata + narrowed value ───────────────────────────────
@@ -73,7 +78,7 @@ export async function listContentBlocks(): Promise<ContentBlock[]> {
     .from(contentBlocks)
     .orderBy(
       sql`array_position(
-        array['home_hero','home_callouts','about_body','careers_body']::text[],
+        array['home_hero','home_callouts','about_body','careers_body','site_banner']::text[],
         ${contentBlocks.key}
       )`,
     );

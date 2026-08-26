@@ -81,6 +81,9 @@ export async function updateContentBlockAction(
     revalidatePath('/about');
   } else if (key === 'careers_body') {
     revalidatePath('/careers');
+  } else if (key === 'site_banner') {
+    // The banner renders in the public layout on every page.
+    revalidatePath('/', 'layout');
   }
 
   revalidatePath('/admin/content');
