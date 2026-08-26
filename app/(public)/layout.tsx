@@ -1,6 +1,7 @@
 import { SiteHeader } from "@/components/marketing/SiteHeader"
 import { SiteFooter } from "@/components/marketing/SiteFooter"
-import { getPublicWeeklyHours, getPublicHoursOverrides } from "@/lib/db/public"
+import { AnnouncementBanner } from "@/components/marketing/AnnouncementBanner"
+import { getPublicWeeklyHours, getPublicHoursOverrides, getPublicContentBlock } from "@/lib/db/public"
 import { getLocation } from "@/app/__fixtures__/location"
 import { JsonLd } from "@/components/seo/JsonLd"
 import { PlausibleScript } from "@/components/seo/PlausibleScript"
@@ -11,10 +12,11 @@ export default async function PublicLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [hours, overrides, location] = await Promise.all([
+  const [hours, overrides, location, banner] = await Promise.all([
     getPublicWeeklyHours(),
     getPublicHoursOverrides(),
     getLocation(),
+    getPublicContentBlock('site_banner')(),
   ])
 
   return (
@@ -30,7 +32,36 @@ export default async function PublicLayout({
           integration is enabled with a domain set in the admin panel. Never
           loaded on admin or login routes (those use a separate route group). */}
       <PlausibleScript />
-      <SiteHeader hours={hours} overrides={overrides} location={location} />
+      {banner.enabled && banner.title ? (
+        banner.pinned ? (
+          <div className="lg:sticky lg:top-0 lg:z-50">
+            <AnnouncementBanner
+              title={banner.title}
+              subtext={banner.subtext}
+              buttonLabel={banner.buttonLabel}
+              buttonHref={banner.buttonHref}
+            />
+            <SiteHeader
+              hours={hours}
+              overrides={overrides}
+              location={location}
+              pinnedDesktop
+            />
+          </div>
+        ) : (
+          <>
+            <AnnouncementBanner
+              title={banner.title}
+              subtext={banner.subtext}
+              buttonLabel={banner.buttonLabel}
+              buttonHref={banner.buttonHref}
+            />
+            <SiteHeader hours={hours} overrides={overrides} location={location} />
+          </>
+        )
+      ) : (
+        <SiteHeader hours={hours} overrides={overrides} location={location} />
+      )}
       <main id="main-content" tabIndex={-1} className="flex flex-col min-h-svh outline-none">
         {children}
       </main>

@@ -11,6 +11,7 @@ import { HomeHeroForm } from '@/components/admin/content/HomeHeroForm';
 import { HomeCalloutsForm } from '@/components/admin/content/HomeCalloutsForm';
 import { AboutBodyForm } from '@/components/admin/content/AboutBodyForm';
 import { CareersBodyForm } from '@/components/admin/content/CareersBodyForm';
+import { SiteBannerForm } from '@/components/admin/content/SiteBannerForm';
 
 // ─── Human labels + descriptions per key ──────────────────────────────────────
 
@@ -35,6 +36,11 @@ const BLOCK_META: Record<ContentBlockKey, { label: string; description: string }
       label: 'Careers body',
       description:
         'The Careers page hero copy and the "What we offer" cards — eyebrow, headline, lead, section heading, and why-work-here cards.',
+    },
+    site_banner: {
+      label: 'Site banner',
+      description:
+        'The site-wide notification banner shown on every public page — enable/disable, title, subtext, and an optional button.',
     },
   };
 
@@ -75,12 +81,14 @@ export default async function ContentBlockEditPage({ params }: PageProps) {
   } else if (typedKey === 'about_body') {
     const block = await getContentBlock('about_body');
     formEl = <AboutBodyForm initialValue={block.value} action={boundAction} />;
-  } else {
-    // careers_body
+  } else if (typedKey === 'careers_body') {
     const block = await getContentBlock('careers_body');
     formEl = (
       <CareersBodyForm initialValue={block.value} action={boundAction} />
     );
+  } else {
+    const block = await getContentBlock('site_banner');
+    formEl = <SiteBannerForm initialValue={block.value} action={boundAction} />;
   }
 
   return (
