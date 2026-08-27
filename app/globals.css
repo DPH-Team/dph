@@ -220,4 +220,63 @@
     animation: rock-once 0.8s ease-in-out 1;
     transform-origin: center bottom;
   }
+
+  /* Announcement bar — one-shot entrance settle */
+  @keyframes banner-drop {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .animate-banner-drop {
+    animation: banner-drop 0.48s var(--ease-out-warm) both;
+  }
+
+  /* Announcement bar — ripple bands travelling outward from center, every 4s */
+  @keyframes banner-ripple-right {
+    0%   { transform: translateX(-50%); opacity: 0; }
+    5%   { opacity: 0.9; }
+    30%  { opacity: 0.9; }
+    42%  { transform: translateX(220%); opacity: 0; }
+    100% { transform: translateX(220%); opacity: 0; }
+  }
+  @keyframes banner-ripple-left {
+    0%   { transform: translateX(50%); opacity: 0; }
+    5%   { opacity: 0.9; }
+    30%  { opacity: 0.9; }
+    42%  { transform: translateX(-220%); opacity: 0; }
+    100% { transform: translateX(-220%); opacity: 0; }
+  }
+  .animate-banner-ripple-right {
+    animation: banner-ripple-right 4s ease-out infinite;
+    will-change: transform, opacity;
+  }
+  .animate-banner-ripple-left {
+    animation: banner-ripple-left 4s ease-out infinite;
+    will-change: transform, opacity;
+  }
+
+  /* Announcement bar — diamond hard pulse */
+  @keyframes diamond-pulse {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.3); }
+  }
+  .animate-diamond-pulse {
+    animation: diamond-pulse 1.4s ease-in-out infinite;
+  }
+
+  /* Announcement bar — CTA breathing halo */
+  @keyframes cta-halo {
+    0%   { box-shadow: 0 0 0 0    rgba(13, 13, 14, 0.60); }
+    65%  { box-shadow: 0 0 0 13px rgba(13, 13, 14, 0); }
+    100% { box-shadow: 0 0 0 0    rgba(13, 13, 14, 0); }
+  }
+  .animate-cta-halo {
+    animation: cta-halo 1.9s ease-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-banner-ripple-right,
+    .animate-banner-ripple-left { display: none; }
+    .animate-diamond-pulse  { animation: none; }
+    .animate-cta-halo       { display: none; }
+  }
 }
